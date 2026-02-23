@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
+import { getApiBase } from '../lib/api-base';
 
 interface TeamMembership {
   teamId: string;
@@ -41,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/me`);
+      const response = await fetch(`${getApiBase()}/me`);
       if (!response.ok) {
         if (response.status === 401) {
           setUser(null);

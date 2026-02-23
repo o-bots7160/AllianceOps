@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '../../components/use-auth';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
+import { getApiBase } from '../../lib/api-base';
 
 type TeamDetail = {
   id: string;
@@ -38,7 +37,7 @@ export default function TeamPage() {
   async function handleCreateTeam() {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/teams`, {
+      const res = await fetch(`${getApiBase()}/teams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamNumber: parseInt(createNumber, 10), name: createName }),
@@ -61,7 +60,7 @@ export default function TeamPage() {
   async function handleJoinViaCode() {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/teams/join/${joinCode}`, { method: 'POST' });
+      const res = await fetch(`${getApiBase()}/teams/join/${joinCode}`, { method: 'POST' });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || `Error ${res.status}`);
@@ -79,11 +78,11 @@ export default function TeamPage() {
   async function handleJoinRequest() {
     setError(null);
     try {
-      const lookupRes = await fetch(`${API_BASE}/teams/lookup/${requestTeamNumber}`);
+      const lookupRes = await fetch(`${getApiBase()}/teams/lookup/${requestTeamNumber}`);
       if (!lookupRes.ok) throw new Error('Team not found');
       const { data: team } = await lookupRes.json();
 
-      const res = await fetch(`${API_BASE}/teams/${team.id}/join-request`, { method: 'POST' });
+      const res = await fetch(`${getApiBase()}/teams/${team.id}/join-request`, { method: 'POST' });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || `Error ${res.status}`);
@@ -102,8 +101,8 @@ export default function TeamPage() {
     setError(null);
     try {
       const [teamRes, reqRes] = await Promise.all([
-        fetch(`${API_BASE}/teams/${teamId}`),
-        fetch(`${API_BASE}/teams/${teamId}/join-requests`),
+        fetch(`${getApiBase()}/teams/${teamId}`),
+        fetch(`${getApiBase()}/teams/${teamId}/join-requests`),
       ]);
       if (teamRes.ok) {
         const { data } = await teamRes.json();
@@ -127,7 +126,7 @@ export default function TeamPage() {
     if (!activeTeam) return;
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/teams/${activeTeam.teamId}/invite`, {
+      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -148,7 +147,7 @@ export default function TeamPage() {
     if (!activeTeam) return;
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/teams/${activeTeam.teamId}/join-requests/${requestId}`, {
+      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/join-requests/${requestId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),

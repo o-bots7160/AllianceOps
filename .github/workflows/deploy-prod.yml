@@ -71,7 +71,7 @@ jobs:
           cache: pnpm
 
       - name: Install API dependencies
-        run: pnpm install --frozen-lockfile --filter @allianceops/api --prod
+        run: pnpm install --frozen-lockfile --filter @allianceops/api
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -117,6 +117,9 @@ jobs:
             --query value -o tsv)
           cd apps/api
           npx prisma migrate deploy
+
+      - name: Prune Dev Dependencies
+        run: cd apps/api && pnpm prune --prod
 
       - name: Deploy Function App
         uses: azure/CLI@v2

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
+import { getApiBase } from '../lib/api-base';
 
 interface ApiResponse<T> {
   data: T;
@@ -24,7 +23,7 @@ export function useApi<T>(path: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/${path}`);
+      const response = await fetch(`${getApiBase()}/${path}`);
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const result: ApiResponse<T> = await response.json();
       setData(result.data);

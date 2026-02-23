@@ -5,6 +5,7 @@ import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { getApiBase } from '../../lib/api-base';
 import {
   getAdapter,
   type DutySlotDefinition,
@@ -315,7 +316,7 @@ export default function PlannerPage() {
       }));
 
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
+      const API_BASE = getApiBase();
       await fetch(
         `${API_BASE}/event/${eventKey}/match/${currentMatch.key}/plan`,
         {
