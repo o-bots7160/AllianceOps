@@ -8,21 +8,22 @@ AllianceOps is designed to minimize Azure costs using free/consumption tiers whe
 
 ### Dev Environment
 
-| Resource | SKU | Estimated Monthly Cost |
-|----------|-----|----------------------|
-| Azure Static Web Apps | Free | $0 |
-| Azure Functions | Consumption (Y1) | ~$0 (1M free executions/month) |
-| Azure Database for PostgreSQL | Burstable B1ms | ~$13/month |
-| Azure Key Vault | Standard | ~$0.03/10K operations |
-| Application Insights | Pay-as-you-go | ~$0 (5 GB free/month) |
-| Log Analytics Workspace | PerGB2018 | ~$0 (5 GB free/month) |
-| Storage Account (Functions) | Standard LRS | ~$0.02/month |
+| Resource                      | SKU              | Estimated Monthly Cost         |
+| ----------------------------- | ---------------- | ------------------------------ |
+| Azure Static Web Apps         | Free             | $0                             |
+| Azure Functions               | Consumption (Y1) | ~$0 (1M free executions/month) |
+| Azure Database for PostgreSQL | Burstable B1ms   | ~$13/month                     |
+| Azure Key Vault               | Standard         | ~$0.03/10K operations          |
+| Application Insights          | Pay-as-you-go    | ~$0 (5 GB free/month)          |
+| Log Analytics Workspace       | PerGB2018        | ~$0 (5 GB free/month)          |
+| Storage Account (Functions)   | Standard LRS     | ~$0.02/month                   |
 
 **Estimated dev total: ~$13-15/month** (dominated by PostgreSQL)
 
 ### Prod Environment
 
 Same as dev for MVP. If traffic grows:
+
 - PostgreSQL can scale up to General Purpose tier (~$50-100/month)
 - SWA Standard tier ($9/month) for custom domains + auth customization
 - Functions remain on Consumption unless sustained high load warrants Premium

@@ -28,16 +28,16 @@ AllianceOps is an FRC match-ops and alliance strategy dashboard. It provides mat
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js (static export) + Tailwind CSS + TypeScript |
-| Backend | Azure Functions v4 (Node.js / TypeScript) |
-| Database | PostgreSQL (Azure Flexible Server) |
-| ORM | Prisma |
-| IaC | Bicep |
-| CI/CD | GitHub Actions |
-| Data Sources | TBA API v3, Statbotics API v3 |
-| Hosting | Azure Static Web Apps + Azure Functions |
+| Layer        | Technology                                          |
+| ------------ | --------------------------------------------------- |
+| Frontend     | Next.js (static export) + Tailwind CSS + TypeScript |
+| Backend      | Azure Functions v4 (Node.js / TypeScript)           |
+| Database     | PostgreSQL (Azure Flexible Server)                  |
+| ORM          | Prisma                                              |
+| IaC          | Bicep                                               |
+| CI/CD        | GitHub Actions                                      |
+| Data Sources | TBA API v3, Statbotics API v3                       |
+| Hosting      | Azure Static Web Apps + Azure Functions             |
 
 ## Monorepo Structure
 
@@ -78,6 +78,7 @@ The `GameDefinition` adapter pattern ensures season-agnostic core logic:
 ## Local Development
 
 Full dev environment runs in a Dev Container with:
+
 - pnpm workspace + Turborepo
 - PostgreSQL 16 (Docker)
 - Azurite (Azure Storage emulator)
