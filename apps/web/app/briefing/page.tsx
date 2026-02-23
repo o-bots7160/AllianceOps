@@ -5,6 +5,7 @@ import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor } from '../../lib/simulation-filters';
 import { InfoBox } from '../../components/info-box';
+import { LoadingSpinner } from '../../components/loading-spinner';
 
 interface TBAMatch {
   key: string;
@@ -88,10 +89,10 @@ export default function BriefingPage() {
   const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
-  const { data: rawMatches } = useApi<TBAMatch[]>(
+  const { data: rawMatches, loading: matchesLoading } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
-  const { data: teams } = useApi<EnrichedTeam[]>(
+  const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
@@ -131,8 +132,12 @@ export default function BriefingPage() {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
   }
 
+  if (matchesLoading || teamsLoading) {
+    return <LoadingSpinner message="Loading match data..." />;
+  }
+
   if (!currentMatch) {
-    return <p className="text-gray-500">Loading match data...</p>;
+    return <p className="text-gray-500">No matches found for your team at this event.</p>;
   }
 
   const isRed = currentMatch.alliances.red.team_keys.includes(myTeamKey);

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { InfoBox } from '../../components/info-box';
+import { LoadingSpinner } from '../../components/loading-spinner';
 
 interface EnrichedTeam {
   team_number: number;
@@ -69,7 +70,7 @@ function downloadCSV(entries: PicklistEntry[]) {
 
 export default function PicklistPage() {
   const { eventKey } = useEventSetup();
-  const { data: teams } = useApi<EnrichedTeam[]>(
+  const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
@@ -100,6 +101,10 @@ export default function PicklistPage() {
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
+  }
+
+  if (teamsLoading) {
+    return <LoadingSpinner message="Loading team data..." />;
   }
 
   return (

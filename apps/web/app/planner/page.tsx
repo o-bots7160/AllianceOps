@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { InfoBox } from '../../components/info-box';
+import { LoadingSpinner } from '../../components/loading-spinner';
 import {
   getAdapter,
   type DutySlotDefinition,
@@ -238,10 +239,10 @@ export default function PlannerPage() {
     (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
   );
 
-  const { data: matches } = useApi<TBAMatch[]>(
+  const { data: matches, loading: matchesLoading } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
-  const { data: teams } = useApi<EnrichedTeam[]>(
+  const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
@@ -260,6 +261,10 @@ export default function PlannerPage() {
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
+  }
+
+  if (matchesLoading || teamsLoading) {
+    return <LoadingSpinner message="Loading planner data..." />;
   }
 
   const qualMatches = matches
