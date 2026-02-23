@@ -1,0 +1,12 @@
+{
+  "presets": [
+    {
+      "id": "2025mibig-7160",
+      "name": "2025 FIM District - Big Rapids (Team 7160)",
+      "eventKey": "2025mibig",
+      "year": 2025,
+      "teamNumber": 7160,
+      "description": "FIM District event at Big Rapids, MI. Use as team 7160 (Ludington O-Bots) for full simulation replay."
+    }
+  ]
+}

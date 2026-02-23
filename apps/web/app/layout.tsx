@@ -25,6 +25,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/path/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
                 Path
               </a>
+              <a href="/planner/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Planner
+              </a>
+              <a href="/picklist/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Picklist
+              </a>
+              <a href="/simulation/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Sim
+              </a>
               <span className="text-gray-500">v0.0.1</span>
             </nav>
           </div>

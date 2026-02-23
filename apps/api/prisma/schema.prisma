@@ -9,3 +9,68 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model MatchPlan {
+  id        String   @id @default(cuid())
+  eventKey  String
+  matchKey  String
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duties DutyAssignment[]
+  notes  MatchNote[]
+
+  @@unique([eventKey, matchKey])
+  @@index([eventKey])
+}
+
+model DutyAssignment {
+  id          String  @id @default(cuid())
+  matchPlanId String
+  slotKey     String
+  teamNumber  Int
+  notes       String?
+
+  matchPlan MatchPlan @relation(fields: [matchPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([matchPlanId, slotKey])
+}
+
+model MatchNote {
+  id          String   @id @default(cuid())
+  matchPlanId String
+  content     String
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  matchPlan MatchPlan @relation(fields: [matchPlanId], references: [id], onDelete: Cascade)
+}
+
+model Picklist {
+  id        String   @id @default(cuid())
+  eventKey  String
+  name      String
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries PicklistEntry[]
+
+  @@index([eventKey])
+}
+
+model PicklistEntry {
+  id         String  @id @default(cuid())
+  picklistId String
+  teamNumber Int
+  rank       Int
+  tags       Json    @default("[]")
+  notes      String?
+  excluded   Boolean @default(false)
+
+  picklist Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+
+  @@unique([picklistId, teamNumber])
+  @@index([picklistId, rank])
+}

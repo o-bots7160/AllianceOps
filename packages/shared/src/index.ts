@@ -26,3 +26,5 @@ export { generateBriefing } from './strategy/briefing.js';
 export type { MatchBriefing, TeamBriefingData, WinCondition, Risk } from './strategy/briefing.js';
 export { analyzePath } from './strategy/path.js';
 export type { PathAnalysis, PathMatch } from './strategy/path.js';
+export { generatePicklist, exportPicklistCSV } from './strategy/picklist.js';
+export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
