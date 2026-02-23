@@ -1,9 +1,12 @@
 'use client';
 
 import { useAuth } from './use-auth';
+import { IS_DEV } from '../lib/api-base';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
+  if (IS_DEV) return <>{children}</>;
 
   if (loading) {
     return (

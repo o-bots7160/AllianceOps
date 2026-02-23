@@ -3,6 +3,7 @@
 import { useAuth } from './use-auth';
 import { GlobalControls } from './global-controls';
 import { NavLinks } from './nav-links';
+import { IS_DEV } from '../lib/api-base';
 
 export function AppHeader() {
   const { user, loading } = useAuth();
@@ -13,7 +14,7 @@ export function AppHeader() {
         <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400 shrink-0">
           AllianceOps
         </h1>
-        {!loading && user && (
+        {(IS_DEV || (!loading && user)) && (
           <>
             <GlobalControls />
             <NavLinks />

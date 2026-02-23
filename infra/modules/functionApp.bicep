@@ -82,6 +82,10 @@ var sharedAppSettings = [
     name: 'WEBSITE_NODE_DEFAULT_VERSION'
     value: '~20'
   }
+  {
+    name: 'NODE_ENV'
+    value: 'production'
+  }
 ]
 
 // Storage settings differ by plan type

@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../components/use-auth';
+import { IS_DEV } from '../lib/api-base';
 
 function LoginCTA() {
   return (
@@ -110,12 +111,12 @@ export default function Home() {
 
       {loading ? (
         <p className="text-gray-500 dark:text-gray-400">Loading…</p>
+      ) : IS_DEV || (user && user.teams.length > 0) ? (
+        <FeatureGrid />
       ) : !user ? (
         <LoginCTA />
-      ) : user.teams.length === 0 ? (
-        <JoinTeamCTA />
       ) : (
-        <FeatureGrid />
+        <JoinTeamCTA />
       )}
 
       <p className="text-xs text-gray-400 dark:text-gray-600">
