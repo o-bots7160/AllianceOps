@@ -39,6 +39,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      HAS_AZURE_CREDS: ${{ secrets.AZURE_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v6
 
@@ -49,7 +51,7 @@ jobs:
             az bicep build --file infra/main.bicep
 
       - name: Azure Login (OIDC)
-        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        if: env.HAS_AZURE_CREDS != ''
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -57,7 +59,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: What-If (Dev)
-        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        if: env.HAS_AZURE_CREDS != ''
         uses: azure/CLI@v2
         with:
           inlineScript: |
