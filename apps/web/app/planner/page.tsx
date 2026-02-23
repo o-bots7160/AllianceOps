@@ -301,7 +301,6 @@ export default function PlannerPage() {
       setAssignments(result.assignments);
       setNotes(result.notes);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [teamNumbers.join(','), teams, dutySlots, dutyTemplates],
   );
 

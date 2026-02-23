@@ -30,7 +30,7 @@ export function GlobalControls() {
       setTeamNumber(activeTeam.teamNumber);
       setTeamInput(String(activeTeam.teamNumber));
     }
-  }, [activeTeam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTeam, teamNumber, setTeamNumber]);
 
   const teamOptions = useMemo(
     () =>
