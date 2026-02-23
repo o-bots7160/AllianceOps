@@ -38,3 +38,4 @@ pnpm-debug.log*
 
 # Bicep compiled output
 infra/main.json
+apps/web/tsconfig.tsbuildinfo
