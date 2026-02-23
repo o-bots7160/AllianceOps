@@ -8,6 +8,16 @@ AllianceOps includes a Simulation Replay feature that lets you "time-travel" thr
 2. **Set the cursor** — Use the slider or step controls to set which match is "current"
 3. **View state as-of N** — All dashboards show only data from matches 1..N
 
+### Simulation-Aware EPA
+
+When simulation mode is active, the briefing and planner pages fetch per-team EPA timeline data from Statbotics (`/v3/site/team/{team}/{year}`) via the `GET /api/team/{teamNumber}/site?year={year}` proxy endpoint. This provides:
+
+- **Pre-event EPA** — Team EPA values are scaled to their start-of-event level using `stats.start`, giving a more accurate picture of what was known before match N
+- **Cursor-filtered W-L records** — Win/loss records are recalculated from filtered match results (only matches up to the cursor count)
+- **Visual indicator** — An amber banner on briefing and planner pages indicates when simulation EPA is active
+
+The `scaleEpaToStart()` helper proportionally scales the EPA breakdown (auto/teleop/endgame and game-specific metrics) using the ratio of pre-event total to final total.
+
 ## Presets
 
 ### 2025 FIM District - Big Rapids (2025mibig)

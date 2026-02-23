@@ -3,6 +3,9 @@
 import { useState, useCallback } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { useSimulation } from '../../components/simulation-context';
+import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
+import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 import { getApiBase } from '../../lib/api-base';
@@ -20,6 +23,7 @@ interface TBAMatch {
     red: { team_keys: string[]; score: number };
     blue: { team_keys: string[]; score: number };
   };
+  winning_alliance: string;
 }
 
 interface EnrichedTeam {
@@ -59,15 +63,18 @@ function TeamStrengthCard({
   teamKey,
   epaMap,
   metrics,
+  record,
 }: {
   teamKey: string;
   epaMap: Map<number, EnrichedTeam>;
   metrics: GameMetricDefinition[];
+  record?: { wins: number; losses: number; ties: number };
 }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
   const maxEpa = 40;
   const bd = data?.epa?.breakdown;
+  const displayRecord = record ?? data?.eventRecord;
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
@@ -79,18 +86,18 @@ function TeamStrengthCard({
           </span>
         )}
       </div>
-      {data?.eventRecord && (
+      {displayRecord && (
         <div className="flex gap-3 text-xs">
           <span className="text-green-600 dark:text-green-400 font-medium">
-            {data.eventRecord.wins}W
+            {displayRecord.wins}W
           </span>
           <span className="text-red-600 dark:text-red-400 font-medium">
-            {data.eventRecord.losses}L
+            {displayRecord.losses}L
           </span>
-          {data.eventRecord.ties > 0 && (
-            <span className="text-gray-500 font-medium">{data.eventRecord.ties}T</span>
+          {displayRecord.ties > 0 && (
+            <span className="text-gray-500 font-medium">{displayRecord.ties}T</span>
           )}
-          {data.winrate != null && (
+          {!record && data?.winrate != null && (
             <span className="text-gray-500">({(data.winrate * 100).toFixed(0)}%)</span>
           )}
         </div>
@@ -225,6 +232,7 @@ function buildTemplateAssignments(
 
 export default function PlannerPage() {
   const { eventKey, teamNumber, year } = useEventSetup();
+  const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
   let adapter: ReturnType<typeof getAdapter> | null = null;
@@ -240,19 +248,16 @@ export default function PlannerPage() {
     (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
   );
 
-  const { data: matches, loading: matchesLoading } = useApi<TBAMatch[]>(
+  const { data: rawMatches, loading: matchesLoading } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
   const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
-  const epaMap = new Map<number, EnrichedTeam>();
-  if (teams) {
-    for (const t of teams) {
-      epaMap.set(t.team_number, t);
-    }
-  }
+  const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : rawMatches;
+
+  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor);
 
   const [selectedMatch, setSelectedMatch] = useState<string>('');
   const [assignments, setAssignments] = useState<Record<string, number | null>>({});
@@ -431,6 +436,14 @@ export default function PlannerPage() {
         )}
       </div>
 
+      {activeCursor !== null && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to match {activeCursor}.
+          </p>
+        </div>
+      )}
+
       {currentMatch && (
         <div className="space-y-3">
           <div>
@@ -439,7 +452,13 @@ export default function PlannerPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {allianceTeams.map((t) => (
-                <TeamStrengthCard key={t} teamKey={t} epaMap={epaMap} metrics={cardMetrics} />
+                <TeamStrengthCard
+                  key={t}
+                  teamKey={t}
+                  epaMap={epaMap}
+                  metrics={cardMetrics}
+                  record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                />
               ))}
             </div>
           </div>

@@ -7,6 +7,7 @@ export type {
   StatboticsEPA,
   StatboticsRecord,
   StatboticsMatchPrediction,
+  StatboticsTeamSiteEvent,
 } from './types/statbotics.js';
 export type { EnrichedTeam, EnrichedMatch } from './types/enriched.js';
 export type {

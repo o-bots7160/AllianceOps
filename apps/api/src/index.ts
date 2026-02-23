@@ -21,4 +21,5 @@ import './functions/health.js';
 import './functions/events.js';
 import './functions/plans.js';
 import './functions/teams.js';
+import './functions/team-site.js';
 import './functions/me.js';

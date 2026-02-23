@@ -16,7 +16,7 @@ interface EventSetupContextValue extends EventSetupState {
 
 const STORAGE_KEY = 'allianceops-setup';
 const CURRENT_YEAR = new Date().getFullYear();
-const DEFAULT_STATE: EventSetupState = { year: CURRENT_YEAR, eventKey: '', teamNumber: 7160 };
+const DEFAULT_STATE: EventSetupState = { year: CURRENT_YEAR, eventKey: '', teamNumber: 0 };
 
 const EventSetupContext = createContext<EventSetupContextValue | null>(null);
 

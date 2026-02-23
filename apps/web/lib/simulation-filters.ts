@@ -83,3 +83,36 @@ export function getTeamRecord<T extends SimMatch>(
 
   return { wins, losses, ties };
 }
+
+interface SimEpa {
+  total: number;
+  auto: number;
+  teleop: number;
+  endgame: number;
+  breakdown?: Record<string, number>;
+}
+
+/**
+ * Scale an EPA breakdown proportionally using a start-of-event total.
+ * Returns an adjusted EPA where each component is scaled by (startTotal / finalTotal).
+ */
+export function scaleEpaToStart(
+  epa: SimEpa,
+  startTotal: number,
+): SimEpa {
+  if (!epa.total || epa.total === 0) return { ...epa, total: startTotal };
+  const scale = startTotal / epa.total;
+  const scaled: SimEpa = {
+    total: startTotal,
+    auto: epa.auto * scale,
+    teleop: epa.teleop * scale,
+    endgame: epa.endgame * scale,
+  };
+  if (epa.breakdown) {
+    scaled.breakdown = {};
+    for (const [k, v] of Object.entries(epa.breakdown)) {
+      scaled.breakdown[k] = v * scale;
+    }
+  }
+  return scaled;
+}

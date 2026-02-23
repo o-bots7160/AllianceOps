@@ -70,10 +70,11 @@ The `GameDefinition` adapter pattern ensures season-agnostic core logic:
 ## Authentication
 
 - Pluggable `AuthProvider` abstraction
-- MVP: Azure Static Web Apps built-in auth (EasyAuth)
+- Azure Static Web Apps built-in auth (EasyAuth) with Google and GitHub SSO
+- Landing page is public; all other routes require authentication via SWA route rules
+- The `staticwebapp.config.json` enforces `allowedRoles: ["authenticated"]` on all non-root routes, redirecting unauthenticated users to Google login
 - Roles: `viewer` (read-only) and `editor` (read-write)
-- Target SSO providers: Google, GitHub, Facebook, Apple
-- Future: Microsoft Entra External ID for CIAM
+- Team management: users create or join teams via invite codes or join requests
 
 ## Local Development
 

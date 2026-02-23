@@ -52,3 +52,16 @@ export interface StatboticsMatchResult {
   red_score: number;
   blue_score: number;
 }
+
+/** Per-event EPA stats from Statbotics site team endpoint */
+export interface StatboticsTeamSiteEvent {
+  eventKey: string;
+  /** Final EPA for this event */
+  epa: StatboticsEPA;
+  /** Total EPA at start of event (before any matches played) */
+  startEpa: number;
+  /** Total EPA before elimination rounds */
+  preElimEpa: number;
+  /** Qual record at this event */
+  record: StatboticsRecord;
+}

@@ -3,7 +3,8 @@
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
-import { filterMatchesByCursor } from '../../lib/simulation-filters';
+import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
+import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 
@@ -39,18 +40,27 @@ function EpaBar({ value, max, color }: { value: number; max: number; color: stri
   );
 }
 
-function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, EnrichedTeam> }) {
+function TeamCard({
+  teamKey,
+  epaMap,
+  record,
+}: {
+  teamKey: string;
+  epaMap: Map<number, EnrichedTeam>;
+  record?: { wins: number; losses: number; ties: number };
+}) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
   const maxEpa = 40;
+  const displayRecord = record ?? data?.eventRecord;
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
       <div className="flex justify-between items-center">
         <span className="font-bold text-lg">{teamNum(teamKey)}</span>
-        {data?.eventRecord && (
+        {displayRecord && (
           <span className="text-xs text-gray-500">
-            {data.eventRecord.wins}W-{data.eventRecord.losses}L
+            {displayRecord.wins}W-{displayRecord.losses}L
           </span>
         )}
       </div>
@@ -85,7 +95,7 @@ function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, En
 }
 
 export default function BriefingPage() {
-  const { eventKey, teamNumber } = useEventSetup();
+  const { eventKey, teamNumber, year } = useEventSetup();
   const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
@@ -98,12 +108,7 @@ export default function BriefingPage() {
 
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
-  const epaMap = new Map<number, EnrichedTeam>();
-  if (teams) {
-    for (const t of teams) {
-      epaMap.set(t.team_number, t);
-    }
-  }
+  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor);
 
   // Find next unplayed match for our team
   const qualMatches = matches
@@ -195,6 +200,14 @@ export default function BriefingPage() {
         </p>
       </InfoBox>
 
+      {activeCursor !== null && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to match {activeCursor}.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-3">
@@ -202,7 +215,12 @@ export default function BriefingPage() {
           </h3>
           <div className="space-y-3">
             {ourTeams.map((t) => (
-              <TeamCard key={t} teamKey={t} epaMap={epaMap} />
+              <TeamCard
+                key={t}
+                teamKey={t}
+                epaMap={epaMap}
+                record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+              />
             ))}
           </div>
         </div>
@@ -212,7 +230,12 @@ export default function BriefingPage() {
           </h3>
           <div className="space-y-3">
             {oppTeams.map((t) => (
-              <TeamCard key={t} teamKey={t} epaMap={epaMap} />
+              <TeamCard
+                key={t}
+                teamKey={t}
+                epaMap={epaMap}
+                record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+              />
             ))}
           </div>
         </div>

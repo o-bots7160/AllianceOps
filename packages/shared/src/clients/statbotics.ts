@@ -4,6 +4,7 @@ import type {
   StatboticsMatch,
   StatboticsEPA,
   StatboticsRecord,
+  StatboticsTeamSiteEvent,
 } from '../types/statbotics.js';
 
 const STATBOTICS_BASE_URL = 'https://api.statbotics.io/v3';
@@ -119,5 +120,28 @@ export class StatboticsClient {
   async getEventMatches(event: string): Promise<StatboticsMatch[]> {
     const raw = await this.request<{ key: string; pred: StatboticsMatch['pred']; result: StatboticsMatch['result'] }[]>(`/matches?event=${event}`);
     return raw.map((r) => ({ match: r.key, pred: r.pred, result: r.result }));
+  }
+
+  /** Fetch per-event EPA timeline for a team from the Statbotics site endpoint. */
+  async getTeamSite(team: number, year: number): Promise<StatboticsTeamSiteEvent[]> {
+    interface RawSiteEvent {
+      event: string;
+      epa: RawStatboticsEPA & {
+        stats?: { start: number; pre_elim: number; mean: number; max: number };
+      };
+      record: RawStatboticsRecord;
+    }
+
+    const raw = await this.request<{
+      team_events: RawSiteEvent[];
+    }>(`/site/team/${team}/${year}`);
+
+    return (raw.team_events ?? []).map((te) => ({
+      eventKey: te.event,
+      epa: normalizeEPA(te.epa),
+      startEpa: te.epa?.stats?.start ?? normalizeEPA(te.epa).total,
+      preElimEpa: te.epa?.stats?.pre_elim ?? normalizeEPA(te.epa).total,
+      record: normalizeRecord(te.record),
+    }));
   }
 }
