@@ -11,7 +11,7 @@
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "postCreateCommand": "sudo corepack enable && corepack install && pnpm install && sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
+  "postCreateCommand": "sudo corepack enable && corepack install && pnpm install && sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && pnpm db:migrate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
   "customizations": {
     "vscode": {
       "extensions": [

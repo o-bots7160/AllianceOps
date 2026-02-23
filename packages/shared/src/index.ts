@@ -35,3 +35,12 @@ export { analyzePath } from './strategy/path.js';
 export type { PathAnalysis, PathMatch } from './strategy/path.js';
 export { generatePicklist, exportPicklistCSV } from './strategy/picklist.js';
 export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
+
+// Auth
+export type { AuthUser, UserRole, AuthProvider } from './auth/index.js';
+export {
+  SWAAuthProvider,
+  DevAuthProvider,
+  setAuthProvider,
+  getAuthProvider,
+} from './auth/index.js';

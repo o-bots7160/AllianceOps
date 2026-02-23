@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Providers } from '../components/providers';
 import { SimulationBar } from '../components/simulation-bar';
 import { GlobalControls } from '../components/global-controls';
+import { NavLinks } from '../components/nav-links';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -20,27 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 AllianceOps
               </h1>
               <GlobalControls />
-              <nav className="flex gap-4 text-sm shrink-0">
-                <a href="/event/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Event
-                </a>
-                <a href="/briefing/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Briefing
-                </a>
-                <a href="/path/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Path
-                </a>
-                <a href="/planner/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Planner
-                </a>
-                <a href="/picklist/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Picklist
-                </a>
-                <a href="/simulation/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
-                  Sim
-                </a>
-                <span className="text-gray-500">v0.0.1</span>
-              </nav>
+              <NavLinks />
             </div>
           </header>
           <SimulationBar />

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useEventSetup } from './use-event-setup';
+import { useAuth } from './use-auth';
 import { useApi } from './use-api';
 import { Combobox } from './combobox';
 
@@ -20,7 +21,25 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
 
 export function GlobalControls() {
   const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
+  const { user, activeTeam, setActiveTeamId } = useAuth();
   const [teamInput, setTeamInput] = useState(String(teamNumber || ''));
+
+  // Auto-populate team number from active team membership
+  useEffect(() => {
+    if (activeTeam && activeTeam.teamNumber !== teamNumber) {
+      setTeamNumber(activeTeam.teamNumber);
+      setTeamInput(String(activeTeam.teamNumber));
+    }
+  }, [activeTeam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const teamOptions = useMemo(
+    () =>
+      user?.teams.map((t) => ({
+        value: t.teamId,
+        label: `${t.teamNumber} — ${t.name}`,
+      })) ?? [],
+    [user?.teams],
+  );
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
@@ -40,6 +59,19 @@ export function GlobalControls() {
 
   return (
     <div className="flex items-center gap-2 text-sm min-w-0">
+      {/* Team switcher (if user belongs to teams) */}
+      {teamOptions.length > 1 && (
+        <div className="w-40 min-w-0">
+          <Combobox
+            value={activeTeam?.teamId ?? ''}
+            options={teamOptions}
+            onChange={setActiveTeamId}
+            placeholder="Team"
+            compact
+          />
+        </div>
+      )}
+
       <label className="sr-only" htmlFor="gc-team">Team</label>
       <input
         id="gc-team"

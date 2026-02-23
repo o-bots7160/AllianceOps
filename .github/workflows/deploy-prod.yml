@@ -29,6 +29,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
       - run: pnpm build
 
       - uses: actions/upload-artifact@v4
@@ -88,6 +89,17 @@ jobs:
               --parameters infra/parameters/prod.parameters.json \
               --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
                            tbaApiKey='${{ secrets.TBA_API_KEY }}'
+
+      - name: Run Database Migrations
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            export DATABASE_URL=$(az keyvault secret show \
+              --vault-name kv-aops-prod \
+              --name DatabaseUrl \
+              --query value -o tsv)
+            cd apps/api
+            npx prisma migrate deploy
 
       - name: Deploy Function App
         uses: azure/CLI@v2

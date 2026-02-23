@@ -1,71 +1,89 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-
-// Note: In production, PrismaClient would be initialized here.
-// For MVP, we use a mock implementation that returns placeholder data.
-// Once Postgres is running locally, replace with actual Prisma queries.
-
-interface MatchPlanResponse {
-  id: string;
-  eventKey: string;
-  matchKey: string;
-  duties: Array<{
-    slotKey: string;
-    teamNumber: number;
-    notes: string | null;
-  }>;
-  notes: Array<{
-    id: string;
-    content: string;
-    createdAt: string;
-  }>;
-}
-
-// In-memory store for development without Postgres
-const planStore = new Map<string, MatchPlanResponse>();
+import { prisma } from '../lib/prisma.js';
+import { requireTeamMember, isAuthError } from '../lib/auth.js';
 
 app.http('getMatchPlan', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'event/{eventKey}/match/{matchKey}/plan',
+  route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+    const teamId = request.params.teamId!;
     const eventKey = request.params.eventKey!;
     const matchKey = request.params.matchKey!;
-    const key = `${eventKey}:${matchKey}`;
 
-    const plan = planStore.get(key);
-    if (!plan) {
-      return { status: 200, jsonBody: { data: null } };
+    const auth = await requireTeamMember(request, teamId);
+    if (isAuthError(auth)) return auth;
+
+    const plan = await prisma.matchPlan.findUnique({
+      where: { eventKey_matchKey: { eventKey, matchKey } },
+      include: {
+        duties: { select: { slotKey: true, teamNumber: true, notes: true } },
+        notes: {
+          select: { id: true, content: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    // Verify team ownership if plan exists
+    if (plan && plan.teamId && plan.teamId !== teamId) {
+      return { status: 403, jsonBody: { error: 'Plan belongs to a different team' } };
     }
-    return { status: 200, jsonBody: { data: plan } };
+
+    return { status: 200, jsonBody: { data: plan ?? null } };
   },
 });
 
 app.http('upsertMatchPlan', {
   methods: ['PUT'],
   authLevel: 'anonymous',
-  route: 'event/{eventKey}/match/{matchKey}/plan',
+  route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+    const teamId = request.params.teamId!;
     const eventKey = request.params.eventKey!;
     const matchKey = request.params.matchKey!;
-    const key = `${eventKey}:${matchKey}`;
+
+    const auth = await requireTeamMember(request, teamId);
+    if (isAuthError(auth)) return auth;
 
     const body = (await request.json()) as {
       duties: Array<{ slotKey: string; teamNumber: number; notes?: string }>;
     };
 
-    const plan: MatchPlanResponse = {
-      id: key,
-      eventKey,
-      matchKey,
-      duties: body.duties.map((d) => ({
-        slotKey: d.slotKey,
-        teamNumber: d.teamNumber,
-        notes: d.notes ?? null,
-      })),
-      notes: planStore.get(key)?.notes ?? [],
-    };
+    const plan = await prisma.matchPlan.upsert({
+      where: { eventKey_matchKey: { eventKey, matchKey } },
+      create: {
+        teamId,
+        eventKey,
+        matchKey,
+        createdBy: auth.user.id,
+        duties: {
+          create: body.duties.map((d) => ({
+            slotKey: d.slotKey,
+            teamNumber: d.teamNumber,
+            notes: d.notes ?? null,
+          })),
+        },
+      },
+      update: {
+        duties: {
+          deleteMany: {},
+          create: body.duties.map((d) => ({
+            slotKey: d.slotKey,
+            teamNumber: d.teamNumber,
+            notes: d.notes ?? null,
+          })),
+        },
+      },
+      include: {
+        duties: { select: { slotKey: true, teamNumber: true, notes: true } },
+        notes: {
+          select: { id: true, content: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
 
-    planStore.set(key, plan);
     return { status: 200, jsonBody: { data: plan } };
   },
 });
@@ -73,10 +91,14 @@ app.http('upsertMatchPlan', {
 app.http('applyTemplate', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'event/{eventKey}/match/{matchKey}/plan/from-template',
+  route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan/from-template',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+    const teamId = request.params.teamId!;
     const eventKey = request.params.eventKey!;
     const matchKey = request.params.matchKey!;
+
+    const auth = await requireTeamMember(request, teamId);
+    if (isAuthError(auth)) return auth;
 
     const body = (await request.json()) as {
       templateName: 'safe' | 'balanced' | 'aggressive';
