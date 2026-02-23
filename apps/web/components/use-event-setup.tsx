@@ -16,28 +16,33 @@ interface EventSetupContextValue extends EventSetupState {
 
 const STORAGE_KEY = 'allianceops-setup';
 const CURRENT_YEAR = new Date().getFullYear();
-
-function loadSetup(): EventSetupState {
-  if (typeof window === 'undefined') {
-    return { year: CURRENT_YEAR, eventKey: '', teamNumber: 7160 };
-  }
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // ignore
-  }
-  return { year: CURRENT_YEAR, eventKey: '', teamNumber: 7160 };
-}
+const DEFAULT_STATE: EventSetupState = { year: CURRENT_YEAR, eventKey: '', teamNumber: 7160 };
 
 const EventSetupContext = createContext<EventSetupContextValue | null>(null);
 
 export function EventSetupProvider({ children }: { children: ReactNode }) {
-  const [setup, setSetup] = useState<EventSetupState>(loadSetup);
+  const [setup, setSetup] = useState<EventSetupState>(DEFAULT_STATE);
+  const [hydrated, setHydrated] = useState(false);
 
+  // Hydrate from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(setup));
-  }, [setup]);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setSetup(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persist to localStorage on changes (only after hydration)
+  useEffect(() => {
+    if (hydrated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(setup));
+    }
+  }, [setup, hydrated]);
 
   const value: EventSetupContextValue = {
     ...setup,
