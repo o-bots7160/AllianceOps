@@ -207,6 +207,12 @@ The shared package must build before api and web can typecheck. Turborepo handle
 - Both use Azure OIDC federated credentials (no stored secrets for Azure auth)
 - Infrastructure deployment (Bicep) runs before app deployment
 
+### Pipeline Reproducibility
+
+- **Prefer pipeline-derived values over stored secrets** — any credential or token that can be fetched at deploy time (e.g., SWA deployment tokens via `az staticwebapp secrets list`, database URLs from Key Vault) should be fetched in the pipeline rather than stored as a GitHub secret
+- **Only store secrets that cannot be derived** — OIDC credentials (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`), passwords (`POSTGRES_ADMIN_PASSWORD`), and API keys (`TBA_API_KEY`)
+- **Goal: full reproducibility** — a complete redeployment to a new environment or subscription should work by setting only the minimal required secrets, with everything else provisioned or fetched by the pipeline itself
+
 ## Auth
 
 - Pluggable `AuthProvider` interface in `packages/shared/src/auth/`
