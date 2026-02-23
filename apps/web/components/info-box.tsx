@@ -18,7 +18,7 @@ export function InfoBox({ heading, headingExtra, children, defaultOpen = false }
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => setOpen(!open)}
-            className="text-2xl font-bold truncate text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="text-2xl font-bold truncate text-left"
           >
             {heading}
           </button>
