@@ -99,3 +99,33 @@ app.http('getEventRankings', {
     return { status: 200, jsonBody: result };
   },
 });
+
+app.http('getTeamEvents', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'team/{teamNumber}/events',
+  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+    const teamNumber = request.params.teamNumber;
+    const year = request.query.get('year');
+    if (!teamNumber || !year) {
+      return { status: 400, jsonBody: { error: 'teamNumber and year are required' } };
+    }
+
+    const result = await cached(`team-events:frc${teamNumber}:${year}`, 'STATIC', async () => {
+      const events = await getTBAClient().getTeamEvents(`frc${teamNumber}`, parseInt(year, 10));
+      return events.map((e) => ({
+        key: e.key,
+        name: e.name,
+        event_code: e.event_code,
+        event_type: e.event_type,
+        start_date: e.start_date,
+        end_date: e.end_date,
+        city: e.city,
+        state_prov: e.state_prov,
+        country: e.country,
+      }));
+    });
+
+    return { status: 200, jsonBody: result };
+  },
+});

@@ -13,9 +13,10 @@ interface ComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  compact?: boolean;
 }
 
-export function Combobox({ value, options, onChange, placeholder, disabled }: ComboboxProps) {
+export function Combobox({ value, options, onChange, placeholder, disabled, compact }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -109,7 +110,7 @@ export function Combobox({ value, options, onChange, placeholder, disabled }: Co
           setSearch('');
         }}
         onKeyDown={handleKeyDown}
-        className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 ${compact ? 'px-2 py-1' : 'px-3 py-2'} text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"

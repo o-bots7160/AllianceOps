@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { getTeamRecord } from '../../lib/simulation-filters';
@@ -18,22 +18,13 @@ interface TBAMatch {
   time: number | null;
 }
 
-const PRESETS = [
-  {
-    id: '2025mibig-7160',
-    name: '2025 FIM District - Big Rapids',
-    eventKey: '2025mibig',
-    teamNumber: 7160,
-  },
-];
-
 export default function SimulationPage() {
-  const [selectedPreset, setSelectedPreset] = useState(PRESETS[0].eventKey);
-  const [teamNumber, setTeamNumber] = useState(PRESETS[0].teamNumber);
+  const { eventKey, teamNumber } = useEventSetup();
   const { cursor, startSimulation, stopSimulation, setCursor, isSimulating, eventKey: simEventKey } =
     useSimulation();
 
-  const activeEventKey = simEventKey || selectedPreset;
+  const activeEventKey = simEventKey || eventKey;
+  const myTeamKey = `frc${teamNumber}`;
 
   const { data: matches, loading } = useApi<TBAMatch[]>(
     activeEventKey ? `event/${activeEventKey}/matches` : null,
@@ -51,10 +42,13 @@ export default function SimulationPage() {
   );
   const upcomingMatches = qualMatches?.slice(activeCursor);
 
-  const myTeamKey = `frc${teamNumber}`;
   const record = qualMatches
     ? getTeamRecord(qualMatches, myTeamKey, activeCursor)
     : { wins: 0, losses: 0, ties: 0 };
+
+  if (!eventKey) {
+    return <p className="text-gray-500">Select a team and event in the header to begin.</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -73,34 +67,11 @@ export default function SimulationPage() {
         </p>
         <p>
           Click <strong>Stop Simulation</strong> or &quot;Exit Sim&quot; in the top bar to return all
-          pages to live/real-time data. The simulation page itself always shows the replay view regardless
-          of simulation mode.
+          pages to live/real-time data.
         </p>
       </InfoBox>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Preset
-          </label>
-          <select
-            value={selectedPreset}
-            onChange={(e) => {
-              const preset = PRESETS.find((p) => p.eventKey === e.target.value);
-              setSelectedPreset(e.target.value);
-              if (isSimulating) startSimulation(e.target.value, 1);
-              if (preset) setTeamNumber(preset.teamNumber);
-            }}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
-          >
-            {PRESETS.map((p) => (
-              <option key={p.id} value={p.eventKey}>
-                {p.name} (Team {p.teamNumber})
-              </option>
-            ))}
-          </select>
-        </div>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Match Cursor: {activeCursor} / {maxCursor}

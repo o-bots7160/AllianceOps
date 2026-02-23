@@ -60,6 +60,10 @@ export class TBAClient {
     );
   }
 
+  async getTeamEvents(teamKey: string, year: number): Promise<TBAEvent[]> {
+    return this.request<TBAEvent[]>(`/team/${teamKey}/events/${year}`);
+  }
+
   async getMatch(matchKey: string): Promise<TBAMatch> {
     return this.request<TBAMatch>(`/match/${matchKey}`);
   }

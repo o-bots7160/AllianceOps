@@ -1,10 +1,10 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor } from '../../lib/simulation-filters';
-import { Combobox } from '../../components/combobox';
 import { InfoBox } from '../../components/info-box';
 
 interface TBAEvent {
@@ -32,11 +32,18 @@ function teamDisplay(teamKey: string): string {
 }
 
 export default function EventPage() {
-  const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
+  const { year, eventKey, teamNumber, setEventKey } = useEventSetup();
   const { activeCursor } = useSimulation();
-  const { data: events, loading: eventsLoading } = useApi<TBAEvent[]>(
-    year ? `events?year=${year}` : null,
+  const [showAllEvents, setShowAllEvents] = useState(false);
+
+  const { data: teamEvents } = useApi<TBAEvent[]>(
+    teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
   );
+
+  const { data: allEvents, loading: allEventsLoading } = useApi<TBAEvent[]>(
+    showAllEvents && year ? `events?year=${year}` : null,
+  );
+
   const { data: rawMatches, loading: matchesLoading, meta } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
@@ -48,20 +55,17 @@ export default function EventPage() {
     ?.filter((m) => m.comp_level === 'qm')
     .sort((a, b) => a.match_number - b.match_number);
 
-  const sortedEvents = events
-    ?.filter((e) => e.name)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const teamEventKeys = useMemo(
+    () => new Set(teamEvents?.map((e) => e.key)),
+    [teamEvents],
+  );
 
-  const yearOptions = Array.from({ length: 10 }, (_, i) => {
-    const y = new Date().getFullYear() - i;
-    return { value: String(y), label: String(y) };
-  });
-
-  const eventOptions =
-    sortedEvents?.map((ev) => ({
-      value: ev.key,
-      label: `${ev.name} — ${ev.city}, ${ev.state_prov}`,
-    })) ?? [];
+  const displayEvents = useMemo(() => {
+    const events = showAllEvents ? allEvents : teamEvents;
+    return events
+      ?.filter((e) => e.name)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [showAllEvents, allEvents, teamEvents]);
 
   return (
     <div className="space-y-6">
@@ -69,8 +73,8 @@ export default function EventPage() {
 
       <InfoBox>
         <p>
-          <strong>Event Setup</strong> is your starting point. Select your team number, competition year,
-          and event to configure the entire dashboard. All other pages use these selections.
+          <strong>Event Setup</strong> shows your team&apos;s events and match schedule. Use the header
+          controls to set your team number, year, and event — all other pages use these selections.
         </p>
         <p>
           Data is pulled live from <strong>The Blue Alliance</strong> (match schedules, scores) and{' '}
@@ -82,45 +86,67 @@ export default function EventPage() {
         </p>
       </InfoBox>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            My Team #
-          </label>
-          <input
-            type="number"
-            value={teamNumber || ''}
-            onChange={(e) => setTeamNumber(parseInt(e.target.value, 10) || 0)}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </div>
+      {teamNumber > 0 && year > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              {showAllEvents ? `All Events — ${year}` : `Team ${teamNumber} Events — ${year}`}
+            </h3>
+            <button
+              onClick={() => setShowAllEvents((v) => !v)}
+              className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              {showAllEvents ? 'Show My Events Only' : 'Show All Events'}
+            </button>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Year
-          </label>
-          <Combobox
-            value={year ? String(year) : ''}
-            options={yearOptions}
-            onChange={(v) => setYear(parseInt(v, 10) || 0)}
-            placeholder="Select year..."
-            disabled={!teamNumber}
-          />
-        </div>
+          {(showAllEvents && allEventsLoading) && (
+            <p className="text-sm text-gray-500">Loading all events...</p>
+          )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Event
-          </label>
-          <Combobox
-            value={eventKey}
-            options={eventOptions}
-            onChange={setEventKey}
-            placeholder={eventsLoading ? 'Loading events...' : 'Select event...'}
-            disabled={!year || eventsLoading || !events}
-          />
+          {displayEvents && displayEvents.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {displayEvents.map((ev) => {
+                const isSelected = ev.key === eventKey;
+                const isMyEvent = teamEventKeys.has(ev.key);
+                return (
+                  <button
+                    key={ev.key}
+                    onClick={() => setEventKey(ev.key)}
+                    className={`text-left rounded-lg border p-3 text-sm transition-colors ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
+                    }`}
+                  >
+                    <div className="font-medium flex items-center gap-2">
+                      {ev.name}
+                      {showAllEvents && isMyEvent && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300">
+                          My Team
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {ev.city}, {ev.state_prov} — {ev.start_date}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {displayEvents && displayEvents.length === 0 && (
+            <p className="text-sm text-gray-500">
+              {showAllEvents ? 'No events found for this year.' : `No events found for team ${teamNumber} in ${year}.`}
+            </p>
+          )}
         </div>
-      </div>
+      )}
+
+      {!teamNumber && (
+        <p className="text-gray-500">Enter your team number in the header to get started.</p>
+      )}
 
       {meta && (
         <p className="text-xs text-gray-500">
