@@ -111,12 +111,26 @@ jobs:
 
       - name: Run Database Migrations
         run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group rg-aops-prod \
+            --name psql-aops-prod \
+            --rule-name AllowGitHubRunner \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
           export DATABASE_URL=$(az keyvault secret show \
             --vault-name kv-aops-prod \
             --name DatabaseUrl \
             --query value -o tsv)
           cd apps/api
           npx prisma migrate deploy
+
+          az postgres flexible-server firewall-rule delete \
+            --resource-group rg-aops-prod \
+            --name psql-aops-prod \
+            --rule-name AllowGitHubRunner \
+            --yes
 
       - name: Prune Dev Dependencies
         run: cd apps/api && pnpm prune --prod

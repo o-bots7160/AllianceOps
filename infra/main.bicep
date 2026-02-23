@@ -82,7 +82,7 @@ module keyVault 'modules/keyVault.bicep' = {
     location: location
     functionAppPrincipalId: functionApp.outputs.principalId
     tbaApiKey: tbaApiKey
-    databaseUrl: 'postgresql://${postgres.outputs.serverFqdn}:5432/allianceops'
+    databaseUrl: 'postgresql://${postgres.outputs.adminLogin}:${postgresAdminPassword}@${postgres.outputs.serverFqdn}:5432/allianceops?sslmode=require'
     postgresAdminPassword: postgresAdminPassword
   }
 }
