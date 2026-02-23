@@ -142,9 +142,7 @@ export default function PathPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Our Path Through Quals</h2>
-
-      <InfoBox>
+      <InfoBox heading="Our Path Through Quals">
         <p>
           <strong>Path Analysis</strong> maps out your team&apos;s entire qualification schedule ranked by
           difficulty. Each match is rated based on opponent EPA averages compared to the field average.

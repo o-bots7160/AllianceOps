@@ -69,9 +69,7 @@ export default function EventPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Event Setup</h2>
-
-      <InfoBox>
+      <InfoBox heading="Event Setup">
         <p>
           <strong>Event Setup</strong> shows your team&apos;s events and match schedule. Use the header
           controls to set your team number, year, and event — all other pages use these selections.

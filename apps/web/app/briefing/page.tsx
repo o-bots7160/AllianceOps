@@ -165,22 +165,20 @@ export default function BriefingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          Match Briefing — Q{currentMatch.match_number}
-        </h2>
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
-            isRed
-              ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-              : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-          }`}
-        >
-          {isRed ? 'Red' : 'Blue'} Alliance
-        </span>
-      </div>
-
-      <InfoBox>
+      <InfoBox
+        heading={`Match Briefing — Q${currentMatch.match_number}`}
+        headingExtra={
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isRed
+                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+            }`}
+          >
+            {isRed ? 'Red' : 'Blue'} Alliance
+          </span>
+        }
+      >
         <p>
           <strong>Match Briefing</strong> shows a head-to-head breakdown for your next upcoming match.
           Each team card displays <strong>EPA</strong> (Expected Points Added) from Statbotics — a

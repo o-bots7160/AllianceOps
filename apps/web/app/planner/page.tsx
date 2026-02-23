@@ -342,34 +342,27 @@ export default function PlannerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          Duty Planner
-          {adapter && (
-            <span className="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">
-              {adapter.gameName} {adapter.year}
-            </span>
-          )}
-        </h2>
-        <div className="flex items-center gap-3">
-          {saved && (
-            <span className="text-green-600 text-sm font-medium">✓ Saved</span>
-          )}
-          {currentMatch && (
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                isRed
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-              }`}
-            >
-              {isRed ? 'Red' : 'Blue'} Alliance
-            </span>
-          )}
-        </div>
-      </div>
-
-      <InfoBox>
+      <InfoBox
+        heading={`Duty Planner${adapter ? ` — ${adapter.gameName} ${adapter.year}` : ''}`}
+        headingExtra={
+          <div className="flex items-center gap-3">
+            {saved && (
+              <span className="text-green-600 text-sm font-medium">✓ Saved</span>
+            )}
+            {currentMatch && (
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  isRed
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                }`}
+              >
+                {isRed ? 'Red' : 'Blue'} Alliance
+              </span>
+            )}
+          </div>
+        }
+      >
         <p>
           <strong>Duty Planner</strong> lets you assign specific roles to each alliance partner for an
           upcoming match. Select a match, then assign teams to their duties.

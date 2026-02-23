@@ -52,9 +52,7 @@ export default function SimulationPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Simulation Replay</h2>
-
-      <InfoBox>
+      <InfoBox heading="Simulation Replay">
         <p>
           <strong>Simulation Replay</strong> lets you time-travel through a past event match by match.
           Use the cursor slider to step through the qualification schedule and see how the event unfolded.

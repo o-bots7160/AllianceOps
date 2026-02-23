@@ -109,17 +109,17 @@ export default function PicklistPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Picklist</h2>
-        <button
-          onClick={() => downloadCSV(entries)}
-          className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
-        >
-          Export CSV
-        </button>
-      </div>
-
-      <InfoBox>
+      <InfoBox
+        heading="Picklist"
+        headingExtra={
+          <button
+            onClick={() => downloadCSV(entries)}
+            className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
+          >
+            Export CSV
+          </button>
+        }
+      >
         <p>
           <strong>Picklist</strong> ranks all teams at the event by a composite score based on Statbotics
           EPA ratings — auto, teleop, and endgame. Use this during alliance selection to identify the
