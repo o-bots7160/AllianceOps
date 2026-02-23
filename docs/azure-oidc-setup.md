@@ -59,9 +59,14 @@ az ad app federated-credential create --id $APP_OBJECT_ID --parameters '{
 }'
 ```
 
-## 3. Assign Subscription Role
+## 3. Assign Subscription Roles
 
-The service principal must have a role on the Azure subscription to deploy resources.
+The service principal needs two roles on the Azure subscription:
+
+- **Contributor** — to create and manage Azure resources (Function Apps, Postgres, Key Vault, etc.)
+- **User Access Administrator** — to create RBAC role assignments (e.g., granting the Function App's managed identity access to Key Vault secrets)
+
+> **Note:** When adding User Access Administrator, use a condition to restrict it to non-privileged roles only (select "All roles except privileged administrator roles" in the condition picker). This follows least-privilege principles.
 
 ### Via Azure Portal
 
@@ -70,6 +75,10 @@ The service principal must have a role on the Azure subscription to deploy resou
 3. **Role:** `Contributor`
 4. **Members:** Select "User, group, or service principal" → search for **"O-bots GitHub Deployment"** → select it
 5. **Review + assign**
+6. Repeat for **User Access Administrator**:
+   - Same member selection
+   - On the **Conditions** tab, select **"Allow user to assign all roles except privileged administrator roles"**
+   - **Review + assign**
 
 ### Via Azure CLI
 
@@ -83,7 +92,16 @@ az role assignment create \
   --assignee-principal-type ServicePrincipal \
   --role "Contributor" \
   --scope "/subscriptions/<YOUR_SUBSCRIPTION_ID>"
+
+# Assign User Access Administrator (add condition via Portal for least-privilege)
+az role assignment create \
+  --assignee-object-id $SP_OBJECT_ID \
+  --assignee-principal-type ServicePrincipal \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/<YOUR_SUBSCRIPTION_ID>"
 ```
+
+> **Portal recommended for User Access Administrator** — the Portal's condition picker makes it easy to restrict to non-privileged roles. The CLI equivalent requires a complex condition expression.
 
 ## 4. Create GitHub Environments
 
@@ -139,4 +157,5 @@ After completing all steps, push a code change to the `dev` branch. The Deploy D
 | `AADSTS70025: no configured federated identity credentials` | Missing federated credential | Add credential matching the environment name (Step 2) |
 | `No subscriptions found` | Service principal has no role on the subscription | Assign Contributor role (Step 3) |
 | `Login failed` | Wrong client/tenant ID or missing GitHub Environment | Verify secrets and environments (Steps 4–5) |
+| `Authorization failed for roleAssignments/write` | SP lacks permission to assign RBAC roles | Add User Access Administrator role (Step 3) |
 | `Resource group not found` | First deploy — RG doesn't exist yet | The deploy workflows now auto-create the resource group. If running manually: `az group create -n rg-aops-dev -l centralus` |
