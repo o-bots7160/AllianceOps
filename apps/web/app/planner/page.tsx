@@ -259,14 +259,6 @@ export default function PlannerPage() {
   const [template, setTemplate] = useState<string>('');
   const [saved, setSaved] = useState(false);
 
-  if (!eventKey) {
-    return <p className="text-gray-500">Select an event on the Event page first.</p>;
-  }
-
-  if (matchesLoading || teamsLoading) {
-    return <LoadingSpinner message="Loading planner data..." />;
-  }
-
   const qualMatches = matches
     ?.filter((m) => m.comp_level === 'qm')
     .sort((a, b) => a.match_number - b.match_number);
@@ -277,7 +269,6 @@ export default function PlannerPage() {
       m.alliances.blue.team_keys.includes(myTeamKey),
   );
 
-  // Default to next unplayed match (score < 0 means not yet played)
   const nextUnplayed = myMatches?.find((m) => m.alliances.red.score < 0);
   const defaultMatch = nextUnplayed ?? myMatches?.[myMatches.length - 1];
   const currentMatch = myMatches?.find((m) => m.key === selectedMatch) ?? defaultMatch;
@@ -340,6 +331,14 @@ export default function PlannerPage() {
       // handle error
     }
   };
+
+  if (!eventKey) {
+    return <p className="text-gray-500">Select an event on the Event page first.</p>;
+  }
+
+  if (matchesLoading || teamsLoading) {
+    return <LoadingSpinner message="Loading planner data..." />;
+  }
 
   return (
     <div className="space-y-6">
