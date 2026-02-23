@@ -1,11 +1,14 @@
-@description('Name of the Application Insights resource')
-param name string
+@description('Name of the Application Insights resource (e.g. appi-aops-dev)')
+param appInsightsName string
+
+@description('Name of the Log Analytics Workspace (e.g. log-aops-dev)')
+param logAnalyticsName string
 
 @description('Azure region')
 param location string
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: 'law-${name}'
+  name: logAnalyticsName
   location: location
   properties: {
     sku: {
@@ -16,7 +19,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 }
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: name
+  name: appInsightsName
   location: location
   kind: 'web'
   properties: {
@@ -24,38 +27,6 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     WorkspaceResourceId: logAnalytics.id
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
-  }
-}
-
-resource availabilityTest 'Microsoft.Insights/webtests@2022-06-15' = {
-  name: 'health-${name}'
-  location: location
-  kind: 'standard'
-  tags: {
-    'hidden-link:${appInsights.id}': 'Resource'
-  }
-  properties: {
-    SyntheticMonitorId: 'health-${name}'
-    Name: 'Health Check'
-    Enabled: true
-    Frequency: 300
-    Timeout: 30
-    Kind: 'standard'
-    RetryEnabled: true
-    Locations: [
-      { Id: 'us-va-ash-azr' }
-      { Id: 'us-il-ch1-azr' }
-    ]
-    Request: {
-      RequestUrl: 'https://placeholder.azurewebsites.net/api/health'
-      HttpVerb: 'GET'
-      ParseDependentRequests: false
-    }
-    ValidationRules: {
-      ExpectedHttpStatusCode: 200
-      SSLCheck: true
-      SSLCertRemainingLifetimeCheck: 7
-    }
   }
 }
 

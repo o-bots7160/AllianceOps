@@ -1,17 +1,20 @@
-@description('Name of the PostgreSQL Flexible Server')
+@description('Name of the PostgreSQL Flexible Server (e.g. psql-aops-dev)')
 param name string
 
 @description('Azure region')
 param location string
 
 @description('Administrator login')
-param adminLogin string = 'allianceopsadmin'
+param adminLogin string = 'aopsadmin'
 
 @secure()
 @description('Administrator password')
-param adminPassword string = ''
+param adminPassword string
 
-resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview' = {
+@description('Azure AD tenant ID for Entra ID authentication')
+param tenantId string = subscription().tenantId
+
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: name
   location: location
   sku: {
@@ -22,6 +25,11 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
     version: '16'
     administratorLogin: adminLogin
     administratorLoginPassword: adminPassword
+    authConfig: {
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Enabled'
+      tenantId: tenantId
+    }
     storage: {
       storageSizeGB: 32
     }
@@ -35,7 +43,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
   }
 }
 
-resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12-01-preview' = {
+resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
   parent: postgresServer
   name: 'allianceops'
   properties: {
@@ -45,7 +53,7 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12-0
 }
 
 // Allow Azure services to connect
-resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
+resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
   parent: postgresServer
   name: 'AllowAzureServices'
   properties: {

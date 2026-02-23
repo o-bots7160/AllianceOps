@@ -1,4 +1,4 @@
-@description('Name of the Key Vault')
+@description('Name of the Key Vault (e.g. kv-aops-dev)')
 param name string
 
 @description('Azure region')
@@ -18,6 +18,10 @@ param tbaApiKey string = ''
 @secure()
 param databaseUrl string = ''
 
+@description('PostgreSQL administrator password')
+@secure()
+param postgresAdminPassword string = ''
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
   location: location
@@ -34,12 +38,15 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
+// Key Vault Secrets User role ID
+var kvSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+
 // Grant Function App's managed identity Key Vault Secrets User role
 resource kvSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, functionAppPrincipalId, '4633458b-17de-408a-b874-0445c86b69e6')
+  name: guid(keyVault.id, functionAppPrincipalId, kvSecretsUserRoleId)
   scope: keyVault
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRoleId)
     principalId: functionAppPrincipalId
     principalType: 'ServicePrincipal'
   }
@@ -58,6 +65,14 @@ resource secretDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (
   name: 'DatabaseUrl'
   properties: {
     value: databaseUrl
+  }
+}
+
+resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(postgresAdminPassword)) {
+  parent: keyVault
+  name: 'PostgresAdminPassword'
+  properties: {
+    value: postgresAdminPassword
   }
 }
 

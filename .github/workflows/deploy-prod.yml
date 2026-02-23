@@ -59,23 +59,46 @@ jobs:
           name: api-build
           path: apps/api/dist/
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install API dependencies
+        run: pnpm install --frozen-lockfile --filter @allianceops/api --prod
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Infrastructure
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az deployment group create \
-              --resource-group rg-allianceops-prod \
+              --resource-group rg-aops-prod \
               --template-file infra/main.bicep \
               --parameters infra/parameters/prod.parameters.json \
               --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
                            tbaApiKey='${{ secrets.TBA_API_KEY }}'
+
+      - name: Deploy Function App
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            cd apps/api
+            zip -r ../../api-deploy.zip dist/ host.json package.json node_modules/ -x "node_modules/.cache/*"
+            az functionapp deployment source config-zip \
+              --resource-group rg-aops-prod \
+              --name func-aops-prod \
+              --src ../../api-deploy.zip
 
       - name: Deploy Static Web App
         uses: Azure/static-web-apps-deploy@v1

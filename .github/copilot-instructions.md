@@ -243,6 +243,9 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 009: CI/CD with GitHub Actions and Azure OIDC
   - 010: Statbotics API Integration via Enriched Endpoints
   - 011: Simulation Play-by-Play with React Context
+  - 012: Game-Agnostic Duty Planner
+  - 013: Global Event Setup Context
+  - 014: Production-Ready Azure Infrastructure
 
 ## Anti-Patterns to Avoid
 

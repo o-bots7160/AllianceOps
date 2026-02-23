@@ -7,6 +7,18 @@
     },
     "location": {
       "value": "eastus2"
+    },
+    "functionAppSku": {
+      "value": "FC1"
+    },
+    "swaSkuName": {
+      "value": "Standard"
+    },
+    "swaSkuTier": {
+      "value": "Standard"
+    },
+    "budgetAmount": {
+      "value": 50
     }
   }
 }
