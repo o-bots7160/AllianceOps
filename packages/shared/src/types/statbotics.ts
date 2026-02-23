@@ -30,6 +30,8 @@ export interface StatboticsEPA {
   teleop: number;
   endgame: number;
   unitless: number;
+  /** Full game-specific EPA breakdown from Statbotics (e.g. coral_l1, net_algae) */
+  breakdown?: Record<string, number>;
 }
 
 export interface StatboticsRecord {

@@ -18,6 +18,8 @@ export interface DutySlotDefinition {
   label: string;
   description: string;
   category: 'auto' | 'teleop' | 'endgame' | 'defense' | 'discipline';
+  /** EPA breakdown keys used to rank teams for this slot (summed, higher = better fit) */
+  epaRankKeys?: string[];
 }
 
 /** Assignment of a team to a duty slot */

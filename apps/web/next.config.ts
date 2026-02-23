@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config) => {
+    // Resolve .js imports to .ts source files in the shared package
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js'],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

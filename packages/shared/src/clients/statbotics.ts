@@ -12,12 +12,7 @@ const STATBOTICS_BASE_URL = 'https://api.statbotics.io/v3';
 interface RawStatboticsEPA {
   total_points?: { mean: number };
   unitless?: number;
-  breakdown?: {
-    auto_points?: number;
-    teleop_points?: number;
-    endgame_points?: number;
-    total_points?: number;
-  };
+  breakdown?: Record<string, number>;
 }
 
 interface RawStatboticsRecord {
@@ -41,12 +36,14 @@ interface RawTeamYear {
 }
 
 function normalizeEPA(raw: RawStatboticsEPA | null | undefined): StatboticsEPA {
+  const bd = raw?.breakdown;
   return {
-    total: raw?.total_points?.mean ?? raw?.breakdown?.total_points ?? 0,
-    auto: raw?.breakdown?.auto_points ?? 0,
-    teleop: raw?.breakdown?.teleop_points ?? 0,
-    endgame: raw?.breakdown?.endgame_points ?? 0,
+    total: raw?.total_points?.mean ?? bd?.total_points ?? 0,
+    auto: bd?.auto_points ?? 0,
+    teleop: bd?.teleop_points ?? 0,
+    endgame: bd?.endgame_points ?? 0,
     unitless: raw?.unitless ?? 0,
+    breakdown: bd,
   };
 }
 

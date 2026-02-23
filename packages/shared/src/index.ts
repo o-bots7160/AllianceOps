@@ -22,8 +22,11 @@ export type {
 export { TBAClient } from './clients/tba.js';
 export { StatboticsClient } from './clients/statbotics.js';
 
-// Adapters
-export { getAdapter, registerAdapter } from './adapters/registry.js';
+// Adapters (side-effect imports register each adapter)
+import './adapters/2024-crescendo.js';
+import './adapters/2025-reefscape.js';
+import './adapters/2026-rebuilt.js';
+export { getAdapter, registerAdapter, getAvailableYears } from './adapters/registry.js';
 
 // Strategy
 export { generateBriefing } from './strategy/briefing.js';

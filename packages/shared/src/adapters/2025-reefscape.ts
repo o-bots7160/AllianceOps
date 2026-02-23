@@ -13,13 +13,13 @@ function num(val: unknown): number {
 }
 
 const dutySlots: DutySlotDefinition[] = [
-  { key: 'AUTO_ROLE_1', label: 'Auto Role 1', description: 'Primary autonomous scorer', category: 'auto' },
-  { key: 'AUTO_ROLE_2', label: 'Auto Role 2', description: 'Secondary autonomous scorer', category: 'auto' },
-  { key: 'AUTO_ROLE_3', label: 'Auto Role 3', description: 'Tertiary autonomous role', category: 'auto' },
-  { key: 'CORAL_SCORER', label: 'Coral Scorer', description: 'Primary coral placement', category: 'teleop' },
-  { key: 'ALGAE_HANDLER', label: 'Algae Handler', description: 'Algae processor/net scorer', category: 'teleop' },
-  { key: 'CLIMBER_1', label: 'Climber 1', description: 'Primary cage climber', category: 'endgame' },
-  { key: 'CLIMBER_2', label: 'Climber 2', description: 'Secondary cage climber', category: 'endgame' },
+  { key: 'AUTO_ROLE_1', label: 'Auto Role 1', description: 'Primary autonomous scorer', category: 'auto', epaRankKeys: ['auto_points'] },
+  { key: 'AUTO_ROLE_2', label: 'Auto Role 2', description: 'Secondary autonomous scorer', category: 'auto', epaRankKeys: ['auto_points'] },
+  { key: 'AUTO_ROLE_3', label: 'Auto Role 3', description: 'Tertiary autonomous role', category: 'auto', epaRankKeys: ['auto_points'] },
+  { key: 'CORAL_SCORER', label: 'Coral Scorer', description: 'Primary coral placement', category: 'teleop', epaRankKeys: ['coral_l1', 'coral_l2', 'coral_l3', 'coral_l4'] },
+  { key: 'ALGAE_HANDLER', label: 'Algae Handler', description: 'Algae processor/net scorer', category: 'teleop', epaRankKeys: ['net_algae', 'processor_algae'] },
+  { key: 'CLIMBER_1', label: 'Climber 1', description: 'Primary cage climber', category: 'endgame', epaRankKeys: ['barge_points'] },
+  { key: 'CLIMBER_2', label: 'Climber 2', description: 'Secondary cage climber', category: 'endgame', epaRankKeys: ['barge_points'] },
   { key: 'DEFENSE_ROLE', label: 'Defense', description: 'Defensive play coordinator', category: 'defense' },
   { key: 'FOUL_DISCIPLINE', label: 'Foul Discipline', description: 'Foul avoidance focus', category: 'discipline' },
 ];
