@@ -2,7 +2,7 @@ services:
   devcontainer:
     image: mcr.microsoft.com/devcontainers/typescript-node:20
     volumes:
-      - ..:/workspaces/AllianceOps:cached
+      - .:/workspaces/AllianceOps:cached
     command: sleep infinity
     depends_on:
       - postgres
