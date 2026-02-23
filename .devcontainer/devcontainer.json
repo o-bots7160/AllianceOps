@@ -8,14 +8,10 @@
       "version": "20",
       "installYarnUsingApt": false
     },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "moby": false
-    },
     "ghcr.io/devcontainers/features/azure-cli:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "postCreateCommand": "corepack enable && pnpm install && pnpm db:generate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
+  "postCreateCommand": "corepack enable && pnpm install && npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
   "customizations": {
     "vscode": {
       "extensions": [
