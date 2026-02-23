@@ -125,20 +125,8 @@ Add the following secrets:
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 | `POSTGRES_ADMIN_PASSWORD` | Password for the Azure PostgreSQL admin user |
 | `TBA_API_KEY` | The Blue Alliance API key |
-| `AZURE_SWA_TOKEN_DEV` | Deployment token for the dev Static Web App |
-| `AZURE_SWA_TOKEN_PROD` | Deployment token for the prod Static Web App |
 
-### Getting SWA Deployment Tokens
-
-After the infrastructure is deployed for the first time (you may need to temporarily remove deploy steps that depend on existing resources):
-
-```bash
-# Dev
-az staticwebapp secrets list --name stapp-aops-dev --query "properties.apiKey" -o tsv
-
-# Prod
-az staticwebapp secrets list --name stapp-aops-prod --query "properties.apiKey" -o tsv
-```
+> **Note:** SWA deployment tokens are fetched automatically via `az staticwebapp secrets list` during the deploy — no need to store them as secrets.
 
 ## Verification
 

@@ -149,10 +149,18 @@ jobs:
               --name func-aops-dev \
               --src api-deploy.zip
 
+      - name: Get SWA Deployment Token
+        run: |
+          SWA_TOKEN=$(az staticwebapp secrets list \
+            --name stapp-aops-dev \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$SWA_TOKEN"
+          echo "SWA_DEPLOY_TOKEN=$SWA_TOKEN" >> $GITHUB_ENV
+
       - name: Deploy Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_TOKEN_DEV }}
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOY_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: apps/web/out
