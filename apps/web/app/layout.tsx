@@ -19,6 +19,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/event/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
                 Event
               </a>
+              <a href="/briefing/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Briefing
+              </a>
+              <a href="/path/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Path
+              </a>
               <span className="text-gray-500">v0.0.1</span>
             </nav>
           </div>
