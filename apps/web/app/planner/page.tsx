@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { InfoBox } from '../../components/info-box';
 
 interface TBAMatch {
   key: string;
@@ -113,6 +114,25 @@ export default function PlannerPage() {
           <span className="text-green-600 text-sm font-medium">✓ Saved</span>
         )}
       </div>
+
+      <InfoBox>
+        <p>
+          <strong>Duty Planner</strong> lets you assign specific roles to each alliance partner for an
+          upcoming match. Select a match, then assign teams to duties like Coral Scorer, Algae Handler,
+          Climber, or Defense.
+        </p>
+        <p>
+          Use <strong>Templates</strong> to quickly apply a pre-built strategy: <strong>Safe</strong>{' '}
+          (conservative, max reliable points), <strong>Balanced</strong> (scoring + light defense), or{' '}
+          <strong>Aggressive</strong> (max scoring + active defense). You can customize assignments after
+          applying a template.
+        </p>
+        <p>
+          Add <strong>notes</strong> to any duty slot for match-specific instructions. Click{' '}
+          <strong>Save Plan</strong> to store the plan. Duty categories are color-coded: green (auto),
+          blue (teleop), purple (endgame), orange (defense), red (discipline).
+        </p>
+      </InfoBox>
 
       <div className="flex gap-4 items-end">
         <div className="flex-1">

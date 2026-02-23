@@ -62,6 +62,20 @@ Open in VS Code with the Dev Containers extension for a fully configured environ
 - PostgreSQL and Azurite running automatically
 - MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma, Next.js DevTools, Bicep)
 
+#### SSH Authentication
+
+The Dev Container forwards your host SSH agent so `git push/pull` works inside the container. Ensure your host SSH agent is running and has your GitHub key loaded:
+
+```bash
+# macOS — keys in Keychain are loaded automatically
+ssh-add -l  # verify keys are listed
+
+# If no keys are listed
+ssh-add ~/.ssh/id_ed25519  # or your key path
+```
+
+> **Note:** This uses Docker Desktop's SSH agent socket (`/run/host-services/ssh-auth.sock`). Linux users not using Docker Desktop may need to adjust the socket path in `docker-compose.yml`.
+
 ### Scripts
 
 | Script | Description |
@@ -91,6 +105,14 @@ docs/            → Architecture docs and ADRs
 - [ADR 001: Monorepo + pnpm](docs/adr/001-monorepo-pnpm.md)
 - [ADR 002: Static Next.js](docs/adr/002-static-nextjs.md)
 - [ADR 003: GameDefinition Adapters](docs/adr/003-game-definition-adapters.md)
+- [ADR 004: Caching Strategy](docs/adr/004-caching-strategy.md)
+- [ADR 005: Pluggable Auth](docs/adr/005-auth-pluggable.md)
+- [ADR 006: Secrets via Key Vault](docs/adr/006-secrets-key-vault.md)
+- [ADR 007: Observability with App Insights](docs/adr/007-observability-app-insights.md)
+- [ADR 008: Dev Container Workflow](docs/adr/008-dev-container-workflow.md)
+- [ADR 009: CI/CD with GitHub Actions](docs/adr/009-cicd-github-actions-oidc.md)
+- [ADR 010: Statbotics Integration](docs/adr/010-statbotics-integration.md)
+- [ADR 011: Simulation Play-by-Play](docs/adr/011-simulation-play-by-play.md)
 
 ## License
 

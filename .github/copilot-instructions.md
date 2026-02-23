@@ -241,6 +241,8 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 007: Observability with Application Insights
   - 008: Dev Container as Primary Development Environment
   - 009: CI/CD with GitHub Actions and Azure OIDC
+  - 010: Statbotics API Integration via Enriched Endpoints
+  - 011: Simulation Play-by-Play with React Context
 
 ## Anti-Patterns to Avoid
 

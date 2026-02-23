@@ -25,9 +25,15 @@ Use VS Code Dev Containers with Docker Compose as the sole supported development
 5. `pnpm db:generate` — generates Prisma client
 6. Copies `local.settings.json.example` to `local.settings.json` if not present
 
+### SSH Agent Forwarding
+- The host SSH agent socket is mounted into the container via Docker Desktop's `/run/host-services/ssh-auth.sock`
+- `SSH_AUTH_SOCK` is set in docker-compose environment so git operations (push, pull, fetch) use the host's SSH keys
+- This requires Docker Desktop on macOS or Windows; Linux users may need to adjust the socket path to match their `SSH_AUTH_SOCK`
+
 ### Environment Variables
 - `COREPACK_ENABLE_AUTO_PIN=0` set in docker-compose to suppress corepack prompts
 - `DATABASE_URL` and `AZURITE_CONNECTION_STRING` set in docker-compose with container hostnames
+- `SSH_AUTH_SOCK` set to Docker Desktop's SSH agent socket path
 - `TBA_API_KEY` and other secrets loaded from `.env` (gitignored) via docker-compose `env_file`
 
 ### Port Forwarding

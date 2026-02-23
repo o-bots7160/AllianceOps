@@ -4,7 +4,11 @@ export type {
   StatboticsTeamYear,
   StatboticsTeamEvent,
   StatboticsMatch,
+  StatboticsEPA,
+  StatboticsRecord,
+  StatboticsMatchPrediction,
 } from './types/statbotics.js';
+export type { EnrichedTeam, EnrichedMatch } from './types/enriched.js';
 export type {
   GameDefinition,
   GenericBreakdown,

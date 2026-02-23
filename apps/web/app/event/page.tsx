@@ -2,7 +2,10 @@
 
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { useSimulation } from '../../components/simulation-context';
+import { filterMatchesByCursor } from '../../lib/simulation-filters';
 import { Combobox } from '../../components/combobox';
+import { InfoBox } from '../../components/info-box';
 
 interface TBAEvent {
   key: string;
@@ -30,12 +33,15 @@ function teamDisplay(teamKey: string): string {
 
 export default function EventPage() {
   const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
+  const { activeCursor } = useSimulation();
   const { data: events, loading: eventsLoading } = useApi<TBAEvent[]>(
     year ? `events?year=${year}` : null,
   );
-  const { data: matches, loading: matchesLoading, meta } = useApi<TBAMatch[]>(
+  const { data: rawMatches, loading: matchesLoading, meta } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
+
+  const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
   const myTeamKey = `frc${teamNumber}`;
   const sortedMatches = matches
@@ -60,6 +66,21 @@ export default function EventPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Event Setup</h2>
+
+      <InfoBox>
+        <p>
+          <strong>Event Setup</strong> is your starting point. Select your team number, competition year,
+          and event to configure the entire dashboard. All other pages use these selections.
+        </p>
+        <p>
+          Data is pulled live from <strong>The Blue Alliance</strong> (match schedules, scores) and{' '}
+          <strong>Statbotics</strong> (EPA ratings, predictions). No manual scouting or data entry needed.
+        </p>
+        <p>
+          The qual schedule below shows all matches for the selected event. Your team&apos;s matches are
+          highlighted. Scores appear as matches are played.
+        </p>
+      </InfoBox>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>

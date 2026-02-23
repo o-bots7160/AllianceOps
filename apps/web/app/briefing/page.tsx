@@ -2,6 +2,9 @@
 
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { useSimulation } from '../../components/simulation-context';
+import { filterMatchesByCursor } from '../../lib/simulation-filters';
+import { InfoBox } from '../../components/info-box';
 
 interface TBAMatch {
   key: string;
@@ -14,11 +17,12 @@ interface TBAMatch {
   winning_alliance: string;
 }
 
-interface TeamEpaData {
-  team: number;
-  epa: { total: number; auto: number; teleop: number; endgame: number };
-  record: { wins: number; losses: number; ties: number };
-  winrate: number;
+interface EnrichedTeam {
+  team_number: number;
+  nickname: string;
+  epa: { total: number; auto: number; teleop: number; endgame: number } | null;
+  eventRecord: { wins: number; losses: number; ties: number } | null;
+  winrate: number | null;
 }
 
 function teamNum(key: string): string {
@@ -34,7 +38,7 @@ function EpaBar({ value, max, color }: { value: number; max: number; color: stri
   );
 }
 
-function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, TeamEpaData> }) {
+function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, EnrichedTeam> }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
   const maxEpa = 40;
@@ -43,13 +47,13 @@ function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, Te
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
       <div className="flex justify-between items-center">
         <span className="font-bold text-lg">{teamNum(teamKey)}</span>
-        {data?.record && (
+        {data?.eventRecord && (
           <span className="text-xs text-gray-500">
-            {data.record.wins}W-{data.record.losses}L
+            {data.eventRecord.wins}W-{data.eventRecord.losses}L
           </span>
         )}
       </div>
-      {data?.epa ? (
+      {data?.epa?.total != null ? (
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <span className="w-14">Total</span>
@@ -58,18 +62,18 @@ function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, Te
           </div>
           <div className="flex items-center gap-2">
             <span className="w-14">Auto</span>
-            <EpaBar value={data.epa.auto} max={maxEpa / 2} color="bg-green-500" />
-            <span className="w-8 text-right">{data.epa.auto.toFixed(1)}</span>
+            <EpaBar value={data.epa.auto ?? 0} max={maxEpa / 2} color="bg-green-500" />
+            <span className="w-8 text-right">{(data.epa.auto ?? 0).toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-14">Teleop</span>
-            <EpaBar value={data.epa.teleop} max={maxEpa / 2} color="bg-blue-500" />
-            <span className="w-8 text-right">{data.epa.teleop.toFixed(1)}</span>
+            <EpaBar value={data.epa.teleop ?? 0} max={maxEpa / 2} color="bg-blue-500" />
+            <span className="w-8 text-right">{(data.epa.teleop ?? 0).toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-14">Endgame</span>
-            <EpaBar value={data.epa.endgame} max={maxEpa / 3} color="bg-purple-500" />
-            <span className="w-8 text-right">{data.epa.endgame.toFixed(1)}</span>
+            <EpaBar value={data.epa.endgame ?? 0} max={maxEpa / 3} color="bg-purple-500" />
+            <span className="w-8 text-right">{(data.epa.endgame ?? 0).toFixed(1)}</span>
           </div>
         </div>
       ) : (
@@ -81,19 +85,22 @@ function TeamCard({ teamKey, epaMap }: { teamKey: string; epaMap: Map<number, Te
 
 export default function BriefingPage() {
   const { eventKey, teamNumber } = useEventSetup();
+  const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
-  const { data: matches } = useApi<TBAMatch[]>(
+  const { data: rawMatches } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
-  const { data: teams } = useApi<TeamEpaData[]>(
+  const { data: teams } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
-  const epaMap = new Map<number, TeamEpaData>();
+  const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
+
+  const epaMap = new Map<number, EnrichedTeam>();
   if (teams) {
     for (const t of teams) {
-      epaMap.set(t.team, t);
+      epaMap.set(t.team_number, t);
     }
   }
 
@@ -167,6 +174,23 @@ export default function BriefingPage() {
           {isRed ? 'Red' : 'Blue'} Alliance
         </span>
       </div>
+
+      <InfoBox>
+        <p>
+          <strong>Match Briefing</strong> shows a head-to-head breakdown for your next upcoming match.
+          Each team card displays <strong>EPA</strong> (Expected Points Added) from Statbotics — a
+          statistical rating of how many points a team contributes per match across auto, teleop, and endgame.
+        </p>
+        <p>
+          <strong>Win Conditions</strong> highlight areas where your alliance has an advantage (e.g., auto
+          scoring edge). <strong>Risks</strong> flag opponent strengths or areas of concern. Use these to
+          decide match strategy before you queue.
+        </p>
+        <p>
+          The briefing automatically advances to the next unplayed match. When simulation mode is active,
+          it shows the next unplayed match at the cursor position.
+        </p>
+      </InfoBox>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

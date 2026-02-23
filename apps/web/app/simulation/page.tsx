@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { useApi } from '../../components/use-api';
+import { useSimulation } from '../../components/simulation-context';
+import { getTeamRecord } from '../../lib/simulation-filters';
+import { InfoBox } from '../../components/info-box';
 
 interface TBAMatch {
   key: string;
@@ -25,12 +28,15 @@ const PRESETS = [
 ];
 
 export default function SimulationPage() {
-  const [eventKey, setEventKey] = useState(PRESETS[0].eventKey);
-  const [cursor, setCursor] = useState(1);
+  const [selectedPreset, setSelectedPreset] = useState(PRESETS[0].eventKey);
   const [teamNumber, setTeamNumber] = useState(PRESETS[0].teamNumber);
+  const { cursor, startSimulation, stopSimulation, setCursor, isSimulating, eventKey: simEventKey } =
+    useSimulation();
+
+  const activeEventKey = simEventKey || selectedPreset;
 
   const { data: matches, loading } = useApi<TBAMatch[]>(
-    eventKey ? `event/${eventKey}/matches` : null,
+    activeEventKey ? `event/${activeEventKey}/matches` : null,
   );
 
   const qualMatches = matches
@@ -38,28 +44,39 @@ export default function SimulationPage() {
     .sort((a, b) => a.match_number - b.match_number);
 
   const maxCursor = qualMatches?.length ?? 1;
-  const visibleMatches = qualMatches?.slice(0, cursor);
+  const activeCursor = Math.min(cursor, maxCursor);
+  const visibleMatches = qualMatches?.slice(0, activeCursor);
   const playedMatches = visibleMatches?.filter(
     (m) => m.alliances.red.score >= 0 && m.alliances.blue.score >= 0,
   );
-  const upcomingMatches = qualMatches?.slice(cursor);
+  const upcomingMatches = qualMatches?.slice(activeCursor);
 
   const myTeamKey = `frc${teamNumber}`;
-
-  // Compute record at cursor
-  let wins = 0;
-  let losses = 0;
-  playedMatches?.forEach((m) => {
-    const isRed = m.alliances.red.team_keys.includes(myTeamKey);
-    if (!isRed && !m.alliances.blue.team_keys.includes(myTeamKey)) return;
-    const won = m.winning_alliance === (isRed ? 'red' : 'blue');
-    if (won) wins++;
-    else losses++;
-  });
+  const record = qualMatches
+    ? getTeamRecord(qualMatches, myTeamKey, activeCursor)
+    : { wins: 0, losses: 0, ties: 0 };
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Simulation Replay</h2>
+
+      <InfoBox>
+        <p>
+          <strong>Simulation Replay</strong> lets you time-travel through a past event match by match.
+          Use the cursor slider to step through the qualification schedule and see how the event unfolded.
+        </p>
+        <p>
+          Click <strong>Start Simulation</strong> to activate simulation mode across the entire dashboard.
+          When active, an amber bar appears at the top of every page, and the Briefing, Path, and Event
+          pages will reflect the state of the event at your cursor position — as if you were at that
+          point in the competition.
+        </p>
+        <p>
+          Click <strong>Stop Simulation</strong> or &quot;Exit Sim&quot; in the top bar to return all
+          pages to live/real-time data. The simulation page itself always shows the replay view regardless
+          of simulation mode.
+        </p>
+      </InfoBox>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
@@ -67,11 +84,11 @@ export default function SimulationPage() {
             Preset
           </label>
           <select
-            value={eventKey}
+            value={selectedPreset}
             onChange={(e) => {
               const preset = PRESETS.find((p) => p.eventKey === e.target.value);
-              setEventKey(e.target.value);
-              setCursor(1);
+              setSelectedPreset(e.target.value);
+              if (isSimulating) startSimulation(e.target.value, 1);
               if (preset) setTeamNumber(preset.teamNumber);
             }}
             className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
@@ -86,25 +103,25 @@ export default function SimulationPage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Match Cursor: {cursor} / {maxCursor}
+            Match Cursor: {activeCursor} / {maxCursor}
           </label>
           <input
             type="range"
             min={1}
             max={maxCursor}
-            value={cursor}
+            value={activeCursor}
             onChange={(e) => setCursor(parseInt(e.target.value, 10))}
             className="w-full"
           />
           <div className="flex justify-between mt-1">
             <button
-              onClick={() => setCursor((c) => Math.max(1, c - 1))}
+              onClick={() => setCursor(Math.max(1, activeCursor - 1))}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               ◀ Back
             </button>
             <button
-              onClick={() => setCursor((c) => Math.min(maxCursor, c + 1))}
+              onClick={() => setCursor(Math.min(maxCursor, activeCursor + 1))}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Forward ▶
@@ -115,9 +132,26 @@ export default function SimulationPage() {
         <div className="flex items-center justify-center">
           <div className="text-center">
             <p className="text-3xl font-bold">
-              {wins}W - {losses}L
+              {record.wins}W - {record.losses}L
             </p>
-            <p className="text-xs text-gray-500">Team {teamNumber} at cursor {cursor}</p>
+            <p className="text-xs text-gray-500">
+              Team {teamNumber} at cursor {activeCursor}
+            </p>
+            {isSimulating ? (
+              <button
+                onClick={stopSimulation}
+                className="mt-2 text-xs px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700"
+              >
+                Stop Simulation
+              </button>
+            ) : (
+              <button
+                onClick={() => startSimulation(activeEventKey, activeCursor)}
+                className="mt-2 text-xs px-3 py-1 rounded bg-primary-600 text-white hover:bg-primary-700"
+              >
+                Start Simulation
+              </button>
+            )}
           </div>
         </div>
       </div>

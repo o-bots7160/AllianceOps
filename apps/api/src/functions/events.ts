@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getTBAClient } from '../lib/clients.js';
+import { getTBAClient, getStatboticsClient } from '../lib/clients.js';
 import { cached } from '../cache/index.js';
+import { mergeTeams, mergeMatches } from '../lib/merge.js';
 
 app.http('getEvents', {
   methods: ['GET'],
@@ -47,20 +48,11 @@ app.http('getEventMatches', {
       `matches:${eventKey}:${includeBreakdowns ? 'full' : 'slim'}`,
       'LIVE',
       async () => {
-        const matches = await getTBAClient().getEventMatches(eventKey);
-        if (includeBreakdowns) return matches;
-        return matches.map((m) => ({
-          key: m.key,
-          comp_level: m.comp_level,
-          set_number: m.set_number,
-          match_number: m.match_number,
-          alliances: m.alliances,
-          winning_alliance: m.winning_alliance,
-          event_key: m.event_key,
-          time: m.time,
-          actual_time: m.actual_time,
-          predicted_time: m.predicted_time,
-        }));
+        const [tbaMatches, statboticsMatches] = await Promise.all([
+          getTBAClient().getEventMatches(eventKey),
+          getStatboticsClient().getEventMatches(eventKey).catch(() => []),
+        ]);
+        return mergeMatches(tbaMatches, statboticsMatches, includeBreakdowns);
       },
     );
 
@@ -78,9 +70,13 @@ app.http('getEventTeams', {
       return { status: 400, jsonBody: { error: 'eventKey is required' } };
     }
 
-    const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', () =>
-      getTBAClient().getEventTeams(eventKey),
-    );
+    const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', async () => {
+      const [tbaTeams, statboticsTeams] = await Promise.all([
+        getTBAClient().getEventTeams(eventKey),
+        getStatboticsClient().getEventTeams(eventKey).catch(() => []),
+      ]);
+      return mergeTeams(tbaTeams, statboticsTeams);
+    });
 
     return { status: 200, jsonBody: result };
   },

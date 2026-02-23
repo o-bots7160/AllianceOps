@@ -3,12 +3,13 @@
 import { useState, useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { InfoBox } from '../../components/info-box';
 
-interface TeamEpaData {
-  team: number;
+interface EnrichedTeam {
+  team_number: number;
   nickname?: string;
-  epa: { total: number; auto: number; teleop: number; endgame: number };
-  record: { wins: number; losses: number; ties: number };
+  epa: { total: number; auto: number; teleop: number; endgame: number } | null;
+  eventRecord: { wins: number; losses: number; ties: number } | null;
 }
 
 interface PicklistEntry {
@@ -25,15 +26,15 @@ interface PicklistEntry {
   notes: string;
 }
 
-function generatePicklist(teams: TeamEpaData[]): PicklistEntry[] {
+function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
   if (!teams.length) return [];
 
   const maxEpa = Math.max(...teams.map((t) => t.epa?.total ?? 0), 1);
 
   return teams
     .map((t) => ({
-      teamNumber: t.team,
-      nickname: t.nickname ?? `Team ${t.team}`,
+      teamNumber: t.team_number,
+      nickname: t.nickname ?? `Team ${t.team_number}`,
       score: (t.epa?.total ?? 0) / maxEpa,
       epaTotal: t.epa?.total ?? 0,
       epaAuto: t.epa?.auto ?? 0,
@@ -68,7 +69,7 @@ function downloadCSV(entries: PicklistEntry[]) {
 
 export default function PicklistPage() {
   const { eventKey } = useEventSetup();
-  const { data: teams } = useApi<TeamEpaData[]>(
+  const { data: teams } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
@@ -112,6 +113,23 @@ export default function PicklistPage() {
           Export CSV
         </button>
       </div>
+
+      <InfoBox>
+        <p>
+          <strong>Picklist</strong> ranks all teams at the event by a composite score based on Statbotics
+          EPA ratings — auto, teleop, and endgame. Use this during alliance selection to identify the
+          strongest available partners.
+        </p>
+        <p>
+          <strong>Tags</strong> let you categorize teams (e.g., &quot;strong auto&quot;, &quot;good
+          defense&quot;). <strong>Notes</strong> are free-form observations. <strong>Exclude</strong> teams
+          you don&apos;t want to consider. All annotations are local to your browser.
+        </p>
+        <p>
+          Use <strong>Export CSV</strong> to download the picklist for sharing or printing. Search by team
+          number or name, and filter by tag.
+        </p>
+      </InfoBox>
 
       <div className="flex gap-4">
         <input

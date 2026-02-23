@@ -3,6 +3,7 @@ services:
     image: mcr.microsoft.com/devcontainers/typescript-node:20
     volumes:
       - .:/workspaces/AllianceOps:cached
+      - /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock
     command: sleep infinity
     depends_on:
       - postgres
@@ -10,6 +11,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://allianceops:allianceops@postgres:5432/allianceops
       - AZURITE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1
+      - SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
       - COREPACK_ENABLE_AUTO_PIN=0
     env_file:
       - path: .env

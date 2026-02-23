@@ -2,6 +2,9 @@
 
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
+import { useSimulation } from '../../components/simulation-context';
+import { filterMatchesByCursor } from '../../lib/simulation-filters';
+import { InfoBox } from '../../components/info-box';
 
 interface TBAMatch {
   key: string;
@@ -15,9 +18,9 @@ interface TBAMatch {
   time: number | null;
 }
 
-interface TeamEpaData {
-  team: number;
-  epa: { total: number };
+interface EnrichedTeam {
+  team_number: number;
+  epa: { total: number } | null;
 }
 
 function difficultyLabel(score: number): { label: string; color: string } {
@@ -29,14 +32,17 @@ function difficultyLabel(score: number): { label: string; color: string } {
 
 export default function PathPage() {
   const { eventKey, teamNumber } = useEventSetup();
+  const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
-  const { data: matches } = useApi<TBAMatch[]>(
+  const { data: rawMatches } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
-  const { data: teams } = useApi<TeamEpaData[]>(
+  const { data: teams } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
+
+  const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
@@ -47,7 +53,7 @@ export default function PathPage() {
   let teamCount = 0;
   if (teams) {
     for (const t of teams) {
-      epaMap.set(t.team, t.epa?.total ?? 0);
+      epaMap.set(t.team_number, t.epa?.total ?? 0);
       totalEpa += t.epa?.total ?? 0;
       teamCount++;
     }
@@ -132,6 +138,23 @@ export default function PathPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Our Path Through Quals</h2>
+
+      <InfoBox>
+        <p>
+          <strong>Path Analysis</strong> maps out your team&apos;s entire qualification schedule ranked by
+          difficulty. Each match is rated based on opponent EPA averages compared to the field average.
+        </p>
+        <p>
+          <strong>Difficulty</strong> ranges from Easy to Very Hard. <strong>Swing matches</strong> (⚡) are
+          predicted to be within 10 points — these are the ones where preparation and execution matter most.
+          <strong>Predicted margin</strong> shows the expected point differential based on alliance vs.
+          opponent EPA.
+        </p>
+        <p>
+          <strong>Rest time</strong> shows minutes between your matches. Use this to plan pit stops and
+          pre-match strategy sessions. Results fill in as matches are played.
+        </p>
+      </InfoBox>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
