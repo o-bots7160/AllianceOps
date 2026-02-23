@@ -14,5 +14,9 @@ export type {
   GameMetricDefinition,
 } from './types/game-definition.js';
 
+// Clients
+export { TBAClient } from './clients/tba.js';
+export { StatboticsClient } from './clients/statbotics.js';
+
 // Adapters
 export { getAdapter, registerAdapter } from './adapters/registry.js';

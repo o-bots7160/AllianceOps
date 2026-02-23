@@ -12,11 +12,12 @@
     "prestart": "npm run build"
   },
   "dependencies": {
+    "@allianceops/shared": "workspace:*",
     "@azure/functions": "^4.6.0",
-    "@prisma/client": "^6.2.0",
-    "@allianceops/shared": "workspace:*"
+    "@prisma/client": "^6.2.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "azure-functions-core-tools": "^4.0.0",

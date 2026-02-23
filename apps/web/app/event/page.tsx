@@ -1,0 +1,178 @@
+'use client';
+
+import { useEventSetup } from '../../components/use-event-setup';
+import { useApi } from '../../components/use-api';
+
+interface TBAEvent {
+  key: string;
+  name: string;
+  start_date: string;
+  city: string;
+  state_prov: string;
+}
+
+interface TBAMatch {
+  key: string;
+  comp_level: string;
+  match_number: number;
+  alliances: {
+    red: { team_keys: string[]; score: number };
+    blue: { team_keys: string[]; score: number };
+  };
+  time: number | null;
+  winning_alliance: string;
+}
+
+function teamDisplay(teamKey: string): string {
+  return teamKey.replace('frc', '');
+}
+
+export default function EventPage() {
+  const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
+  const { data: events, loading: eventsLoading } = useApi<TBAEvent[]>(
+    `events?year=${year}`,
+  );
+  const { data: matches, loading: matchesLoading, meta } = useApi<TBAMatch[]>(
+    eventKey ? `event/${eventKey}/matches` : null,
+  );
+
+  const myTeamKey = `frc${teamNumber}`;
+  const sortedMatches = matches
+    ?.filter((m) => m.comp_level === 'qm')
+    .sort((a, b) => a.match_number - b.match_number);
+
+  const sortedEvents = events
+    ?.filter((e) => e.name)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Event Setup</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Year
+          </label>
+          <select
+            value={year}
+            onChange={(e) => setYear(parseInt(e.target.value, 10))}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+          >
+            {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Event
+          </label>
+          <select
+            value={eventKey}
+            onChange={(e) => setEventKey(e.target.value)}
+            disabled={eventsLoading || !events}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+          >
+            <option value="">Select event...</option>
+            {sortedEvents?.map((ev) => (
+              <option key={ev.key} value={ev.key}>
+                {ev.name} — {ev.city}, {ev.state_prov}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            My Team #
+          </label>
+          <input
+            type="number"
+            value={teamNumber}
+            onChange={(e) => setTeamNumber(parseInt(e.target.value, 10) || 0)}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      {meta && (
+        <p className="text-xs text-gray-500">
+          Last refresh: {new Date(meta.lastRefresh).toLocaleString()}
+          {meta.stale && <span className="ml-2 text-amber-500">(stale cache)</span>}
+        </p>
+      )}
+
+      {matchesLoading && <p className="text-gray-500">Loading matches...</p>}
+
+      {sortedMatches && sortedMatches.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Qual Schedule ({sortedMatches.length} matches)</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+                  <th className="py-2 px-3">Match</th>
+                  <th className="py-2 px-3 text-red-600">Red Alliance</th>
+                  <th className="py-2 px-3 text-blue-600">Blue Alliance</th>
+                  <th className="py-2 px-3">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedMatches.map((match) => {
+                  const isMyMatch =
+                    match.alliances.red.team_keys.includes(myTeamKey) ||
+                    match.alliances.blue.team_keys.includes(myTeamKey);
+                  return (
+                    <tr
+                      key={match.key}
+                      className={`border-b border-gray-100 dark:border-gray-800 ${
+                        isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
+                      }`}
+                    >
+                      <td className="py-2 px-3 font-mono">Q{match.match_number}</td>
+                      <td className="py-2 px-3">
+                        {match.alliances.red.team_keys.map((t) => (
+                          <span
+                            key={t}
+                            className={`inline-block mr-2 ${
+                              t === myTeamKey ? 'font-bold text-primary-600' : 'text-red-700 dark:text-red-400'
+                            }`}
+                          >
+                            {teamDisplay(t)}
+                          </span>
+                        ))}
+                      </td>
+                      <td className="py-2 px-3">
+                        {match.alliances.blue.team_keys.map((t) => (
+                          <span
+                            key={t}
+                            className={`inline-block mr-2 ${
+                              t === myTeamKey ? 'font-bold text-primary-600' : 'text-blue-700 dark:text-blue-400'
+                            }`}
+                          >
+                            {teamDisplay(t)}
+                          </span>
+                        ))}
+                      </td>
+                      <td className="py-2 px-3 font-mono">
+                        {match.alliances.red.score >= 0
+                          ? `${match.alliances.red.score} - ${match.alliances.blue.score}`
+                          : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {eventKey && !matchesLoading && (!sortedMatches || sortedMatches.length === 0) && (
+        <p className="text-gray-500">No matches found for this event.</p>
+      )}
+    </div>
+  );
+}

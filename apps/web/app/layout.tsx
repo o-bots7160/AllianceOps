@@ -16,6 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               AllianceOps
             </h1>
             <nav className="flex gap-4 text-sm">
+              <a href="/event/" className="text-gray-600 dark:text-gray-400 hover:text-primary-600">
+                Event
+              </a>
               <span className="text-gray-500">v0.0.1</span>
             </nav>
           </div>
