@@ -97,16 +97,26 @@ jobs:
               --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
                            tbaApiKey='${{ secrets.TBA_API_KEY }}'
 
-      - name: Run Database Migrations
+      - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            export DATABASE_URL=$(az keyvault secret show \
-              --vault-name kv-aops-prod \
-              --name DatabaseUrl \
-              --query value -o tsv)
-            cd apps/api
-            npx prisma migrate deploy
+            DEPLOYER_OID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+            KV_ID=$(az keyvault show --name kv-aops-prod --query id -o tsv)
+            az role assignment create \
+              --assignee-object-id $DEPLOYER_OID \
+              --assignee-principal-type ServicePrincipal \
+              --role "Key Vault Secrets User" \
+              --scope $KV_ID 2>/dev/null || true
+
+      - name: Run Database Migrations
+        run: |
+          export DATABASE_URL=$(az keyvault secret show \
+            --vault-name kv-aops-prod \
+            --name DatabaseUrl \
+            --query value -o tsv)
+          cd apps/api
+          npx prisma migrate deploy
 
       - name: Deploy Function App
         uses: azure/CLI@v2
