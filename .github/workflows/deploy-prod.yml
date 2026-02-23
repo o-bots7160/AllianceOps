@@ -84,7 +84,7 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            az group create --name rg-aops-prod --location eastus2
+            az group create --name rg-aops-prod --location centralus
 
       - name: Deploy Infrastructure
         uses: azure/CLI@v2

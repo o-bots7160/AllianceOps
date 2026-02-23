@@ -6,7 +6,7 @@
       "value": "dev"
     },
     "location": {
-      "value": "eastus2"
+      "value": "centralus"
     },
     "functionAppSku": {
       "value": "Y1"

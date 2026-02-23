@@ -139,4 +139,4 @@ After completing all steps, push a code change to the `dev` branch. The Deploy D
 | `AADSTS70025: no configured federated identity credentials` | Missing federated credential | Add credential matching the environment name (Step 2) |
 | `No subscriptions found` | Service principal has no role on the subscription | Assign Contributor role (Step 3) |
 | `Login failed` | Wrong client/tenant ID or missing GitHub Environment | Verify secrets and environments (Steps 4–5) |
-| `Resource group not found` | First deploy — RG doesn't exist yet | The deploy workflows now auto-create the resource group. If running manually: `az group create -n rg-aops-dev -l eastus2` |
+| `Resource group not found` | First deploy — RG doesn't exist yet | The deploy workflows now auto-create the resource group. If running manually: `az group create -n rg-aops-dev -l centralus` |

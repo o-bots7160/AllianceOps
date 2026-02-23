@@ -6,7 +6,7 @@
       "value": "prod"
     },
     "location": {
-      "value": "eastus2"
+      "value": "centralus"
     },
     "functionAppSku": {
       "value": "FC1"
