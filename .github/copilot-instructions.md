@@ -237,6 +237,10 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 003: Game Definition Adapters
   - 004: Caching Strategy
   - 005: Pluggable Auth Abstraction
+  - 006: Secrets Management via Key Vault
+  - 007: Observability with Application Insights
+  - 008: Dev Container as Primary Development Environment
+  - 009: CI/CD with GitHub Actions and Azure OIDC
 
 ## Anti-Patterns to Avoid
 
