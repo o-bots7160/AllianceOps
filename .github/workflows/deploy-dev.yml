@@ -59,12 +59,23 @@ jobs:
           name: api-build
           path: apps/api/dist/
 
-      # TODO: Configure Azure OIDC federated credentials
-      # - uses: azure/login@v2
-      #   with:
-      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
-      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Infrastructure
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group rg-allianceops-dev \
+              --template-file infra/main.bicep \
+              --parameters infra/parameters/dev.parameters.json \
+              --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
+                           tbaApiKey='${{ secrets.TBA_API_KEY }}'
 
       - name: Deploy Static Web App
         uses: Azure/static-web-apps-deploy@v1

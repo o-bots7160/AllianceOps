@@ -15,6 +15,7 @@
   "dependencies": {
     "@allianceops/shared": "workspace:*",
     "@azure/functions": "^4.6.0",
+    "applicationinsights": "^3.4.0",
     "@prisma/client": "^6.2.0"
   },
   "devDependencies": {

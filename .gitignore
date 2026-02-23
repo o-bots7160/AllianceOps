@@ -35,3 +35,6 @@ coverage/
 # Debug logs
 npm-debug.log*
 pnpm-debug.log*
+
+# Bicep compiled output
+infra/main.json
