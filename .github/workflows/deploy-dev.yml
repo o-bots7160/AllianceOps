@@ -3,6 +3,11 @@ name: Deploy Dev
 on:
   push:
     branches: [dev]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.github/copilot-instructions.md'
 
 concurrency:
   group: deploy-dev

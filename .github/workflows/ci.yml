@@ -3,6 +3,11 @@ name: CI
 on:
   pull_request:
     branches: [main, dev]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.github/copilot-instructions.md'
 
 concurrency:
   group: ci-${{ github.ref }}
