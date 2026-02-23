@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "TBA_API_KEY": "",
+    "STATBOTICS_BASE_URL": "https://api.statbotics.io/v3",
+    "DATABASE_URL": "postgresql://allianceops:allianceops@postgres:5432/allianceops"
+  },
+  "Host": {
+    "CORS": "http://localhost:3000",
+    "CORSCredentials": true
+  }
+}
