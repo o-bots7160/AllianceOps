@@ -64,14 +64,6 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
 // Base app settings
 var sharedAppSettings = [
   {
-    name: 'FUNCTIONS_EXTENSION_VERSION'
-    value: '~4'
-  }
-  {
-    name: 'FUNCTIONS_WORKER_RUNTIME'
-    value: 'node'
-  }
-  {
     name: 'NODE_ENV'
     value: 'production'
   }
