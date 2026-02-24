@@ -19,9 +19,7 @@ export interface AuthProvider {
  * Also supports decoding the x-ms-client-principal base64 blob (used by SWA CLI).
  */
 export class SWAAuthProvider implements AuthProvider {
-  async validateRequest(
-    headers: Record<string, string | undefined>,
-  ): Promise<AuthUser | null> {
+  async validateRequest(headers: Record<string, string | undefined>): Promise<AuthUser | null> {
     const principalId = headers['x-ms-client-principal-id'];
     const principalName = headers['x-ms-client-principal-name'];
 
@@ -54,21 +52,7 @@ export class SWAAuthProvider implements AuthProvider {
   }
 }
 
-/**
- * Development auth provider — always returns an editor user.
- */
-export class DevAuthProvider implements AuthProvider {
-  async validateRequest(): Promise<AuthUser> {
-    return {
-      id: 'dev-user',
-      displayName: 'Dev User',
-      email: 'dev@allianceops.local',
-      role: 'editor',
-    };
-  }
-}
-
-let currentProvider: AuthProvider = new DevAuthProvider();
+let currentProvider: AuthProvider = new SWAAuthProvider();
 
 export function setAuthProvider(provider: AuthProvider): void {
   currentProvider = provider;

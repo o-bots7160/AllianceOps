@@ -6,7 +6,7 @@
   "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w & func start --typescript",
+    "dev": "tsc && tsc -w & func start --typescript",
     "lint": "eslint src/ --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

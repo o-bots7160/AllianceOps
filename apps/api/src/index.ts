@@ -8,14 +8,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, '../../../../.env') });
 
 import { initTelemetry } from './lib/telemetry.js';
-import { setAuthProvider, SWAAuthProvider } from '@allianceops/shared';
 
 initTelemetry();
-
-// Use SWA EasyAuth in production or when AUTH_MODE=swa (SWA CLI dev proxy)
-if (process.env.NODE_ENV === 'production' || process.env.AUTH_MODE === 'swa') {
-  setAuthProvider(new SWAAuthProvider());
-}
 
 import './functions/health.js';
 import './functions/events.js';

@@ -1,13 +1,9 @@
 'use client';
 
 import { useAuth } from './use-auth';
-import { IS_DEV, IS_SWA_AUTH } from '../lib/api-base';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
-  // Bypass auth in dev mode unless running through SWA CLI proxy
-  if (IS_DEV && !IS_SWA_AUTH) return <>{children}</>;
 
   if (loading) {
     return (
@@ -19,7 +15,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     if (typeof window !== 'undefined') {
-      window.location.href = '/.auth/login/google';
+      window.location.href = '/';
     }
     return null;
   }

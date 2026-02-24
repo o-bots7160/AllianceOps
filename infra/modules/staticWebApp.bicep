@@ -15,6 +15,22 @@ param skuTier string = 'Standard'
 @description('Resource ID of the linked Function App backend')
 param functionAppResourceId string = ''
 
+@description('Google OAuth client ID')
+@secure()
+param googleClientId string = ''
+
+@description('Google OAuth client secret')
+@secure()
+param googleClientSecret string = ''
+
+@description('GitHub OAuth client ID')
+@secure()
+param githubOAuthClientId string = ''
+
+@description('GitHub OAuth client secret')
+@secure()
+param githubOAuthClientSecret string = ''
+
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: name
   location: location
@@ -23,6 +39,18 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
     tier: skuTier
   }
   properties: {}
+}
+
+// Configure app settings for identity provider credentials
+resource appSettings 'Microsoft.Web/staticSites/config@2023-12-01' = if (!empty(googleClientId)) {
+  parent: staticWebApp
+  name: 'appsettings'
+  properties: {
+    GOOGLE_CLIENT_ID: googleClientId
+    GOOGLE_CLIENT_SECRET: googleClientSecret
+    GITHUB_OAUTH_CLIENT_ID: githubOAuthClientId
+    GITHUB_OAUTH_CLIENT_SECRET: githubOAuthClientSecret
+  }
 }
 
 // Link Function App as backend for API proxying

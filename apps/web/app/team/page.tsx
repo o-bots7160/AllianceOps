@@ -162,6 +162,47 @@ export default function TeamPage() {
     }
   }
 
+  // ─── Change Member Role ───────────────────────────────
+  async function handleChangeRole(userId: string, newRole: 'COACH' | 'MENTOR' | 'STUDENT') {
+    if (!activeTeam) return;
+    setError(null);
+    try {
+      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || `Error ${res.status}`);
+      }
+      await loadTeamDetail(activeTeam.teamId);
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
+  // ─── Remove Member ────────────────────────────────────
+  async function handleRemoveMember(userId: string, displayName: string) {
+    if (!activeTeam) return;
+    if (!confirm(`Remove ${displayName} from the team?`)) return;
+    setError(null);
+    try {
+      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || `Error ${res.status}`);
+      }
+      await loadTeamDetail(activeTeam.teamId);
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
   if (authLoading) {
     return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
   }
@@ -179,6 +220,7 @@ export default function TeamPage() {
 
   const hasTeams = user.teams.length > 0;
   const isCoachOrMentor = activeTeam && (activeTeam.role === 'COACH' || activeTeam.role === 'MENTOR');
+  const isCoach = activeTeam?.role === 'COACH';
 
   return (
     <div className="space-y-8">
@@ -201,11 +243,10 @@ export default function TeamPage() {
                   setActiveTeamId(t.teamId);
                   loadTeamDetail(t.teamId);
                 }}
-                className={`text-left p-4 rounded border transition-colors ${
-                  activeTeam?.teamId === t.teamId
+                className={`text-left p-4 rounded border transition-colors ${activeTeam?.teamId === t.teamId
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
                     : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
-                }`}
+                  }`}
               >
                 <div className="font-semibold">Team {t.teamNumber}</div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">{t.name}</div>
@@ -229,25 +270,70 @@ export default function TeamPage() {
 
           {/* Members */}
           <div>
-            <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Members</h4>
+            <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Members ({teamDetail.members.length})
+            </h4>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
                   <th className="py-1">Name</th>
                   <th className="py-1">Role</th>
+                  {isCoachOrMentor && <th className="py-1 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {teamDetail.members.map((m) => (
-                  <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
-                    <td className="py-2">{m.user.displayName || m.user.email || m.user.id}</td>
-                    <td className="py-2">
-                      <span className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800">
-                        {m.role}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {teamDetail.members.map((m) => {
+                  const name = m.user.displayName || m.user.email || m.user.id;
+                  const isSelf = m.user.id === user.id;
+
+                  return (
+                    <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="py-2">
+                        {name}
+                        {isSelf && (
+                          <span className="ml-1.5 text-xs text-gray-400 dark:text-gray-500">
+                            (you)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2">
+                        {isCoach && !isSelf ? (
+                          <select
+                            value={m.role}
+                            onChange={(e) =>
+                              handleChangeRole(
+                                m.user.id,
+                                e.target.value as 'COACH' | 'MENTOR' | 'STUDENT',
+                              )
+                            }
+                            className="px-2 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                          >
+                            <option value="COACH">COACH</option>
+                            <option value="MENTOR">MENTOR</option>
+                            <option value="STUDENT">STUDENT</option>
+                          </select>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800">
+                            {m.role}
+                          </span>
+                        )}
+                      </td>
+                      {isCoachOrMentor && (
+                        <td className="py-2 text-right">
+                          {!isSelf &&
+                            (isCoach || m.role === 'STUDENT') && (
+                              <button
+                                onClick={() => handleRemoveMember(m.user.id, name)}
+                                className="px-2 py-0.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                            )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -273,33 +359,37 @@ export default function TeamPage() {
           )}
 
           {/* Join Requests (Coach/Mentor only) */}
-          {isCoachOrMentor && joinRequests.length > 0 && (
+          {isCoachOrMentor && (
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 Pending Join Requests
               </h4>
-              {joinRequests.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded"
-                >
-                  <span>{r.user.displayName || r.user.email || r.user.id}</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleReviewRequest(r.id, 'approve')}
-                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReviewRequest(r.id, 'reject')}
-                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Reject
-                    </button>
+              {joinRequests.length > 0 ? (
+                joinRequests.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded"
+                  >
+                    <span>{r.user.displayName || r.user.email || r.user.id}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleReviewRequest(r.id, 'approve')}
+                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleReviewRequest(r.id, 'reject')}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-400 dark:text-gray-500">No pending requests.</p>
+              )}
             </div>
           )}
         </section>

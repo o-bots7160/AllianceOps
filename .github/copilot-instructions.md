@@ -29,8 +29,7 @@ All development happens inside the Dev Container. Do not assume macOS/Windows ho
 ### Key Commands
 
 ```bash
-pnpm dev          # Start web (3000) + API (7071) + shared (watch)
-pnpm dev:swa      # Same as dev + SWA CLI proxy (4280) with auth
+pnpm dev          # Start web + API + SWA CLI proxy (4280) with auth
 pnpm build        # Production build all packages
 pnpm lint         # ESLint across all packages
 pnpm typecheck    # tsc --noEmit across all packages
@@ -43,10 +42,9 @@ pnpm db:studio    # Open Prisma Studio
 pnpm seed:sim     # Seed local DB with simulation data
 ```
 
-### Dev Modes
+### Dev Mode
 
-- **`pnpm dev`** — Fast mode. Web on 3000, API on 7071, auth bypassed via `DevAuthProvider`. Use for general feature development and UI work.
-- **`pnpm dev:swa`** — Auth mode. SWA CLI proxy on port 4280 fronts both web and API. Provides mock `/.auth/` endpoints and injects `x-ms-client-principal` headers into API requests. Access the app at `http://localhost:4280`. Use when debugging auth flows or testing the production-like auth experience.
+- **`pnpm dev`** — SWA CLI proxy on port 4280 fronts both web (3000) and API (7071). Provides mock `/.auth/` endpoints and injects `x-ms-client-principal` headers into API requests. Access the app at `http://localhost:4280`. Auth works the same as production — sign in via Google, Microsoft, or GitHub.
 
 ### Build Order
 
@@ -128,7 +126,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
 - `requireUser(request)`: Returns `AuthUser` or a 401 response — use `isAuthError()` to check
 - `requireTeamMember(request, teamId)`: Returns `{ user, role }` or 401/403
 - `requireTeamRole(request, teamId, minRole)`: Requires COACH, MENTOR, or STUDENT (hierarchical)
-- Auth provider is selected in `src/index.ts`: `DevAuthProvider` (dev) or `SWAAuthProvider` (production)
+- Auth provider is `SWAAuthProvider` in both dev and production — reads EasyAuth headers from SWA CLI (dev) or Azure SWA (production)
 - Team roles: **COACH** (owner) > **MENTOR** (admin) > **STUDENT** (member)
 
 ### Environment Variables
@@ -222,14 +220,15 @@ The shared package must build before api and web can typecheck. Turborepo handle
 ## Auth
 
 - Pluggable `AuthProvider` interface in `packages/shared/src/auth/`
-- `DevAuthProvider`: Always returns editor user (local development only)
-- `SWAAuthProvider`: Reads Azure SWA EasyAuth headers (production)
+- `SWAAuthProvider`: Reads Azure SWA EasyAuth headers (both dev and production)
+- SWA CLI provides mock `/.auth/` endpoints in dev; Azure SWA provides real ones in production
 - Roles: `viewer` (read-only) and `editor` (read-write) at the app level
-- Google and GitHub SSO configured in `staticwebapp.config.json`
+- Google, Microsoft (AAD), and GitHub SSO configured; Apple planned for future
+- Identity providers are presented on the landing page with branded sign-in buttons
 
 ### User & Team Model
 
-- **User**: Created automatically on first authenticated API call; ID comes from SSO (or `dev-user` in dev)
+- **User**: Created automatically on first authenticated API call; ID comes from SSO provider
 - **Team**: Represents an FRC team; unique by team number. Created by a user who becomes the Coach.
 - **TeamMember**: Links users to teams with roles — COACH, MENTOR, or STUDENT
 - **Multi-team**: Users can belong to multiple teams (e.g., mentors helping multiple FRC teams)
@@ -289,6 +288,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 014: Production-Ready Azure Infrastructure
   - 015: User & Team Management
   - 016: SWA CLI for Local Auth Parity
+  - 017: SWA CLI as Default Dev Mode (supersedes 016)
 
 ## Anti-Patterns to Avoid
 

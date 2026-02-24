@@ -3,8 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "dev": "turbo dev",
-    "dev:swa": "concurrently -n turbo,swa -c blue,green \"NEXT_PUBLIC_API_URL=/api NEXT_PUBLIC_AUTH_MODE=swa AUTH_MODE=swa turbo dev\" \"swa start\"",
+    "dev": "concurrently -n turbo,swa -c blue,green \"NEXT_PUBLIC_API_URL=/api turbo dev\" \"swa start\"",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",

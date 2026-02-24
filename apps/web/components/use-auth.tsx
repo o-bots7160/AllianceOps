@@ -40,7 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${getApiBase()}/me`);
+      // Use redirect: 'manual' so SWA's 401→302 responseOverride doesn't
+      // cause fetch to follow the redirect and return HTML instead of JSON.
+      const response = await fetch(`${getApiBase()}/me`, { redirect: 'manual' });
+      if (response.type === 'opaqueredirect' || response.status === 302) {
+        // SWA converted 401 into a redirect to login — treat as unauthenticated
+        setUser(null);
+        return;
+      }
       if (!response.ok) {
         if (response.status === 401) {
           setUser(null);

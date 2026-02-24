@@ -23,7 +23,10 @@ export function useApi<T>(path: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${getApiBase()}/${path}`);
+      const response = await fetch(`${getApiBase()}/${path}`, { redirect: 'manual' });
+      if (response.type === 'opaqueredirect' || response.status === 302) {
+        throw new Error('Authentication required');
+      }
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const result: ApiResponse<T> = await response.json();
       setData(result.data);

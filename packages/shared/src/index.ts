@@ -39,9 +39,4 @@ export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/
 
 // Auth
 export type { AuthUser, UserRole, AuthProvider } from './auth/index.js';
-export {
-  SWAAuthProvider,
-  DevAuthProvider,
-  setAuthProvider,
-  getAuthProvider,
-} from './auth/index.js';
+export { SWAAuthProvider, setAuthProvider, getAuthProvider } from './auth/index.js';

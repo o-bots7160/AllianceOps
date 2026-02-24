@@ -1,19 +1,19 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*"]
+    "exclude": ["/api/*", "/_next/*"]
   },
   "routes": [
+    {
+      "route": "/_next/*",
+      "allowedRoles": ["anonymous"]
+    },
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/.auth/login/google",
-      "allowedRoles": ["anonymous"]
-    },
-    {
-      "route": "/.auth/login/github",
+      "route": "/.auth/*",
       "allowedRoles": ["anonymous"]
     },
     {
@@ -25,6 +25,10 @@
       "statusCode": 404
     },
     {
+      "route": "/.auth/login/apple",
+      "statusCode": 404
+    },
+    {
       "route": "/",
       "allowedRoles": ["anonymous", "authenticated"]
     },
@@ -33,25 +37,10 @@
       "allowedRoles": ["authenticated"]
     }
   ],
-  "auth": {
-    "identityProviders": {
-      "google": {
-        "registration": {
-          "clientIdSettingName": "GOOGLE_CLIENT_ID",
-          "clientSecretSettingName": "GOOGLE_CLIENT_SECRET"
-        }
-      },
-      "github": {
-        "registration": {
-          "clientIdSettingName": "GITHUB_OAUTH_CLIENT_ID",
-          "clientSecretSettingName": "GITHUB_OAUTH_CLIENT_SECRET"
-        }
-      }
-    }
-  },
+
   "responseOverrides": {
     "401": {
-      "redirect": "/.auth/login/google",
+      "redirect": "/",
       "statusCode": 302
     }
   },

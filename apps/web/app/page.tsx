@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '../components/use-auth';
-import { IS_DEV, IS_SWA_AUTH } from '../lib/api-base';
 
 function LoginCTA() {
   return (
@@ -9,12 +8,18 @@ function LoginCTA() {
       <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
         Sign in to access match briefings, strategy tools, and team management for your FRC team.
       </p>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap justify-center gap-3">
         <a
           href="/.auth/login/google"
           className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
         >
           Sign in with Google
+        </a>
+        <a
+          href="/.auth/login/aad"
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Sign in with Microsoft
         </a>
         <a
           href="/.auth/login/github"
@@ -111,7 +116,7 @@ export default function Home() {
 
       {loading ? (
         <p className="text-gray-500 dark:text-gray-400">Loading…</p>
-      ) : (IS_DEV && !IS_SWA_AUTH) || (user && user.teams.length > 0) ? (
+      ) : user && user.teams.length > 0 ? (
         <FeatureGrid />
       ) : !user ? (
         <LoginCTA />
