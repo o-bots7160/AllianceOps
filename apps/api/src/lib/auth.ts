@@ -1,6 +1,7 @@
 import { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { getAuthProvider, type AuthUser } from '@allianceops/shared';
 import { prisma } from './prisma.js';
+import { trackAuthEvent } from './telemetry.js';
 import { TeamRole } from '@prisma/client';
 
 /** Role hierarchy for permission checks (higher index = more privilege). */
@@ -29,8 +30,16 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
   const authUser = await provider.validateRequest(headers);
 
   if (!authUser) {
+    const hasPrincipalBlob = !!headers['x-ms-client-principal'];
+    const hasPrincipalId = !!headers['x-ms-client-principal-id'];
+    trackAuthEvent('missing_headers', {
+      hasPrincipalBlob: String(hasPrincipalBlob),
+      hasPrincipalId: String(hasPrincipalId),
+    });
     return null;
   }
+
+  trackAuthEvent('success', { identityId: authUser.id });
 
   // Upsert user record in the database
   await prisma.user.upsert({

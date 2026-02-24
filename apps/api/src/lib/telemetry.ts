@@ -41,3 +41,13 @@ export function trackApiLatency(endpoint: string, durationMs: number): void {
     properties: { endpoint },
   });
 }
+
+export function trackAuthEvent(
+  event: 'success' | 'missing_headers' | 'blob_parse_error',
+  properties?: Record<string, string>,
+): void {
+  client?.trackEvent({
+    name: 'AuthValidation',
+    properties: { event, ...properties },
+  });
+}

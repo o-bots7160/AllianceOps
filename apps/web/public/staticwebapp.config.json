@@ -43,8 +43,5 @@
       "redirect": "/",
       "statusCode": 302
     }
-  },
-  "platform": {
-    "apiRuntime": "node:20"
   }
 }

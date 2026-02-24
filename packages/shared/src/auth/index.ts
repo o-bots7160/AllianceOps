@@ -15,11 +15,38 @@ export interface AuthProvider {
 
 /**
  * Azure Static Web Apps EasyAuth provider.
- * SWA forwards auth headers: x-ms-client-principal-id, x-ms-client-principal-name
- * Also supports decoding the x-ms-client-principal base64 blob (used by SWA CLI).
+ * Decodes the x-ms-client-principal base64 blob forwarded by SWA to linked backends.
+ * Also reads the individual x-ms-client-principal-id/name headers (available in managed APIs).
  */
 export class SWAAuthProvider implements AuthProvider {
   async validateRequest(headers: Record<string, string | undefined>): Promise<AuthUser | null> {
+    // Primary path: decode x-ms-client-principal base64 blob.
+    // This is forwarded to linked backends and by SWA CLI.
+    const principalBlob = headers['x-ms-client-principal'];
+    if (principalBlob) {
+      try {
+        const decoded = JSON.parse(Buffer.from(principalBlob, 'base64').toString('utf-8'));
+        if (decoded.userId) {
+          // Extract email from claims if available
+          const emailClaim = decoded.claims?.find(
+            (c: { typ: string; val: string }) =>
+              c.typ === 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress' ||
+              c.typ === 'preferred_username' ||
+              c.typ === 'email',
+          );
+          return {
+            id: decoded.userId,
+            email: emailClaim?.val || decoded.userDetails || undefined,
+            displayName: decoded.userDetails || 'Unknown',
+            role: 'editor',
+          };
+        }
+      } catch {
+        // Invalid blob — fall through to individual headers
+      }
+    }
+
+    // Fallback: individual headers (only available in managed APIs, not linked backends)
     const principalId = headers['x-ms-client-principal-id'];
     const principalName = headers['x-ms-client-principal-name'];
 
@@ -29,23 +56,6 @@ export class SWAAuthProvider implements AuthProvider {
         displayName: principalName ?? 'Unknown',
         role: 'editor',
       };
-    }
-
-    // Fallback: decode x-ms-client-principal base64 blob (SWA CLI sends this)
-    const principalBlob = headers['x-ms-client-principal'];
-    if (principalBlob) {
-      try {
-        const decoded = JSON.parse(Buffer.from(principalBlob, 'base64').toString('utf-8'));
-        if (decoded.userId) {
-          return {
-            id: decoded.userId,
-            displayName: decoded.userDetails || 'Unknown',
-            role: 'editor',
-          };
-        }
-      } catch {
-        // Invalid blob — fall through to null
-      }
     }
 
     return null;
