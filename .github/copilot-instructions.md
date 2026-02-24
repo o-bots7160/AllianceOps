@@ -289,6 +289,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 015: User & Team Management
   - 016: SWA CLI for Local Auth Parity
   - 017: SWA CLI as Default Dev Mode (supersedes 016)
+  - 018: Diagnostic Settings and Enhanced Telemetry
 
 ## Anti-Patterns to Avoid
 

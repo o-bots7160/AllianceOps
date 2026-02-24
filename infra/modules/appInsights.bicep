@@ -15,6 +15,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+    workspaceCapping: {
+      dailyQuotaGb: 1
+    }
   }
 }
 
@@ -33,3 +36,4 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 output instrumentationKey string = appInsights.properties.InstrumentationKey
 output connectionString string = appInsights.properties.ConnectionString
 output resourceId string = appInsights.id
+output logAnalyticsWorkspaceId string = logAnalytics.id

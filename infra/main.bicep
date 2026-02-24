@@ -59,6 +59,7 @@ module postgres 'modules/postgres.bicep' = {
     name: 'psql-${suffix}'
     location: location
     adminPassword: postgresAdminPassword
+    logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
 
@@ -72,6 +73,7 @@ module functionApp 'modules/functionApp.bicep' = {
     planSku: functionAppSku
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: 'kv-${suffix}'
+    logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
 
@@ -84,6 +86,7 @@ module keyVault 'modules/keyVault.bicep' = {
     tbaApiKey: tbaApiKey
     databaseUrl: 'postgresql://${postgres.outputs.adminLogin}:${postgresAdminPassword}@${postgres.outputs.serverFqdn}:5432/allianceops?sslmode=require'
     postgresAdminPassword: postgresAdminPassword
+    logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
 

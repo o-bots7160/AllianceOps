@@ -14,6 +14,9 @@ param adminPassword string
 @description('Azure AD tenant ID for Entra ID authentication')
 param tenantId string = subscription().tenantId
 
+@description('Log Analytics Workspace resource ID for diagnostic settings')
+param logAnalyticsWorkspaceId string = ''
+
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: name
   location: location
@@ -65,3 +68,76 @@ resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2
 output serverFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output adminLogin string = adminLogin
 output databaseName string = database.name
+
+// Server parameter: enable logging of connections
+resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: postgresServer
+  name: 'log_connections'
+  properties: {
+    value: 'on'
+    source: 'user-override'
+  }
+}
+
+// Server parameter: enable logging of disconnections
+resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: postgresServer
+  name: 'log_disconnections'
+  properties: {
+    value: 'on'
+    source: 'user-override'
+  }
+}
+
+// Server parameter: log checkpoints
+resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: postgresServer
+  name: 'log_checkpoints'
+  properties: {
+    value: 'on'
+    source: 'user-override'
+  }
+}
+
+// Server parameter: log slow queries (>1s)
+resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: postgresServer
+  name: 'log_min_duration_statement'
+  properties: {
+    value: '1000'
+    source: 'user-override'
+  }
+}
+
+// Diagnostic settings: PostgreSQL logs → Log Analytics
+resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+  name: 'diag-${name}'
+  scope: postgresServer
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'PostgreSQLLogs'
+        enabled: true
+      }
+      {
+        category: 'PostgreSQLFlexSessions'
+        enabled: true
+      }
+      {
+        category: 'PostgreSQLFlexQueryStoreRuntime'
+        enabled: true
+      }
+      {
+        category: 'PostgreSQLFlexQueryStoreWaitStats'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}

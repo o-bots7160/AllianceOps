@@ -22,6 +22,9 @@ param databaseUrl string = ''
 @secure()
 param postgresAdminPassword string = ''
 
+@description('Log Analytics Workspace resource ID for diagnostic settings')
+param logAnalyticsWorkspaceId string = ''
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
   location: location
@@ -79,3 +82,28 @@ resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' =
 output vaultUri string = keyVault.properties.vaultUri
 output vaultName string = keyVault.name
 output resourceId string = keyVault.id
+
+// Diagnostic settings: Key Vault audit logs → Log Analytics
+resource keyVaultDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+  name: 'diag-${name}'
+  scope: keyVault
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'AuditEvent'
+        enabled: true
+      }
+      {
+        category: 'AzurePolicyEvaluationDetails'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
