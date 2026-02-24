@@ -1,12 +1,13 @@
 'use client';
 
 import { useAuth } from './use-auth';
-import { IS_DEV } from '../lib/api-base';
+import { IS_DEV, IS_SWA_AUTH } from '../lib/api-base';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
-  if (IS_DEV) return <>{children}</>;
+  // Bypass auth in dev mode unless running through SWA CLI proxy
+  if (IS_DEV && !IS_SWA_AUTH) return <>{children}</>;
 
   if (loading) {
     return (

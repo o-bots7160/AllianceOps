@@ -16,6 +16,7 @@ export interface AuthProvider {
 /**
  * Azure Static Web Apps EasyAuth provider.
  * SWA forwards auth headers: x-ms-client-principal-id, x-ms-client-principal-name
+ * Also supports decoding the x-ms-client-principal base64 blob (used by SWA CLI).
  */
 export class SWAAuthProvider implements AuthProvider {
   async validateRequest(
@@ -24,15 +25,32 @@ export class SWAAuthProvider implements AuthProvider {
     const principalId = headers['x-ms-client-principal-id'];
     const principalName = headers['x-ms-client-principal-name'];
 
-    if (!principalId) {
-      return null;
+    if (principalId) {
+      return {
+        id: principalId,
+        displayName: principalName ?? 'Unknown',
+        role: 'editor',
+      };
     }
 
-    return {
-      id: principalId,
-      displayName: principalName ?? 'Unknown',
-      role: 'editor', // MVP: all authenticated users are editors
-    };
+    // Fallback: decode x-ms-client-principal base64 blob (SWA CLI sends this)
+    const principalBlob = headers['x-ms-client-principal'];
+    if (principalBlob) {
+      try {
+        const decoded = JSON.parse(Buffer.from(principalBlob, 'base64').toString('utf-8'));
+        if (decoded.userId) {
+          return {
+            id: decoded.userId,
+            displayName: decoded.userDetails || 'Unknown',
+            role: 'editor',
+          };
+        }
+      } catch {
+        // Invalid blob — fall through to null
+      }
+    }
+
+    return null;
   }
 }
 

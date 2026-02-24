@@ -10,3 +10,4 @@ export function getApiBase(): string {
 }
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
+export const IS_SWA_AUTH = process.env.NEXT_PUBLIC_AUTH_MODE === 'swa';

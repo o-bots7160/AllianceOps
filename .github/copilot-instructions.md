@@ -30,6 +30,7 @@ All development happens inside the Dev Container. Do not assume macOS/Windows ho
 
 ```bash
 pnpm dev          # Start web (3000) + API (7071) + shared (watch)
+pnpm dev:swa      # Same as dev + SWA CLI proxy (4280) with auth
 pnpm build        # Production build all packages
 pnpm lint         # ESLint across all packages
 pnpm typecheck    # tsc --noEmit across all packages
@@ -41,6 +42,11 @@ pnpm db:generate  # Regenerate Prisma client
 pnpm db:studio    # Open Prisma Studio
 pnpm seed:sim     # Seed local DB with simulation data
 ```
+
+### Dev Modes
+
+- **`pnpm dev`** — Fast mode. Web on 3000, API on 7071, auth bypassed via `DevAuthProvider`. Use for general feature development and UI work.
+- **`pnpm dev:swa`** — Auth mode. SWA CLI proxy on port 4280 fronts both web and API. Provides mock `/.auth/` endpoints and injects `x-ms-client-principal` headers into API requests. Access the app at `http://localhost:4280`. Use when debugging auth flows or testing the production-like auth experience.
 
 ### Build Order
 
@@ -282,6 +288,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 013: Global Event Setup Context
   - 014: Production-Ready Azure Infrastructure
   - 015: User & Team Management
+  - 016: SWA CLI for Local Auth Parity
 
 ## Anti-Patterns to Avoid
 
