@@ -20,14 +20,30 @@ app.http('getMe', {
       },
     });
 
+    // User is authenticated but may not have a DB record yet
+    // (e.g., first login and upsert failed). Return auth info directly.
+    if (!user) {
+      return {
+        status: 200,
+        jsonBody: {
+          data: {
+            id: auth.id,
+            email: auth.email ?? null,
+            displayName: auth.displayName ?? null,
+            teams: [],
+          },
+        },
+      };
+    }
+
     return {
       status: 200,
       jsonBody: {
         data: {
-          id: user!.id,
-          email: user!.email,
-          displayName: user!.displayName,
-          teams: user!.memberships.map((m) => ({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          teams: user.memberships.map((m) => ({
             teamId: m.team.id,
             teamNumber: m.team.teamNumber,
             name: m.team.name,

@@ -46,18 +46,30 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
   trackAuthEvent('success', { identityId: authUser.id, url: request.url });
 
   // Upsert user record in the database
-  await prisma.user.upsert({
-    where: { id: authUser.id },
-    create: {
+  try {
+    await prisma.user.upsert({
+      where: { id: authUser.id },
+      create: {
+        id: authUser.id,
+        email: authUser.email ?? null,
+        displayName: authUser.displayName ?? null,
+      },
+      update: {
+        email: authUser.email ?? null,
+        displayName: authUser.displayName ?? null,
+      },
+    });
+  } catch (err) {
+    // Log but don't crash — the user is authenticated even if the DB
+    // upsert fails (e.g., schema drift, connection issue). The caller
+    // can still use the AuthUser for basic auth checks.
+    console.error('User upsert failed:', {
       id: authUser.id,
       email: authUser.email,
       displayName: authUser.displayName,
-    },
-    update: {
-      email: authUser.email,
-      displayName: authUser.displayName,
-    },
-  });
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return authUser;
 }

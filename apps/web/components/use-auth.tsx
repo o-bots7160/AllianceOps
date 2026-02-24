@@ -56,7 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(`API error: ${response.status}`);
       }
       const result = await response.json();
-      setUser(result.data);
+      const profile: AuthUserProfile | null = result.data ?? null;
+
+      // Reject anonymous/system identities that slip through the API layer
+      if (!profile || profile.id === 'anonymous' || !profile.id) {
+        setUser(null);
+        return;
+      }
+
+      setUser(profile);
 
       // Restore active team from localStorage, or default to first team
       const storedTeamId = localStorage.getItem(ACTIVE_TEAM_KEY);

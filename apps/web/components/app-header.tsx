@@ -24,6 +24,16 @@ export function AppHeader() {
           user ? (
             <a
               href="/.auth/logout?post_logout_redirect_uri=/"
+              onClick={() => {
+                // Clear all client-side state so stale data doesn't persist
+                // across sessions. SWA's /.auth/logout clears the auth cookie
+                // server-side; this handles localStorage.
+                try {
+                  localStorage.clear();
+                } catch (_) {
+                  // Ignore storage access errors
+                }
+              }}
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 shrink-0"
             >
               Sign out

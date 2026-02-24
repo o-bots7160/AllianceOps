@@ -39,6 +39,12 @@ export class SWAAuthProvider implements AuthProvider {
       try {
         const decoded = JSON.parse(Buffer.from(principalBlob, 'base64').toString('utf-8'));
         if (decoded.userId) {
+          // Reject anonymous/system identities that SWA may forward for
+          // unauthenticated requests on routes with allowedRoles: ["anonymous"]
+          if (decoded.userId === 'anonymous' || decoded.identityProvider === 'anonymous') {
+            return null;
+          }
+
           // Extract email from claims if available
           const emailClaim = decoded.claims?.find(
             (c: { typ: string; val: string }) =>
@@ -71,7 +77,7 @@ export class SWAAuthProvider implements AuthProvider {
     const principalId = headers['x-ms-client-principal-id'];
     const principalName = headers['x-ms-client-principal-name'];
 
-    if (principalId) {
+    if (principalId && principalId !== 'anonymous') {
       return {
         id: principalId,
         displayName: principalName ?? 'Unknown',
