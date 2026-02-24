@@ -10,15 +10,18 @@ set -euo pipefail
 #
 # What this does:
 #   1. Clean build (shared → api) — same as CI build job
-#   2. Generate Prisma client — same as CI deploy job
-#   3. Copy node_modules to temp dir, prune, package zip
-#   4. Extract zip and attempt Node.js import — catches runtime errors
+#   2. Create staging directory with npm (flat node_modules) — same as CI deploy
+#   3. Generate Prisma client in staging
+#   4. Package zip and verify contents
+#   5. Extract zip and attempt Node.js import — catches runtime errors
 #
-# Requires: node, pnpm, zip, unzip
+# Requires: node, npm, pnpm, zip, unzip
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+STAGING="/tmp/aops-api-staging"
 TEST_DIR="/tmp/aops-deploy-test"
+ZIP_FILE="/tmp/aops-api-deploy.zip"
 SKIP_BUILD=false
 
 for arg in "$@"; do
@@ -41,7 +44,7 @@ warn() { echo -e "${YELLOW}  ⚠ $1${NC}"; }
 fail() { echo -e "${RED}  ✘ $1${NC}"; }
 
 cleanup() {
-  rm -rf "$TEST_DIR" /tmp/aops-api-deploy.zip /tmp/aops-zip-listing.txt
+  rm -rf "$STAGING" "$TEST_DIR" "$ZIP_FILE" /tmp/aops-zip-listing.txt
 }
 trap cleanup EXIT
 
@@ -68,13 +71,13 @@ fi
 step "Checking build artifacts"
 
 for artifact in \
-  "packages/shared/dist/index.js" \
-  "apps/api/dist/src/index.js"; do
+  "apps/api/dist/index.js"; do
   if [ ! -f "$ROOT_DIR/$artifact" ]; then
     fail "Missing: $artifact"
     ERRORS=1
   else
-    ok "$artifact"
+    SIZE=$(du -h "$ROOT_DIR/$artifact" | cut -f1)
+    ok "$artifact ($SIZE)"
   fi
 done
 
@@ -83,61 +86,90 @@ if [ "$ERRORS" -gt 0 ]; then
   exit 1
 fi
 
-# ── Step 3: Generate Prisma client (same as deploy job) ───
+# ── Step 3: Create staging directory ───────────────────────
+# Mirrors the deploy workflow: esbuild bundle has @allianceops/shared and dotenv
+# inlined. Only 3 external deps need npm install.
 
-step "Generating Prisma client"
-cd "$ROOT_DIR/apps/api"
-npx prisma generate 2>&1 | tail -3
+step "Creating staging directory (npm install for external deps)"
+rm -rf "$STAGING"
+mkdir -p "$STAGING"
+
+# Copy bundle and config
+cp -r "$ROOT_DIR/apps/api/dist" "$STAGING/dist"
+cp "$ROOT_DIR/apps/api/host.json" "$STAGING/"
+cp -r "$ROOT_DIR/apps/api/prisma" "$STAGING/"
+
+# Strip devDependencies (contains workspace:* protocol npm can't resolve)
+node -e "
+  const pkg = JSON.parse(require('fs').readFileSync('$ROOT_DIR/apps/api/package.json', 'utf8'));
+  delete pkg.devDependencies;
+  require('fs').writeFileSync('$STAGING/package.json', JSON.stringify(pkg, null, 2));
+"
+
+# Install with npm — creates flat node_modules with all transitive deps
+cd "$STAGING"
+npm install --omit=dev 2>&1 | tail -5
+ok "npm install complete"
+
+# ── Step 4: Generate Prisma client in staging ─────────────
+
+step "Generating Prisma client in staging"
+cd "$STAGING"
+npx -y prisma@^6 generate 2>&1 | tail -3
 ok "Prisma client generated"
 
-# ── Step 4: Package the zip (same command as deploy job) ──
+# ── Step 5: Package the zip ───────────────────────────────
 
 step "Packaging Function App zip"
-cd "$ROOT_DIR/apps/api"
-rm -f /tmp/aops-api-deploy.zip
-zip -r /tmp/aops-api-deploy.zip dist/ host.json package.json node_modules/ \
+cd "$STAGING"
+rm -f "$ZIP_FILE"
+zip -r "$ZIP_FILE" dist/ host.json package.json node_modules/ \
   -x "node_modules/.cache/*" > /dev/null
-ZIP_SIZE=$(du -h /tmp/aops-api-deploy.zip | cut -f1)
+ZIP_SIZE=$(du -h "$ZIP_FILE" | cut -f1)
 ok "Created api-deploy.zip ($ZIP_SIZE)"
 
-# ── Step 5: Verify zip contents ───────────────────────────
+# ── Step 6: Verify zip contents ───────────────────────────
 
 step "Verifying zip contents"
 
 # Save listing once — avoids pipefail + grep -q SIGPIPE issue
 ZIP_LISTING="/tmp/aops-zip-listing.txt"
-unzip -l /tmp/aops-api-deploy.zip > "$ZIP_LISTING"
+unzip -l "$ZIP_FILE" > "$ZIP_LISTING"
 
-# Check API entry point
-if grep -q "dist/src/index.js" "$ZIP_LISTING"; then
-  ok "dist/src/index.js entry point present"
+# Check API entry point (esbuild bundle)
+if grep -qF "dist/index.js" "$ZIP_LISTING"; then
+  ok "dist/index.js bundle present"
 else
-  fail "dist/src/index.js entry point MISSING"
+  fail "dist/index.js bundle MISSING"
   ERRORS=$((ERRORS + 1))
 fi
 
-# Check shared package dist
-if grep -q "@allianceops/shared/dist/index.js" "$ZIP_LISTING"; then
-  ok "@allianceops/shared/dist/index.js present"
+# Verify @allianceops/shared is NOT in node_modules (should be inlined)
+if grep -qF "@allianceops/shared" "$ZIP_LISTING"; then
+  fail "@allianceops/shared found in zip — should be inlined by esbuild"
+  ERRORS=$((ERRORS + 1))
 else
-  if grep -q "shared/dist/index.js" "$ZIP_LISTING"; then
-    ok "shared/dist/index.js present (via symlink)"
-  else
-    fail "@allianceops/shared/dist/index.js MISSING from zip"
-    ERRORS=$((ERRORS + 1))
-  fi
+  ok "@allianceops/shared correctly inlined (not in node_modules)"
 fi
 
-# Check Prisma generated client
-if grep -q ".prisma/client" "$ZIP_LISTING"; then
+# Check Prisma generated client (use -F for fixed string, not regex)
+if grep -qF "node_modules/.prisma/client" "$ZIP_LISTING"; then
   ok ".prisma/client (generated) present"
 else
   fail ".prisma/client (generated) MISSING from zip"
   ERRORS=$((ERRORS + 1))
 fi
 
+# Check @opentelemetry/api (transitive dep of applicationinsights)
+if grep -qF "@opentelemetry/api" "$ZIP_LISTING"; then
+  ok "@opentelemetry/api (transitive dep) present"
+else
+  fail "@opentelemetry/api (transitive dep) MISSING from zip"
+  ERRORS=$((ERRORS + 1))
+fi
+
 # Check host.json
-if grep -q "host.json" "$ZIP_LISTING"; then
+if grep -qF "host.json" "$ZIP_LISTING"; then
   ok "host.json present"
 else
   fail "host.json MISSING"
@@ -146,13 +178,13 @@ fi
 
 rm -f "$ZIP_LISTING"
 
-# ── Step 6: Extract and test Node.js import ──────────────
+# ── Step 7: Extract and test Node.js import ──────────────
 
 step "Testing Function App entry point (Node.js import)"
 rm -rf "$TEST_DIR"
 mkdir -p "$TEST_DIR"
 cd "$TEST_DIR"
-unzip -q /tmp/aops-api-deploy.zip
+unzip -q "$ZIP_FILE"
 
 # Create a package.json so Node treats .js files as ESM
 echo '{"type":"module"}' > package.json
@@ -160,7 +192,7 @@ echo '{"type":"module"}' > package.json
 # Try importing the entry point — this catches ESM/CJS issues
 IMPORT_RESULT=$(node --input-type=module -e "
   try {
-    await import('./dist/src/index.js');
+    await import('./dist/index.js');
     console.log('SUCCESS');
   } catch(e) {
     // These errors are expected without a running DB / App Insights:
@@ -169,7 +201,6 @@ IMPORT_RESULT=$(node --input-type=module -e "
       'APPLICATIONINSIGHTS',
       'Can\\'t reach database',
       'connect ECONNREFUSED',
-      '@opentelemetry',
       'FUNCTIONS_WORKER_RUNTIME',
     ];
     const msg = e.message || '';
@@ -194,11 +225,6 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
-# ── Cleanup temp files ────────────────────────────────────
-
-rm -rf "$TEST_DIR"
-rm -f /tmp/aops-api-deploy.zip
-
 # ── Summary ───────────────────────────────────────────────
 
 echo ""
@@ -211,7 +237,5 @@ else
   echo -e "${RED}    Fix the issues above before pushing${NC}"
 fi
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-
-# Note: EXIT trap will restore dev deps
 
 exit $ERRORS

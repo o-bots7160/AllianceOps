@@ -1,11 +1,10 @@
 import { config } from 'dotenv';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 
-// Load root .env as fallback for local development
-// Resolve up from apps/api/dist/src/ to monorepo root
-const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, '../../../../.env') });
+// Load root .env as fallback for local development.
+// In production, env vars come from Azure Key Vault / App Settings.
+config({ path: resolve(process.cwd(), '.env') });
+config({ path: resolve(process.cwd(), '../../.env') });
 
 import { initTelemetry, trackAuthEvent } from './lib/telemetry.js';
 import { SWAAuthProvider, setAuthProvider } from '@allianceops/shared';
