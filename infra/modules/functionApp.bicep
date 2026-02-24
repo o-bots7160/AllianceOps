@@ -72,10 +72,6 @@ var sharedAppSettings = [
     value: 'node'
   }
   {
-    name: 'WEBSITE_NODE_DEFAULT_VERSION'
-    value: '~22'
-  }
-  {
     name: 'NODE_ENV'
     value: 'production'
   }
@@ -122,7 +118,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: hostingPlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'NODE|22'
       appSettings: concat(sharedAppSettings, storageAppSettings, kvAppSettings, aiAppSettings)
     }
     functionAppConfig: {
