@@ -83,6 +83,7 @@ resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configuration
 resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
   parent: postgresServer
   name: 'log_disconnections'
+  dependsOn: [logConnections]
   properties: {
     value: 'on'
     source: 'user-override'
@@ -93,6 +94,7 @@ resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurat
 resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
   parent: postgresServer
   name: 'log_checkpoints'
+  dependsOn: [logDisconnections]
   properties: {
     value: 'on'
     source: 'user-override'
@@ -103,6 +105,7 @@ resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configuration
 resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
   parent: postgresServer
   name: 'log_min_duration_statement'
+  dependsOn: [logCheckpoints]
   properties: {
     value: '1000'
     source: 'user-override'
