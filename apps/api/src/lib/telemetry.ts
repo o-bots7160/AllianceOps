@@ -46,12 +46,21 @@ export function trackApiLatency(endpoint: string, durationMs: number): void {
   });
 }
 
-export function trackAuthEvent(
-  event: 'success' | 'missing_headers' | 'blob_parse_error',
-  properties?: Record<string, string>,
-): void {
+export type AuthEventType =
+  | 'success'
+  | 'missing_headers'
+  | 'blob_parse_error'
+  | 'blob_missing_userId'
+  | 'fallback_to_individual_headers';
+
+export function trackAuthEvent(event: AuthEventType, properties?: Record<string, string>): void {
   client?.trackEvent({
     name: 'AuthValidation',
     properties: { event, ...properties },
   });
+}
+
+/** Returns true if the Application Insights client is initialized. */
+export function isTelemetryEnabled(): boolean {
+  return client !== null;
 }

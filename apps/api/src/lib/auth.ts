@@ -30,16 +30,20 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
   const authUser = await provider.validateRequest(headers);
 
   if (!authUser) {
-    const hasPrincipalBlob = !!headers['x-ms-client-principal'];
-    const hasPrincipalId = !!headers['x-ms-client-principal-id'];
+    const principalBlob = headers['x-ms-client-principal'];
+    const principalId = headers['x-ms-client-principal-id'];
+    const principalIdp = headers['x-ms-client-principal-idp'];
     trackAuthEvent('missing_headers', {
-      hasPrincipalBlob: String(hasPrincipalBlob),
-      hasPrincipalId: String(hasPrincipalId),
+      hasPrincipalBlob: String(!!principalBlob),
+      blobLength: String(principalBlob?.length ?? 0),
+      hasPrincipalId: String(!!principalId),
+      identityProvider: principalIdp ?? 'none',
+      url: request.url,
     });
     return null;
   }
 
-  trackAuthEvent('success', { identityId: authUser.id });
+  trackAuthEvent('success', { identityId: authUser.id, url: request.url });
 
   // Upsert user record in the database
   await prisma.user.upsert({

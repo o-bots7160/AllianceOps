@@ -7,9 +7,17 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, '../../../../.env') });
 
-import { initTelemetry } from './lib/telemetry.js';
+import { initTelemetry, trackAuthEvent } from './lib/telemetry.js';
+import { SWAAuthProvider, setAuthProvider } from '@allianceops/shared';
 
 initTelemetry();
+
+// Configure SWA auth provider with telemetry for blob parse errors
+setAuthProvider(
+  new SWAAuthProvider({
+    onError: (error, details) => trackAuthEvent(error as 'blob_parse_error', details),
+  }),
+);
 
 import './functions/health.js';
 import './functions/events.js';

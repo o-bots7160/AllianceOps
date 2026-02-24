@@ -13,12 +13,24 @@ export interface AuthProvider {
   validateRequest(headers: Record<string, string | undefined>): Promise<AuthUser | null>;
 }
 
+/** Options for SWAAuthProvider. */
+export interface SWAAuthProviderOptions {
+  /** Called when blob parsing fails or produces unexpected data. */
+  onError?: (error: string, details: Record<string, string>) => void;
+}
+
 /**
  * Azure Static Web Apps EasyAuth provider.
  * Decodes the x-ms-client-principal base64 blob forwarded by SWA to linked backends.
  * Also reads the individual x-ms-client-principal-id/name headers (available in managed APIs).
  */
 export class SWAAuthProvider implements AuthProvider {
+  private onError?: SWAAuthProviderOptions['onError'];
+
+  constructor(options?: SWAAuthProviderOptions) {
+    this.onError = options?.onError;
+  }
+
   async validateRequest(headers: Record<string, string | undefined>): Promise<AuthUser | null> {
     // Primary path: decode x-ms-client-principal base64 blob.
     // This is forwarded to linked backends and by SWA CLI.
@@ -41,8 +53,17 @@ export class SWAAuthProvider implements AuthProvider {
             role: 'editor',
           };
         }
-      } catch {
-        // Invalid blob — fall through to individual headers
+        // Blob decoded but no userId present
+        this.onError?.('blob_missing_userId', {
+          identityProvider: decoded.identityProvider ?? 'unknown',
+          hasUserDetails: String(!!decoded.userDetails),
+          claimCount: String(decoded.claims?.length ?? 0),
+        });
+      } catch (e) {
+        this.onError?.('blob_parse_error', {
+          error: e instanceof Error ? e.message : String(e),
+          blobLength: String(principalBlob.length),
+        });
       }
     }
 
