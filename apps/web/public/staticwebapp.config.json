@@ -13,10 +13,6 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/.auth/*",
-      "allowedRoles": ["anonymous"]
-    },
-    {
       "route": "/.auth/login/facebook",
       "statusCode": 404
     },
@@ -27,6 +23,10 @@
     {
       "route": "/.auth/login/apple",
       "statusCode": 404
+    },
+    {
+      "route": "/.auth/*",
+      "allowedRoles": ["anonymous"]
     },
     {
       "route": "/",
