@@ -111,21 +111,25 @@ app.http('getTeamEvents', {
       return { status: 400, jsonBody: { error: 'teamNumber and year are required' } };
     }
 
-    const result = await cached(`team-events:frc${teamNumber}:${year}`, 'STATIC', async () => {
-      const events = await getTBAClient().getTeamEvents(`frc${teamNumber}`, parseInt(year, 10));
-      return events.map((e) => ({
-        key: e.key,
-        name: e.name,
-        event_code: e.event_code,
-        event_type: e.event_type,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        city: e.city,
-        state_prov: e.state_prov,
-        country: e.country,
-      }));
-    });
+    try {
+      const result = await cached(`team-events:frc${teamNumber}:${year}`, 'STATIC', async () => {
+        const events = await getTBAClient().getTeamEvents(`frc${teamNumber}`, parseInt(year, 10));
+        return events.map((e) => ({
+          key: e.key,
+          name: e.name,
+          event_code: e.event_code,
+          event_type: e.event_type,
+          start_date: e.start_date,
+          end_date: e.end_date,
+          city: e.city,
+          state_prov: e.state_prov,
+          country: e.country,
+        }));
+      });
 
-    return { status: 200, jsonBody: result };
+      return { status: 200, jsonBody: result };
+    } catch {
+      return { status: 200, jsonBody: { data: [], meta: { lastRefresh: new Date().toISOString(), stale: false, ttlClass: 'STATIC' } } };
+    }
   },
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEventSetup } from './use-event-setup';
 import { useAuth } from './use-auth';
 import { useApi } from './use-api';
@@ -23,6 +23,17 @@ export function GlobalControls() {
   const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
   const { user, activeTeam, setActiveTeamId } = useAuth();
   const [teamInput, setTeamInput] = useState(String(teamNumber || ''));
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const debouncedSetTeam = useCallback(
+    (num: number) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        if (num > 0) setTeamNumber(num);
+      }, 400);
+    },
+    [setTeamNumber],
+  );
 
   // Auto-populate team number from active team membership
   useEffect(() => {
@@ -81,7 +92,7 @@ export function GlobalControls() {
         onChange={(e) => {
           setTeamInput(e.target.value);
           const num = parseInt(e.target.value, 10);
-          if (num > 0) setTeamNumber(num);
+          debouncedSetTeam(num);
         }}
         placeholder="Team #"
         className="w-16 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm"
