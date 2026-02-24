@@ -27,7 +27,11 @@ export function trackCacheMetric(hit: boolean, endpoint: string): void {
   });
 }
 
-export function trackUpstreamError(source: 'tba' | 'statbotics', endpoint: string, statusCode: number): void {
+export function trackUpstreamError(
+  source: 'tba' | 'statbotics',
+  endpoint: string,
+  statusCode: number,
+): void {
   client?.trackEvent({
     name: 'UpstreamApiError',
     properties: { source, endpoint, statusCode: String(statusCode) },

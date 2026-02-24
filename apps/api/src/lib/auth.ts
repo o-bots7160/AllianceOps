@@ -61,9 +61,7 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
 /**
  * Require an authenticated user. Returns 401 response if not authenticated.
  */
-export async function requireUser(
-  request: HttpRequest,
-): Promise<AuthUser | HttpResponseInit> {
+export async function requireUser(request: HttpRequest): Promise<AuthUser | HttpResponseInit> {
   const user = await resolveUser(request);
   if (!user) {
     return { status: 401, jsonBody: { error: 'Authentication required' } };
