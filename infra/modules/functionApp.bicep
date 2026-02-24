@@ -161,18 +161,6 @@ resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-0
         category: 'FunctionAppLogs'
         enabled: true
       }
-      {
-        category: 'AppServiceHTTPLogs'
-        enabled: true
-      }
-      {
-        category: 'AppServiceConsoleLogs'
-        enabled: true
-      }
-      {
-        category: 'AppServiceAppLogs'
-        enabled: true
-      }
     ]
     metrics: [
       {
