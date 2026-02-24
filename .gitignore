@@ -29,6 +29,9 @@ Thumbs.db
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 
+# Deploy simulation
+.deploy-staging/
+
 # Test coverage
 coverage/
 

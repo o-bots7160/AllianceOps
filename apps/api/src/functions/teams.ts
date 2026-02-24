@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { prisma } from '../lib/prisma.js';
 import { requireUser, requireTeamMember, requireTeamRole, isAuthError } from '../lib/auth.js';
 import { randomBytes } from 'crypto';
-import { TeamRole } from '@prisma/client';
+import type { TeamRole } from '@prisma/client';
 
 // ─── Team CRUD ───────────────────────────────────────────
 
@@ -22,7 +22,12 @@ app.http('createTeam', {
 
     const existing = await prisma.team.findUnique({ where: { teamNumber: body.teamNumber } });
     if (existing) {
-      return { status: 409, jsonBody: { error: `Team ${body.teamNumber} already exists. Use a join code or request to join.` } };
+      return {
+        status: 409,
+        jsonBody: {
+          error: `Team ${body.teamNumber} already exists. Use a join code or request to join.`,
+        },
+      };
     }
 
     const team = await prisma.team.create({
@@ -179,7 +184,12 @@ app.http('joinViaCode', {
       }),
     ]);
 
-    return { status: 201, jsonBody: { data: { teamId: member.teamId, teamNumber: member.team.teamNumber, role: member.role } } };
+    return {
+      status: 201,
+      jsonBody: {
+        data: { teamId: member.teamId, teamNumber: member.team.teamNumber, role: member.role },
+      },
+    };
   },
 });
 
@@ -306,7 +316,10 @@ app.http('removeMember', {
       return { status: 403, jsonBody: { error: 'Mentors can only remove Students' } };
     }
     if (targetUserId === auth.user.id) {
-      return { status: 400, jsonBody: { error: 'Cannot remove yourself. Transfer ownership first.' } };
+      return {
+        status: 400,
+        jsonBody: { error: 'Cannot remove yourself. Transfer ownership first.' },
+      };
     }
 
     await prisma.teamMember.delete({

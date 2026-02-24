@@ -15,7 +15,8 @@
     "db:reset": "pnpm --filter @allianceops/api exec prisma migrate reset --force",
     "db:generate": "pnpm --filter @allianceops/api exec prisma generate",
     "db:studio": "pnpm --filter @allianceops/api exec prisma studio",
-    "seed:sim": "pnpm --filter @allianceops/shared exec tsx src/simulation/seed.ts"
+    "seed:sim": "pnpm --filter @allianceops/shared exec tsx src/simulation/seed.ts",
+    "simulate-deploy": "./scripts/simulate-deploy.sh"
   },
   "devDependencies": {
     "@azure/static-web-apps-cli": "^2.0.0",

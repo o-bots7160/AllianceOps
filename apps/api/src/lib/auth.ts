@@ -2,7 +2,7 @@ import { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { getAuthProvider, type AuthUser } from '@allianceops/shared';
 import { prisma } from './prisma.js';
 import { trackAuthEvent } from './telemetry.js';
-import { TeamRole } from '@prisma/client';
+import type { TeamRole } from '@prisma/client';
 
 /** Role hierarchy for permission checks (higher index = more privilege). */
 const ROLE_RANK: Record<TeamRole, number> = {
