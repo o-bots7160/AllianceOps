@@ -10,10 +10,6 @@ param location string = resourceGroup().location
 @description('Name prefix for all resources')
 param namePrefix string = 'aops'
 
-@description('Function App hosting plan SKU: Y1 (Consumption) or FC1 (Flex Consumption)')
-@allowed(['Y1', 'FC1'])
-param functionAppSku string = 'Y1'
-
 @description('Static Web App SKU name')
 @allowed(['Free', 'Standard'])
 param swaSkuName string = 'Standard'
@@ -70,7 +66,6 @@ module functionApp 'modules/functionApp.bicep' = {
     planName: 'asp-${suffix}'
     storageAccountName: storageAccountName
     location: location
-    planSku: functionAppSku
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: 'kv-${suffix}'
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId

@@ -12,19 +12,19 @@ AllianceOps turns the quals schedule into a live match strategy dashboard for FR
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js (static export) + Tailwind CSS |
-| Backend | Azure Functions v4 (Node.js/TypeScript) |
-| Database | PostgreSQL (Prisma ORM) |
-| Infrastructure | Azure (Bicep IaC) |
-| CI/CD | GitHub Actions |
+| Layer          | Technology                              |
+| -------------- | --------------------------------------- |
+| Frontend       | Next.js (static export) + Tailwind CSS  |
+| Backend        | Azure Functions v4 (Node.js/TypeScript) |
+| Database       | PostgreSQL (Prisma ORM)                 |
+| Infrastructure | Azure (Bicep IaC)                       |
+| CI/CD          | GitHub Actions                          |
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Node.js 20+](https://nodejs.org/)
+- [Node.js 22+](https://nodejs.org/)
 - [pnpm 9+](https://pnpm.io/)
 - [Docker](https://www.docker.com/) (for local Postgres + Azurite)
 - [Azure Functions Core Tools v4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local)
@@ -58,6 +58,7 @@ The web app runs at `http://localhost:3000` and the API at `http://localhost:707
 ### Dev Container
 
 Open in VS Code with the Dev Containers extension for a fully configured environment including:
+
 - Node.js, pnpm, Azure Functions Core Tools
 - PostgreSQL and Azurite running automatically
 - MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma, Next.js DevTools, Bicep)
@@ -78,16 +79,16 @@ ssh-add ~/.ssh/id_ed25519  # or your key path
 
 ### Scripts
 
-| Script | Description |
-|---|---|
-| `pnpm dev` | Start all dev servers |
-| `pnpm build` | Build all packages |
-| `pnpm lint` | Lint all packages |
-| `pnpm typecheck` | Type-check all packages |
-| `pnpm test` | Run all tests |
+| Script            | Description             |
+| ----------------- | ----------------------- |
+| `pnpm dev`        | Start all dev servers   |
+| `pnpm build`      | Build all packages      |
+| `pnpm lint`       | Lint all packages       |
+| `pnpm typecheck`  | Type-check all packages |
+| `pnpm test`       | Run all tests           |
 | `pnpm db:migrate` | Apply Prisma migrations |
-| `pnpm db:reset` | Reset database |
-| `pnpm seed:sim` | Seed simulation data |
+| `pnpm db:reset`   | Reset database          |
+| `pnpm seed:sim`   | Seed simulation data    |
 
 ## Project Structure
 

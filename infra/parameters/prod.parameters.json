@@ -8,9 +8,6 @@
     "location": {
       "value": "centralus"
     },
-    "functionAppSku": {
-      "value": "FC1"
-    },
     "swaSkuName": {
       "value": "Standard"
     },

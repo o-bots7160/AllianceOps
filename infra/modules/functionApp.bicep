@@ -11,10 +11,6 @@ param storageAccountName string
 @description('Azure region')
 param location string
 
-@description('App Service Plan SKU: Y1 (Consumption) or FC1 (Flex Consumption)')
-@allowed(['Y1', 'FC1'])
-param planSku string = 'Y1'
-
 @description('Application Insights connection string')
 param appInsightsConnectionString string = ''
 
@@ -23,12 +19,6 @@ param keyVaultName string = ''
 
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
-
-// Flex Consumption uses FlexConsumption tier; Consumption uses Dynamic
-var isFlexConsumption = planSku == 'FC1'
-var planSkuConfig = isFlexConsumption
-  ? { name: 'FC1', tier: 'FlexConsumption' }
-  : { name: 'Y1', tier: 'Dynamic' }
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -50,7 +40,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
 }
 
 // Deployment container for Flex Consumption package deployment
-resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = if (isFlexConsumption) {
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'app-package'
   properties: {
@@ -61,17 +51,17 @@ resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/con
 resource hostingPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: planName
   location: location
-  sku: planSkuConfig
-  kind: isFlexConsumption ? 'functionapp,linux' : 'functionapp'
+  sku: {
+    name: 'FC1'
+    tier: 'FlexConsumption'
+  }
+  kind: 'functionapp,linux'
   properties: {
     reserved: true
   }
 }
 
-// Storage connection string for Consumption plan
-var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value}'
-
-// Base app settings shared by both SKUs
+// Base app settings
 var sharedAppSettings = [
   {
     name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -83,7 +73,7 @@ var sharedAppSettings = [
   }
   {
     name: 'WEBSITE_NODE_DEFAULT_VERSION'
-    value: '~20'
+    value: '~22'
   }
   {
     name: 'NODE_ENV'
@@ -91,20 +81,13 @@ var sharedAppSettings = [
   }
 ]
 
-// Storage settings differ by plan type
-var storageAppSettings = isFlexConsumption
-  ? [
-      {
-        name: 'AzureWebJobsStorage__accountName'
-        value: storageAccount.name
-      }
-    ]
-  : [
-      {
-        name: 'AzureWebJobsStorage'
-        value: storageConnectionString
-      }
-    ]
+// Flex Consumption uses managed identity for storage access
+var storageAppSettings = [
+  {
+    name: 'AzureWebJobsStorage__accountName'
+    value: storageAccount.name
+  }
+]
 
 var kvAppSettings = !empty(keyVaultName)
   ? [
@@ -139,37 +122,35 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: hostingPlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'NODE|20'
+      linuxFxVersion: 'NODE|22'
       appSettings: concat(sharedAppSettings, storageAppSettings, kvAppSettings, aiAppSettings)
     }
-    functionAppConfig: isFlexConsumption
-      ? {
-          deployment: {
-            storage: {
-              type: 'blobContainer'
-              value: '${storageAccount.properties.primaryEndpoints.blob}app-package'
-              authentication: {
-                type: 'SystemAssignedIdentity'
-              }
-            }
-          }
-          scaleAndConcurrency: {
-            instanceMemoryMB: 2048
-            maximumInstanceCount: 100
-          }
-          runtime: {
-            name: 'node'
-            version: '20'
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${storageAccount.properties.primaryEndpoints.blob}app-package'
+          authentication: {
+            type: 'SystemAssignedIdentity'
           }
         }
-      : null
+      }
+      scaleAndConcurrency: {
+        instanceMemoryMB: 2048
+        maximumInstanceCount: 100
+      }
+      runtime: {
+        name: 'node'
+        version: '22'
+      }
+    }
   }
 }
 
-// Storage Blob Data Owner role for Flex Consumption managed identity storage access
+// Storage Blob Data Owner role for managed identity storage access
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 
-resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (isFlexConsumption) {
+resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storageAccount.id, functionApp.id, storageBlobDataOwnerRoleId)
   scope: storageAccount
   properties: {
