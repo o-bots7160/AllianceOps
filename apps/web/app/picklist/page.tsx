@@ -315,8 +315,8 @@ export default function PicklistPage() {
             onClick={handleSave}
             disabled={!canEdit || saving}
             className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap ${canEdit
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              ? 'bg-primary-600 text-white hover:bg-primary-700'
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               } disabled:opacity-60`}
           >
             {!canEdit ? (!activeTeam ? 'Join Team to Save' : 'Read Only') : saving ? 'Saving...' : 'Save Picklist'}

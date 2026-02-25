@@ -534,8 +534,8 @@ export default function PlannerPage() {
             onClick={handleSave}
             disabled={!canEdit}
             className={`h-[38px] px-4 rounded-md text-sm font-medium whitespace-nowrap ${canEdit
-                ? 'bg-primary-600 text-white hover:bg-primary-700'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              ? 'bg-primary-600 text-white hover:bg-primary-700'
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               }`}
           >
             {canEdit ? 'Save Plan' : !activeTeam ? 'Join Team to Save' : 'Read Only'}
