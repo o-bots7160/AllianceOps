@@ -16,6 +16,7 @@ export type {
   DutySlotDefinition,
   DutyAssignment,
   DutyTemplate,
+  DutyTemplateSlot,
   GameMetricDefinition,
 } from './types/game-definition.js';
 
