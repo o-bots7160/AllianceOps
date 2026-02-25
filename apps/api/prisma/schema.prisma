@@ -1,0 +1,173 @@
+// Prisma schema for AllianceOps
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum TeamRole {
+  COACH
+  MENTOR
+  STUDENT
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── User & Team ─────────────────────────────────────────
+
+model User {
+  id          String   @id // from SSO provider (or fabricated in dev)
+  email       String?
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships  TeamMember[]
+  inviteCodes  InviteCode[]
+  joinRequests JoinRequest[]
+  reviews      JoinRequest[] @relation("ReviewedBy")
+}
+
+model Team {
+  id         String   @id @default(cuid())
+  teamNumber Int      @unique
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members      TeamMember[]
+  inviteCodes  InviteCode[]
+  joinRequests JoinRequest[]
+  matchPlans   MatchPlan[]
+  picklists    Picklist[]
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  userId   String
+  teamId   String
+  role     TeamRole
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model InviteCode {
+  id        String    @id @default(cuid())
+  teamId    String
+  code      String    @unique
+  createdBy String
+  expiresAt DateTime?
+  maxUses   Int?
+  useCount  Int       @default(0)
+  active    Boolean   @default(true)
+
+  team    Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [createdBy], references: [id])
+}
+
+model JoinRequest {
+  id         String        @id @default(cuid())
+  teamId     String
+  userId     String
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  reviewedBy String?
+  reviewedAt DateTime?
+
+  team     Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+// ─── Match Planning ──────────────────────────────────────
+
+model MatchPlan {
+  id        String   @id @default(cuid())
+  teamId    String?
+  eventKey  String
+  matchKey  String
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team   Team?            @relation(fields: [teamId], references: [id])
+  duties DutyAssignment[]
+  notes  MatchNote[]
+
+  @@unique([eventKey, matchKey])
+  @@index([eventKey])
+  @@index([teamId])
+}
+
+model DutyAssignment {
+  id          String  @id @default(cuid())
+  matchPlanId String
+  slotKey     String
+  teamNumber  Int
+  notes       String?
+
+  matchPlan MatchPlan @relation(fields: [matchPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([matchPlanId, slotKey])
+}
+
+model MatchNote {
+  id          String   @id @default(cuid())
+  matchPlanId String
+  content     String
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  matchPlan MatchPlan @relation(fields: [matchPlanId], references: [id], onDelete: Cascade)
+}
+
+// ─── Picklist ────────────────────────────────────────────
+
+model Picklist {
+  id        String   @id @default(cuid())
+  teamId    String?
+  eventKey  String
+  name      String
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team    Team?           @relation(fields: [teamId], references: [id])
+  entries PicklistEntry[]
+
+  @@index([eventKey])
+  @@index([teamId])
+}
+
+model PicklistEntry {
+  id         String  @id @default(cuid())
+  picklistId String
+  teamNumber Int
+  rank       Int
+  tags       Json    @default("[]")
+  notes      String?
+  excluded   Boolean @default(false)
+
+  picklist Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+
+  @@unique([picklistId, teamNumber])
+  @@index([picklistId, rank])
+}

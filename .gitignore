@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+out/
+.next/
+.turbo/
+
+# Azure Functions
+apps/api/local.settings.json
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Deploy simulation
+.deploy-staging/
+
+# Test coverage
+coverage/
+
+# Debug logs
+npm-debug.log*
+pnpm-debug.log*
+
+# Bicep compiled output
+infra/main.json
+apps/web/tsconfig.tsbuildinfo

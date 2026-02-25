@@ -1,0 +1,28 @@
+{
+  "name": "allianceops",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "concurrently -n turbo,swa -c blue,green \"NEXT_PUBLIC_API_URL=/api turbo dev\" \"swa start\"",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:dev": "pnpm --filter @allianceops/api exec prisma migrate dev",
+    "db:migrate": "pnpm --filter @allianceops/api exec prisma migrate deploy",
+    "db:reset": "pnpm --filter @allianceops/api exec prisma migrate reset --force",
+    "db:generate": "pnpm --filter @allianceops/api exec prisma generate",
+    "db:studio": "pnpm --filter @allianceops/api exec prisma studio",
+    "seed:sim": "pnpm --filter @allianceops/shared exec tsx src/simulation/seed.ts",
+    "simulate-deploy": "./scripts/simulate-deploy.sh"
+  },
+  "devDependencies": {
+    "@azure/static-web-apps-cli": "^2.0.0",
+    "concurrently": "^9.0.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}

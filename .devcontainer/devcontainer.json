@@ -1,0 +1,100 @@
+{
+  "name": "AllianceOps Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces/AllianceOps",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "installYarnUsingApt": false
+    },
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "sudo corepack enable && corepack install && pnpm install && sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && pnpm db:migrate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-azuretools.vscode-bicep",
+        "Prisma.prisma",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "prisma.pinToPrisma6": true
+      },
+      "mcpServers": {
+        "tba": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@withinfocus/tba-mcp-server"
+          ],
+          "env": {
+            "TBA_API_KEY": "${localEnv:TBA_API_KEY}"
+          }
+        },
+        "tailwindcss": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "tailwindcss-mcp-server"
+          ]
+        },
+        "prisma": {
+          "command": "npx",
+          "args": [
+            "prisma",
+            "mcp"
+          ]
+        }
+      }
+    }
+  },
+  "forwardPorts": [
+    3000,
+    4280,
+    7071,
+    5432,
+    10000,
+    10001,
+    10002
+  ],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js Web",
+      "onAutoForward": "notify"
+    },
+    "4280": {
+      "label": "SWA CLI Proxy",
+      "onAutoForward": "notify"
+    },
+    "7071": {
+      "label": "Azure Functions",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "10000": {
+      "label": "Azurite Blob",
+      "onAutoForward": "silent"
+    },
+    "10001": {
+      "label": "Azurite Queue",
+      "onAutoForward": "silent"
+    },
+    "10002": {
+      "label": "Azurite Table",
+      "onAutoForward": "silent"
+    }
+  }
+}

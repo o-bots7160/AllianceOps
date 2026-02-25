@@ -1,0 +1,180 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches: [dev]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.github/copilot-instructions.md'
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-build
+          path: apps/api/dist/
+
+  deploy:
+    name: Deploy to Dev
+    needs: build
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-build
+          path: apps/api/dist/
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az group create --name rg-aops-dev --location centralus
+
+      - name: Deploy Infrastructure
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group rg-aops-dev \
+              --template-file infra/main.bicep \
+              --parameters infra/parameters/dev.parameters.json \
+              --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
+                           tbaApiKey='${{ secrets.TBA_API_KEY }}'
+
+      - name: Grant Deployer Key Vault Access
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            DEPLOYER_OID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+            KV_ID=$(az keyvault show --name kv-aops-dev --query id -o tsv)
+            az role assignment create \
+              --assignee-object-id $DEPLOYER_OID \
+              --assignee-principal-type ServicePrincipal \
+              --role "Key Vault Secrets User" \
+              --scope $KV_ID 2>/dev/null || true
+
+      - name: Run Database Migrations
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group rg-aops-dev \
+            --name psql-aops-dev \
+            --rule-name AllowGitHubRunner \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+          export DATABASE_URL=$(az keyvault secret show \
+            --vault-name kv-aops-dev \
+            --name DatabaseUrl \
+            --query value -o tsv)
+          cd apps/api
+          npx --yes prisma@^6 migrate deploy
+
+          az postgres flexible-server firewall-rule delete \
+            --resource-group rg-aops-dev \
+            --name psql-aops-dev \
+            --rule-name AllowGitHubRunner \
+            --yes
+
+      - name: Package Function App
+        run: |
+          # The API is bundled by esbuild — @allianceops/shared and dotenv are
+          # inlined into dist/index.js. Only three external runtime deps need
+          # npm install: @azure/functions, @prisma/client, applicationinsights.
+          STAGING=/tmp/api-deploy
+          mkdir -p $STAGING
+
+          cp -r apps/api/dist $STAGING/dist
+          cp apps/api/host.json $STAGING/
+
+          # Strip devDependencies (contains workspace:* protocol npm can't resolve)
+          node -e "
+            const pkg = JSON.parse(require('fs').readFileSync('apps/api/package.json', 'utf8'));
+            delete pkg.devDependencies;
+            require('fs').writeFileSync('$STAGING/package.json', JSON.stringify(pkg, null, 2));
+          "
+
+          cp -r apps/api/prisma $STAGING/
+
+          cd $STAGING
+          npm install --omit=dev
+          npx --yes prisma@^6 generate
+
+          zip -r $GITHUB_WORKSPACE/api-deploy.zip dist/ host.json package.json node_modules/ \
+            -x "node_modules/.cache/*"
+
+      - name: Deploy Function App
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az functionapp deployment source config-zip \
+              --resource-group rg-aops-dev \
+              --name func-aops-dev \
+              --src api-deploy.zip
+
+      - name: Get SWA Deployment Token
+        run: |
+          SWA_TOKEN=$(az staticwebapp secrets list \
+            --name stapp-aops-dev \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$SWA_TOKEN"
+          echo "SWA_DEPLOY_TOKEN=$SWA_TOKEN" >> $GITHUB_ENV
+
+      - name: Deploy Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOY_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: apps/web/out
+          skip_app_build: true
