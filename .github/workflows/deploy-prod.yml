@@ -114,6 +114,87 @@ jobs:
               --resource-group rg-aops-global \
               --parameters infra/parameters/dns.bicepparam
 
+      - name: Register Apex Domain
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SWA_NAME="stapp-aops-prod"
+            APEX="allianceops.io"
+            DNS_RG="rg-aops-global"
+
+            # Check if apex domain is already registered and validated
+            DOMAIN_STATUS=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --query status -o tsv 2>/dev/null || echo "NotFound")
+
+            if [ "$DOMAIN_STATUS" == "Ready" ]; then
+              echo "Apex domain already validated — skipping"
+              exit 0
+            fi
+
+            # Start domain registration (non-blocking so deployment doesn't hang)
+            az staticwebapp hostname set \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --validation-method dns-txt-token \
+              --no-wait
+
+            # Wait briefly for Azure to generate the validation token
+            sleep 10
+
+            # Retrieve the validation token
+            VALIDATION_TOKEN=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --query validationToken -o tsv)
+
+            if [ -z "$VALIDATION_TOKEN" ] || [ "$VALIDATION_TOKEN" == "None" ]; then
+              echo "::error::Failed to retrieve validation token for apex domain"
+              exit 1
+            fi
+
+            echo "Validation token: ${VALIDATION_TOKEN:0:8}..."
+
+            # Create or update TXT record in Azure DNS zone for validation
+            az network dns record-set txt create \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --name "_dnsvalidation" \
+              --ttl 300 2>/dev/null || true
+
+            # Remove any stale TXT values and add the current token
+            az network dns record-set txt remove-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "_dnsvalidation" \
+              --value "$VALIDATION_TOKEN" 2>/dev/null || true
+
+            az network dns record-set txt add-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "_dnsvalidation" \
+              --value "$VALIDATION_TOKEN"
+
+            # Poll for validation to complete (up to 5 minutes)
+            echo "Waiting for apex domain validation..."
+            for i in $(seq 1 30); do
+              STATUS=$(az staticwebapp hostname show \
+                --name "$SWA_NAME" \
+                --hostname "$APEX" \
+                --query status -o tsv 2>/dev/null || echo "Unknown")
+
+              if [ "$STATUS" == "Ready" ]; then
+                echo "Apex domain validated successfully"
+                exit 0
+              fi
+
+              echo "  Attempt $i/30 — status: $STATUS"
+              sleep 10
+            done
+
+            echo "::warning::Apex domain validation did not complete within 5 minutes. It may complete asynchronously."
+
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
         with:

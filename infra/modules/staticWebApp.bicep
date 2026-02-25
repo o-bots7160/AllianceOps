@@ -70,6 +70,10 @@ output defaultHostname string = staticWebApp.properties.defaultHostname
 output resourceId string = staticWebApp.id
 
 // Register custom domains with auto-managed SSL certificates
+// NOTE: Only CNAME-validated domains (subdomains) go here. Apex domains
+// require dns-txt-token validation which blocks the ARM deployment until
+// a TXT record exists, creating a chicken-and-egg deadlock. Apex domain
+// registration is handled via CLI in the deploy workflow instead.
 resource customDomain 'Microsoft.Web/staticSites/customDomains@2023-12-01' = [
   for domain in customDomains: {
     parent: staticWebApp

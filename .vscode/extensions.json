@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "cweijan.vscode-postgresql-client2"
+        "cweijan.vscode-postgresql-client2",
+        "eamodio.gitlens"
     ]
 }
