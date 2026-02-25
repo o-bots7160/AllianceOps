@@ -4,6 +4,7 @@
     "default": {
       "appDevserverUrl": "http://localhost:3000",
       "apiDevserverUrl": "http://localhost:7071",
+      "swaConfigLocation": "apps/web/public",
       "devserverTimeout": 120000,
       "port": 4280
     }

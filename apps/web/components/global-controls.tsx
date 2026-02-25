@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEventSetup } from './use-event-setup';
 import { useAuth } from './use-auth';
 import { useApi } from './use-api';
 import { Combobox } from './combobox';
+import { TeamCombobox, type TeamOption } from './team-combobox';
 
 interface TBAEvent {
   key: string;
@@ -22,34 +23,41 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
 export function GlobalControls() {
   const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
   const { user, activeTeam, setActiveTeamId } = useAuth();
-  const [teamInput, setTeamInput] = useState(String(teamNumber || ''));
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hasInitializedRef = useRef(false);
 
-  const debouncedSetTeam = useCallback(
-    (num: number) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        if (num > 0) setTeamNumber(num);
-      }, 400);
-    },
-    [setTeamNumber],
-  );
-
-  // Auto-populate team number from active team membership
+  // Auto-populate team number from active team on first load only
   useEffect(() => {
-    if (activeTeam && activeTeam.teamNumber !== teamNumber) {
-      setTeamNumber(activeTeam.teamNumber);
-      setTeamInput(String(activeTeam.teamNumber));
+    if (!hasInitializedRef.current && activeTeam) {
+      hasInitializedRef.current = true;
+      if (activeTeam.teamNumber !== teamNumber) {
+        setTeamNumber(activeTeam.teamNumber);
+      }
     }
   }, [activeTeam, teamNumber, setTeamNumber]);
 
-  const teamOptions = useMemo(
+  const teamOptions: TeamOption[] = useMemo(
     () =>
       user?.teams.map((t) => ({
-        value: t.teamId,
-        label: `${t.teamNumber} — ${t.name}`,
+        teamId: t.teamId,
+        teamNumber: t.teamNumber,
+        name: t.name,
       })) ?? [],
     [user?.teams],
+  );
+
+  const handleTeamSelect = useCallback(
+    (teamId: string, num: number) => {
+      setActiveTeamId(teamId);
+      setTeamNumber(num);
+    },
+    [setActiveTeamId, setTeamNumber],
+  );
+
+  const handleManualEntry = useCallback(
+    (num: number) => {
+      setTeamNumber(num);
+    },
+    [setTeamNumber],
   );
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
@@ -70,33 +78,15 @@ export function GlobalControls() {
 
   return (
     <div className="flex items-center gap-2 text-sm min-w-0">
-      {/* Team switcher (if user belongs to teams) */}
-      {teamOptions.length > 1 && (
-        <div className="w-40 min-w-0">
-          <Combobox
-            value={activeTeam?.teamId ?? ''}
-            options={teamOptions}
-            onChange={setActiveTeamId}
-            placeholder="Team"
-            compact
-          />
-        </div>
-      )}
-
-      <label className="sr-only" htmlFor="gc-team">Team</label>
-      <input
-        id="gc-team"
-        type="text"
-        inputMode="numeric"
-        value={teamInput}
-        onChange={(e) => {
-          setTeamInput(e.target.value);
-          const num = parseInt(e.target.value, 10);
-          debouncedSetTeam(num);
-        }}
-        placeholder="Team #"
-        className="w-16 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm"
-      />
+      <div className="w-28 min-w-0">
+        <TeamCombobox
+          teamNumber={teamNumber}
+          teams={teamOptions}
+          onTeamSelect={handleTeamSelect}
+          onManualEntry={handleManualEntry}
+          compact
+        />
+      </div>
 
       <div className="w-20">
         <Combobox

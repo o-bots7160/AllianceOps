@@ -1,0 +1,320 @@
+# Reusable deployment workflow shared by dev and prod.
+# Called from deploy-dev.yml and deploy-prod.yml with environment-specific inputs.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment name (dev / production)
+        required: true
+        type: string
+      env_suffix:
+        description: Short env label used in resource names (dev / prod)
+        required: true
+        type: string
+      register_apex:
+        description: Whether to register the apex custom domain (prod only)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Build
+        run: |
+          export NEXT_PUBLIC_APP_VERSION="v1.0.${{ github.run_number }}+${GITHUB_SHA::7}"
+          pnpm build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-build
+          path: apps/api/dist/
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-build
+          path: apps/api/dist/
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Set Deployment Name
+        run: echo "DEPLOY_NAME=aop-${{ github.run_number }}-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az group create --name rg-aops-${{ inputs.env_suffix }} --location centralus
+
+      - name: Deploy Infrastructure
+        uses: azure/CLI@v2
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          TBA_API_KEY: ${{ secrets.TBA_API_KEY }}
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group rg-aops-${{ inputs.env_suffix }} \
+              --name ${{ env.DEPLOY_NAME }} \
+              --parameters infra/parameters/${{ inputs.env_suffix }}.bicepparam
+
+      - name: Ensure DNS Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az group create --name rg-aops-global --location centralus
+
+      - name: Deploy DNS Records
+        uses: azure/CLI@v2
+        env:
+          ENVIRONMENT_NAME: ${{ inputs.env_suffix }}
+        with:
+          inlineScript: |
+            export SWA_DEFAULT_HOSTNAME=$(az staticwebapp show \
+              --name stapp-aops-${{ inputs.env_suffix }} \
+              --query defaultHostname -o tsv)
+
+            if [ "${{ inputs.env_suffix }}" = "prod" ]; then
+              export SWA_RESOURCE_ID=$(az staticwebapp show \
+                --name stapp-aops-${{ inputs.env_suffix }} \
+                --query id -o tsv)
+            fi
+
+            az deployment group create \
+              --resource-group rg-aops-global \
+              --name dns-${{ inputs.env_suffix }}-${{ env.DEPLOY_NAME }} \
+              --parameters infra/parameters/dns.bicepparam
+
+      - name: Register Apex Domain
+        if: inputs.register_apex
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SWA_NAME="stapp-aops-${{ inputs.env_suffix }}"
+            APEX="allianceops.io"
+            DNS_RG="rg-aops-global"
+
+            # Check if apex domain is already registered and validated
+            DOMAIN_STATUS=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --query status -o tsv 2>/dev/null || echo "NotFound")
+
+            if [ "$DOMAIN_STATUS" == "Ready" ]; then
+              echo "Apex domain already validated — skipping"
+              exit 0
+            fi
+
+            # Start domain registration (non-blocking so deployment doesn't hang)
+            az staticwebapp hostname set \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --validation-method dns-txt-token \
+              --no-wait
+
+            # Wait briefly for Azure to generate the validation token
+            sleep 10
+
+            # Retrieve the validation token
+            VALIDATION_TOKEN=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --hostname "$APEX" \
+              --query validationToken -o tsv)
+
+            if [ -z "$VALIDATION_TOKEN" ] || [ "$VALIDATION_TOKEN" == "None" ]; then
+              echo "::error::Failed to retrieve validation token for apex domain"
+              exit 1
+            fi
+
+            echo "Validation token: ${VALIDATION_TOKEN:0:8}..."
+
+            # Create or update TXT record in Azure DNS zone for validation
+            az network dns record-set txt create \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --name "_dnsvalidation" \
+              --ttl 300 2>/dev/null || true
+
+            # Remove any stale TXT values and add the current token
+            az network dns record-set txt remove-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "_dnsvalidation" \
+              --value "$VALIDATION_TOKEN" 2>/dev/null || true
+
+            az network dns record-set txt add-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "_dnsvalidation" \
+              --value "$VALIDATION_TOKEN"
+
+            # Poll for validation to complete (up to 5 minutes)
+            echo "Waiting for apex domain validation..."
+            for i in $(seq 1 30); do
+              STATUS=$(az staticwebapp hostname show \
+                --name "$SWA_NAME" \
+                --hostname "$APEX" \
+                --query status -o tsv 2>/dev/null || echo "Unknown")
+
+              if [ "$STATUS" == "Ready" ]; then
+                echo "Apex domain validated successfully"
+                exit 0
+              fi
+
+              echo "  Attempt $i/30 — status: $STATUS"
+              sleep 10
+            done
+
+            echo "::warning::Apex domain validation did not complete within 5 minutes. It may complete asynchronously."
+
+      - name: Grant Deployer Key Vault Access
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            DEPLOYER_OID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+            KV_ID=$(az keyvault show --name kv-aops-${{ inputs.env_suffix }} --query id -o tsv)
+            az role assignment create \
+              --assignee-object-id $DEPLOYER_OID \
+              --assignee-principal-type ServicePrincipal \
+              --role "Key Vault Secrets User" \
+              --scope $KV_ID 2>/dev/null || true
+
+      - name: Run Database Migrations
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group rg-aops-${{ inputs.env_suffix }} \
+            --name psql-aops-${{ inputs.env_suffix }} \
+            --rule-name AllowGitHubRunner \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+          export DATABASE_URL=$(az keyvault secret show \
+            --vault-name kv-aops-${{ inputs.env_suffix }} \
+            --name DatabaseUrl \
+            --query value -o tsv)
+          cd apps/api
+          npx --yes prisma@^6 migrate deploy
+
+      - name: Cleanup Postgres Firewall Rule
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group rg-aops-${{ inputs.env_suffix }} \
+            --name psql-aops-${{ inputs.env_suffix }} \
+            --rule-name AllowGitHubRunner \
+            --yes || true
+
+      - name: Package Function App
+        run: |
+          # The API is bundled by esbuild — @allianceops/shared and dotenv are
+          # inlined into dist/index.js. Only three external runtime deps need
+          # npm install: @azure/functions, @prisma/client, applicationinsights.
+          STAGING=/tmp/api-deploy
+          mkdir -p $STAGING
+
+          cp -r apps/api/dist $STAGING/dist
+          cp apps/api/host.json $STAGING/
+
+          # Strip devDependencies (contains workspace:* protocol npm can't resolve)
+          node -e "
+            const pkg = JSON.parse(require('fs').readFileSync('apps/api/package.json', 'utf8'));
+            delete pkg.devDependencies;
+            require('fs').writeFileSync('$STAGING/package.json', JSON.stringify(pkg, null, 2));
+          "
+
+          cp -r apps/api/prisma $STAGING/
+
+          cd $STAGING
+          npm install --omit=dev
+          npx --yes prisma@^6 generate
+
+          zip -r $GITHUB_WORKSPACE/api-deploy.zip dist/ host.json package.json node_modules/ \
+            -x "node_modules/.cache/*"
+
+      - name: Deploy Function App
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az functionapp deployment source config-zip \
+              --resource-group rg-aops-${{ inputs.env_suffix }} \
+              --name func-aops-${{ inputs.env_suffix }} \
+              --src api-deploy.zip
+
+      - name: Get SWA Deployment Token
+        run: |
+          SWA_TOKEN=$(az staticwebapp secrets list \
+            --name stapp-aops-${{ inputs.env_suffix }} \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$SWA_TOKEN"
+          echo "SWA_DEPLOY_TOKEN=$SWA_TOKEN" >> $GITHUB_ENV
+
+      - name: Deploy Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOY_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: apps/web/out
+          skip_app_build: true
+
+      - name: Cleanup Old Deployments
+        if: always()
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            for RG in "rg-aops-${{ inputs.env_suffix }}" "rg-aops-global"; do
+              echo "Pruning deployments in $RG (keeping latest 10)..."
+              az deployment group list \
+                --resource-group "$RG" \
+                --query "[?properties.provisioningState!='Running'] | sort_by(@,&properties.timestamp)[].name" -o tsv \
+              | head -n -10 \
+              | xargs -r -I{} az deployment group delete \
+                  --resource-group "$RG" --name {} --no-wait
+            done
