@@ -252,7 +252,8 @@ export default function PlannerPage() {
   const { eventKey, teamNumber, year } = useEventSetup();
   const { activeCursor } = useSimulation();
   const { activeTeam } = useAuth();
-  const canEdit = activeTeam !== null;
+  const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
+  const canEdit = isOwnTeam;
   const myTeamKey = `frc${teamNumber}`;
 
   let adapter: ReturnType<typeof getAdapter> | null = null;
@@ -323,7 +324,7 @@ export default function PlannerPage() {
 
   // Load saved plan when match or team changes
   useEffect(() => {
-    if (!currentMatch || !activeTeam?.teamId || !eventKey) return;
+    if (!currentMatch || !activeTeam?.teamId || !eventKey || !isOwnTeam) return;
     let cancelled = false;
     setPlanLoading(true);
     const API_BASE = getApiBase();
@@ -357,7 +358,7 @@ export default function PlannerPage() {
         if (!cancelled) setPlanLoading(false);
       });
     return () => { cancelled = true; };
-  }, [currentMatch?.key, activeTeam?.teamId, eventKey]);
+  }, [currentMatch?.key, activeTeam?.teamId, eventKey, isOwnTeam]);
 
   const isRed = currentMatch?.alliances.red.team_keys.includes(myTeamKey);
   const allianceTeams = currentMatch
@@ -393,7 +394,7 @@ export default function PlannerPage() {
   );
 
   const handleSave = async () => {
-    if (!currentMatch) return;
+    if (!currentMatch || !canEdit) return;
     const duties = Object.entries(assignments)
       .filter(([, v]) => v !== null)
       .map(([slotKey, teamNumber]) => ({
@@ -464,6 +465,14 @@ export default function PlannerPage() {
         </p>
       </InfoBox>
 
+      {!canEdit && teamNumber && activeTeam && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Viewing team {teamNumber} — read-only (you&apos;re not a member)
+          </p>
+        </div>
+      )}
+
       {!adapter && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
           <p className="text-sm text-amber-700 dark:text-amber-400">
@@ -529,7 +538,7 @@ export default function PlannerPage() {
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               }`}
           >
-            {canEdit ? 'Save Plan' : 'Join Team to Save'}
+            {canEdit ? 'Save Plan' : !activeTeam ? 'Join Team to Save' : 'Read Only'}
           </button>
         </div>
       </div>

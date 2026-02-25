@@ -99,10 +99,11 @@ function downloadCSV(entries: PicklistEntry[]) {
 }
 
 export default function PicklistPage() {
-  const { eventKey } = useEventSetup();
+  const { eventKey, teamNumber } = useEventSetup();
   const { activeTeam } = useAuth();
-  const canEdit = activeTeam !== null;
-  const teamId = activeTeam?.teamId ?? null;
+  const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
+  const canEdit = isOwnTeam;
+  const teamId = isOwnTeam ? activeTeam?.teamId ?? null : null;
   const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
@@ -269,6 +270,14 @@ export default function PicklistPage() {
         </p>
       </InfoBox>
 
+      {!canEdit && teamNumber && activeTeam && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Viewing team {teamNumber} — read-only (you&apos;re not a member)
+          </p>
+        </div>
+      )}
+
       {loadError && (
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-2">
           <p className="text-sm text-red-700 dark:text-red-400">{loadError}</p>
@@ -310,7 +319,7 @@ export default function PicklistPage() {
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               } disabled:opacity-60`}
           >
-            {!canEdit ? 'Join Team to Save' : saving ? 'Saving...' : 'Save Picklist'}
+            {!canEdit ? (!activeTeam ? 'Join Team to Save' : 'Read Only') : saving ? 'Saving...' : 'Save Picklist'}
           </button>
         </div>
       </div>
