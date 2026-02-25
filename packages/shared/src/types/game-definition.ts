@@ -29,13 +29,29 @@ export interface DutyAssignment {
   notes?: string;
 }
 
+/** Per-slot assignment configuration in a duty template */
+export interface DutyTemplateSlot {
+  /** Human-readable hint (e.g. "Most reliable auto scorer") */
+  hint: string;
+  /**
+   * How to pick the team for this slot:
+   * - 'strongest' (default): rank by EPA, assign best fit
+   * - 'weakest': assign weakest overall scorer
+   * - 'skip': leave unassigned (e.g. risky endgame in safe mode)
+   * - 'all': team-wide directive, no specific team (e.g. foul avoidance)
+   */
+  strategy?: 'strongest' | 'weakest' | 'skip' | 'all';
+  /** Override the slot's default epaRankKeys for this template */
+  epaRankKeysOverride?: string[];
+}
+
 /** Named duty template */
 export interface DutyTemplate {
   name: 'safe' | 'balanced' | 'aggressive';
   label: string;
   description: string;
-  /** Slot key → assignment hint (e.g. "strongest auto scorer") */
-  assignments: Record<string, string>;
+  /** Slot key → assignment hint string or full slot configuration */
+  assignments: Record<string, string | DutyTemplateSlot>;
 }
 
 /** A game-specific metric that the adapter defines */

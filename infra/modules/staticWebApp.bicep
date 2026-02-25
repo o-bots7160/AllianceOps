@@ -31,6 +31,9 @@ param githubOAuthClientId string = ''
 @secure()
 param githubOAuthClientSecret string = ''
 
+@description('Custom domains to register on the SWA. Array of objects: { name: string, validationMethod: string }')
+param customDomains array = []
+
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: name
   location: location
@@ -65,3 +68,14 @@ resource linkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = i
 
 output defaultHostname string = staticWebApp.properties.defaultHostname
 output resourceId string = staticWebApp.id
+
+// Register custom domains with auto-managed SSL certificates
+resource customDomain 'Microsoft.Web/staticSites/customDomains@2023-12-01' = [
+  for domain in customDomains: {
+    parent: staticWebApp
+    name: domain.name
+    properties: {
+      validationMethod: domain.validationMethod
+    }
+  }
+]

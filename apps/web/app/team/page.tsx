@@ -210,9 +210,9 @@ export default function TeamPage() {
   if (!user) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Sign In Required</h2>
+        <h2 className="text-2xl font-bold">Log In Required</h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Sign in to create or join a team.
+          Log in to create or join a team.
         </p>
       </div>
     );

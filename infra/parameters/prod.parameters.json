@@ -16,6 +16,9 @@
     },
     "budgetAmount": {
       "value": 50
+    },
+    "customDomains": {
+      "value": []
     }
   }
 }

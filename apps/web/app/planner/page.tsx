@@ -12,6 +12,7 @@ import { getApiBase } from '../../lib/api-base';
 import {
   getAdapter,
   type DutySlotDefinition,
+  type DutyTemplateSlot,
   type GameMetricDefinition,
 } from '@allianceops/shared';
 
@@ -161,13 +162,20 @@ function sumEpaKeys(
   return keys.reduce((sum, k) => sum + (bd[k] ?? 0), 0);
 }
 
+/** Normalize a template assignment value to a full DutyTemplateSlot. */
+function toSlotConfig(val: string | DutyTemplateSlot | undefined): DutyTemplateSlot {
+  if (!val) return { hint: '' };
+  if (typeof val === 'string') return { hint: val };
+  return val;
+}
+
 /** Build smart assignments from EPA data using adapter-defined duty slots. */
 function buildTemplateAssignments(
-  templateName: string,
+  _templateName: string,
   teamNums: number[],
   epaMap: Map<number, EnrichedTeam>,
   dutySlots: DutySlotDefinition[],
-  templateHints: Record<string, string>,
+  templateHints: Record<string, string | DutyTemplateSlot>,
 ): { assignments: Record<string, number | null>; notes: Record<string, string> } {
   if (teamNums.length === 0) return { assignments: {}, notes: {} };
 
@@ -183,30 +191,38 @@ function buildTemplateAssignments(
   const slotAssignIndex = new Map<string, number>();
 
   for (const slot of dutySlots) {
-    const hint = templateHints[slot.key] ?? '';
-    n[slot.key] = hint;
+    const cfg = toSlotConfig(templateHints[slot.key]);
+    n[slot.key] = cfg.hint;
+    const strategy = cfg.strategy ?? 'strongest';
 
-    if (slot.category === 'defense') {
-      if (templateName === 'safe') {
-        a[slot.key] = null;
-      } else {
-        a[slot.key] = weakest;
-      }
-      continue;
-    }
-
-    if (slot.category === 'discipline') {
+    // Skip: leave unassigned
+    if (strategy === 'skip' || strategy === 'all') {
       a[slot.key] = null;
       continue;
     }
 
-    // Rank teams by the slot's epaRankKeys
-    const keys = slot.epaRankKeys;
+    // Weakest: assign lowest overall EPA scorer
+    if (strategy === 'weakest') {
+      a[slot.key] = weakest;
+      continue;
+    }
+
+    // Defense/discipline defaults (when no explicit strategy)
+    if (slot.category === 'defense' && !cfg.strategy) {
+      a[slot.key] = null;
+      continue;
+    }
+    if (slot.category === 'discipline' && !cfg.strategy) {
+      a[slot.key] = null;
+      continue;
+    }
+
+    // Strongest: rank by EPA keys (with optional override)
+    const keys = cfg.epaRankKeysOverride ?? slot.epaRankKeys;
     if (keys && keys.length > 0) {
       const ranked = [...teamNums].sort(
         (x, y) => sumEpaKeys(y, epaMap, keys) - sumEpaKeys(x, epaMap, keys),
       );
-      // Track how many times we've assigned from this ranking
       const sig = keys.join(',');
       const idx = slotAssignIndex.get(sig) ?? 0;
       a[slot.key] = ranked[idx % ranked.length];

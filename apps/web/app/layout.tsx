@@ -45,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               Statbotics
             </a>
-            .
+            . <span className="mx-1">·</span> v0.0.1
           </footer>
         </Providers>
       </body>

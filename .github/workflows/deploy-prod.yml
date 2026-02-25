@@ -91,6 +91,36 @@ jobs:
               --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
                            tbaApiKey='${{ secrets.TBA_API_KEY }}'
 
+      - name: Deploy DNS Zone
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            DEV_SWA_HOSTNAME=$(az staticwebapp show \
+              --name stapp-aops-dev \
+              --query defaultHostname -o tsv 2>/dev/null || echo "")
+            PROD_SWA_HOSTNAME=$(az staticwebapp show \
+              --name stapp-aops-prod \
+              --query defaultHostname -o tsv)
+            PROD_SWA_ID=$(az staticwebapp show \
+              --name stapp-aops-prod \
+              --query id -o tsv)
+
+            if [ -n "$DEV_SWA_HOSTNAME" ] && [ -n "$PROD_SWA_HOSTNAME" ]; then
+              az deployment group create \
+                --resource-group rg-aops-prod \
+                --template-file infra/dns.bicep \
+                --parameters devSwaDefaultHostname="$DEV_SWA_HOSTNAME" \
+                             prodSwaDefaultHostname="$PROD_SWA_HOSTNAME" \
+                             prodSwaResourceId="$PROD_SWA_ID"
+              echo "DNS zone deployed. Nameservers:"
+              az network dns zone show \
+                --resource-group rg-aops-prod \
+                --name allianceops.io \
+                --query nameServers -o tsv
+            else
+              echo "Skipping DNS zone deployment — dev SWA not found yet"
+            fi
+
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
         with:
