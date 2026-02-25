@@ -59,6 +59,7 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-0
 resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
   parent: postgresServer
   name: 'AllowAzureServices'
+  dependsOn: [database]
   properties: {
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
@@ -73,6 +74,7 @@ output databaseName string = database.name
 resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
   parent: postgresServer
   name: 'log_connections'
+  dependsOn: [firewallRule]
   properties: {
     value: 'on'
     source: 'user-override'
@@ -116,6 +118,7 @@ resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/conf
 resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
   name: 'diag-${name}'
   scope: postgresServer
+  dependsOn: [logMinDurationStatement]
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
