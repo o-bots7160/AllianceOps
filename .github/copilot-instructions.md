@@ -293,6 +293,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 019: Node.js 22 and Flex Consumption
   - 020: Custom Domains and SSL
   - 021: Batch API and Request Deduplication
+  - 022: Picklist Persistence
 
 ## Anti-Patterns to Avoid
 

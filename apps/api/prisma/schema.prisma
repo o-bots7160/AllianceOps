@@ -153,6 +153,7 @@ model Picklist {
   team    Team?           @relation(fields: [teamId], references: [id])
   entries PicklistEntry[]
 
+  @@unique([teamId, eventKey, name])
   @@index([eventKey])
   @@index([teamId])
 }
