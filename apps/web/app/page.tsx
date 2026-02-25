@@ -14,18 +14,21 @@ function LoginCTA() {
         <a
           href="/.auth/login/google"
           className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
+          aria-label="Sign in using your Google account"
         >
           Log in with Google
         </a>
         <a
           href="/.auth/login/aad"
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Sign in using your Microsoft account"
         >
           Log in with Microsoft
         </a>
         <a
           href="/.auth/login/github"
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Sign in using your GitHub account"
         >
           Log in with GitHub
         </a>
@@ -44,6 +47,7 @@ function JoinTeamCTA() {
       <a
         href="/team/"
         className="inline-flex items-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
+        aria-label="Navigate to team creation or join page"
       >
         Create or Join a Team
       </a>
@@ -108,6 +112,7 @@ function FeatureGrid() {
             key={feature.title}
             onClick={() => setSelectedIdx(idx)}
             className="text-left rounded-lg border border-gray-200 dark:border-gray-800 p-4 hover:border-primary-500 transition-colors cursor-pointer"
+            aria-label={`Learn more about ${feature.title}: ${feature.desc}`}
           >
             <div className="text-2xl mb-2">{feature.icon}</div>
             <h3 className="font-semibold text-gray-900 dark:text-white">{feature.title}</h3>

@@ -109,7 +109,6 @@ jobs:
               az deployment group create \
                 --resource-group rg-aops-prod \
                 --template-file infra/dns.bicep \
-                --parameters infra/parameters/dns.parameters.json \
                 --parameters devSwaDefaultHostname="$DEV_SWA_HOSTNAME" \
                              prodSwaDefaultHostname="$PROD_SWA_HOSTNAME" \
                              prodSwaResourceId="$PROD_SWA_ID"
