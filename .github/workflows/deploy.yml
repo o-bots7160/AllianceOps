@@ -218,6 +218,40 @@ jobs:
 
             echo "::warning::Apex domain validation did not complete within 5 minutes. It may complete asynchronously."
 
+      - name: Set www as Default Domain
+        if: inputs.register_apex
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SWA_NAME="stapp-aops-${{ inputs.env_suffix }}"
+            SWA_RG="rg-aops-${{ inputs.env_suffix }}"
+            WWW_DOMAIN="www.allianceops.io"
+
+            # Only proceed if www domain is validated and ready
+            WWW_STATUS=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
+              --hostname "$WWW_DOMAIN" \
+              --query status -o tsv 2>/dev/null || echo "Unknown")
+
+            if [ "$WWW_STATUS" != "Ready" ]; then
+              echo "::warning::www domain status is '$WWW_STATUS' (not Ready) — skipping set-default. Set manually in Azure portal: $SWA_NAME → Custom domains → $WWW_DOMAIN → Set default."
+              exit 0
+            fi
+
+            # Construct the ARM resource ID for the www custom domain
+            SUB=$(az account show --query id -o tsv)
+            RESOURCE_ID="/subscriptions/${SUB}/resourceGroups/${SWA_RG}/providers/Microsoft.Web/staticSites/${SWA_NAME}/customDomains/${WWW_DOMAIN}"
+
+            # POST the setDefault action — causes apex domain to 308-redirect → www
+            if az rest --method POST \
+              --uri "https://management.azure.com${RESOURCE_ID}/setDefault?api-version=2023-12-01" \
+              --body '{}' 2>/dev/null; then
+              echo "$WWW_DOMAIN set as default domain — allianceops.io will redirect to www with 308"
+            else
+              echo "::warning::Could not set default domain via API. Set manually in Azure portal: $SWA_NAME → Custom domains → $WWW_DOMAIN → Set default."
+            fi
+
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
         with:
