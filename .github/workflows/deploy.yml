@@ -182,20 +182,20 @@ jobs:
             az network dns record-set txt create \
               --resource-group "$DNS_RG" \
               --zone-name "$APEX" \
-              --name "_dnsvalidation" \
+              --name "@" \
               --ttl 300 2>/dev/null || true
 
             # Remove any stale TXT values and add the current token
             az network dns record-set txt remove-record \
               --resource-group "$DNS_RG" \
               --zone-name "$APEX" \
-              --record-set-name "_dnsvalidation" \
+              --record-set-name "@" \
               --value "$VALIDATION_TOKEN" 2>/dev/null || true
 
             az network dns record-set txt add-record \
               --resource-group "$DNS_RG" \
               --zone-name "$APEX" \
-              --record-set-name "_dnsvalidation" \
+              --record-set-name "@" \
               --value "$VALIDATION_TOKEN"
 
             # Poll for validation to complete (up to 5 minutes)
