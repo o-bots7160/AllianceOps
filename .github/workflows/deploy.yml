@@ -137,12 +137,14 @@ jobs:
         with:
           inlineScript: |
             SWA_NAME="stapp-aops-${{ inputs.env_suffix }}"
+            SWA_RG="rg-aops-${{ inputs.env_suffix }}"
             APEX="allianceops.io"
             DNS_RG="rg-aops-global"
 
             # Check if apex domain is already registered and validated
             DOMAIN_STATUS=$(az staticwebapp hostname show \
               --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
               --hostname "$APEX" \
               --query status -o tsv 2>/dev/null || echo "NotFound")
 
@@ -154,6 +156,7 @@ jobs:
             # Start domain registration (non-blocking so deployment doesn't hang)
             az staticwebapp hostname set \
               --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
               --hostname "$APEX" \
               --validation-method dns-txt-token \
               --no-wait
@@ -164,6 +167,7 @@ jobs:
             # Retrieve the validation token
             VALIDATION_TOKEN=$(az staticwebapp hostname show \
               --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
               --hostname "$APEX" \
               --query validationToken -o tsv)
 
@@ -199,6 +203,7 @@ jobs:
             for i in $(seq 1 30); do
               STATUS=$(az staticwebapp hostname show \
                 --name "$SWA_NAME" \
+                --resource-group "$SWA_RG" \
                 --hostname "$APEX" \
                 --query status -o tsv 2>/dev/null || echo "Unknown")
 
