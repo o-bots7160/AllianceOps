@@ -82,44 +82,37 @@ jobs:
 
       - name: Deploy Infrastructure
         uses: azure/CLI@v2
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          TBA_API_KEY: ${{ secrets.TBA_API_KEY }}
         with:
           inlineScript: |
             az deployment group create \
               --resource-group rg-aops-prod \
-              --template-file infra/main.bicep \
-              --parameters infra/parameters/prod.parameters.json \
-              --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
-                           tbaApiKey='${{ secrets.TBA_API_KEY }}'
+              --parameters infra/parameters/prod.bicepparam
 
-      - name: Deploy DNS Zone
+      - name: Ensure DNS Resource Group
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            DEV_SWA_HOSTNAME=$(az staticwebapp show \
-              --name stapp-aops-dev \
-              --query defaultHostname -o tsv 2>/dev/null || echo "")
-            PROD_SWA_HOSTNAME=$(az staticwebapp show \
+            az group create --name rg-aops-global --location centralus
+
+      - name: Deploy DNS Records
+        uses: azure/CLI@v2
+        env:
+          ENVIRONMENT_NAME: prod
+        with:
+          inlineScript: |
+            export SWA_DEFAULT_HOSTNAME=$(az staticwebapp show \
               --name stapp-aops-prod \
               --query defaultHostname -o tsv)
-            PROD_SWA_ID=$(az staticwebapp show \
+            export SWA_RESOURCE_ID=$(az staticwebapp show \
               --name stapp-aops-prod \
               --query id -o tsv)
 
-            if [ -n "$DEV_SWA_HOSTNAME" ] && [ -n "$PROD_SWA_HOSTNAME" ]; then
-              az deployment group create \
-                --resource-group rg-aops-prod \
-                --template-file infra/dns.bicep \
-                --parameters devSwaDefaultHostname="$DEV_SWA_HOSTNAME" \
-                             prodSwaDefaultHostname="$PROD_SWA_HOSTNAME" \
-                             prodSwaResourceId="$PROD_SWA_ID"
-              echo "DNS zone deployed. Nameservers:"
-              az network dns zone show \
-                --resource-group rg-aops-prod \
-                --name allianceops.io \
-                --query nameServers -o tsv
-            else
-              echo "Skipping DNS zone deployment — dev SWA not found yet"
-            fi
+            az deployment group create \
+              --resource-group rg-aops-global \
+              --parameters infra/parameters/dns.bicepparam
 
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2

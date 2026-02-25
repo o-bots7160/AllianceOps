@@ -3,22 +3,23 @@ targetScope = 'resourceGroup'
 @description('Domain name for the DNS zone')
 param domainName string = 'allianceops.io'
 
-@description('Default hostname of the dev SWA')
-param devSwaDefaultHostname string
+@description('Environment name (dev or prod)')
+@allowed(['dev', 'prod'])
+param environmentName string
 
-@description('Default hostname of the prod SWA')
-param prodSwaDefaultHostname string
+@description('Default hostname of the current environment\'s SWA')
+param swaDefaultHostname string
 
-@description('Resource ID of the prod SWA (for apex alias record)')
-param prodSwaResourceId string
+@description('Resource ID of the prod SWA (required for prod apex alias, ignored for dev)')
+param swaResourceId string = ''
 
 module dnsZone 'modules/dnsZone.bicep' = {
   name: 'dnsZone'
   params: {
     domainName: domainName
-    devSwaDefaultHostname: devSwaDefaultHostname
-    prodSwaDefaultHostname: prodSwaDefaultHostname
-    prodSwaResourceId: prodSwaResourceId
+    environmentName: environmentName
+    swaDefaultHostname: swaDefaultHostname
+    swaResourceId: swaResourceId
   }
 }
 

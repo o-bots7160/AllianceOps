@@ -61,10 +61,10 @@ jobs:
       - name: What-If (Dev)
         if: env.HAS_AZURE_CREDS != '' && github.event_name != 'pull_request'
         uses: azure/CLI@v2
+        env:
+          POSTGRES_ADMIN_PASSWORD: placeholder
         with:
           inlineScript: |
             az deployment group what-if \
               --resource-group rg-aops-dev \
-              --template-file infra/main.bicep \
-              --parameters infra/parameters/dev.parameters.json \
-              --parameters postgresAdminPassword='placeholder'
+              --parameters infra/parameters/dev.bicepparam

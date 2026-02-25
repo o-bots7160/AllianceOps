@@ -188,7 +188,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
 
 - `infra/main.bicep` orchestrates all modules
 - Modules: `staticWebApp.bicep`, `functionApp.bicep`, `postgres.bicep`, `keyVault.bicep`, `appInsights.bicep`
-- Parameters in `infra/parameters/{dev,prod}.parameters.json`
+- Parameters in `infra/parameters/{dev,prod}.bicepparam`
 - Validate with `az bicep build --file infra/main.bicep` before committing
 
 ### Secrets Management

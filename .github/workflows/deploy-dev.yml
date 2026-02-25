@@ -82,14 +82,34 @@ jobs:
 
       - name: Deploy Infrastructure
         uses: azure/CLI@v2
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          TBA_API_KEY: ${{ secrets.TBA_API_KEY }}
         with:
           inlineScript: |
             az deployment group create \
               --resource-group rg-aops-dev \
-              --template-file infra/main.bicep \
-              --parameters infra/parameters/dev.parameters.json \
-              --parameters postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
-                           tbaApiKey='${{ secrets.TBA_API_KEY }}'
+              --parameters infra/parameters/dev.bicepparam
+
+      - name: Ensure DNS Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az group create --name rg-aops-global --location centralus
+
+      - name: Deploy DNS Records
+        uses: azure/CLI@v2
+        env:
+          ENVIRONMENT_NAME: dev
+        with:
+          inlineScript: |
+            export SWA_DEFAULT_HOSTNAME=$(az staticwebapp show \
+              --name stapp-aops-dev \
+              --query defaultHostname -o tsv)
+
+            az deployment group create \
+              --resource-group rg-aops-global \
+              --parameters infra/parameters/dns.bicepparam
 
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
