@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Providers } from '../components/providers';
 import { SimulationBar } from '../components/simulation-bar';
 import { AppHeader } from '../components/app-header';
@@ -50,6 +51,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="flex items-center justify-center gap-2">
               <span>{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</span>
+              <span>·</span>
+              <Link
+                href="/privacy"
+                className="underline hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                Privacy
+              </Link>
               <span>·</span>
               <a
                 href="https://github.com/o-bots7160/AllianceOps/issues"
