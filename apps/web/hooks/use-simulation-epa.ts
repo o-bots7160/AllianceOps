@@ -33,20 +33,25 @@ interface EnrichedTeam {
 }
 
 /**
- * Fetch Statbotics site data for multiple teams and build a simulation-aware epaMap.
+ * Fetch Statbotics site data for match-relevant teams and build a simulation-aware epaMap.
  * When simulation cursor is active, EPA values are scaled to pre-event levels.
  * When cursor is null, returns the original epaMap unchanged.
+ *
+ * @param relevantTeamNumbers - Only these teams will be fetched via the batch endpoint.
+ *   Pass the team numbers from the current match (typically 6) instead of all event teams.
+ *   When empty or undefined, the fetch is skipped until match teams are known.
  */
 export function useSimulationEpa(
   teams: EnrichedTeam[] | null,
   eventKey: string,
   year: number,
   activeCursor: number | null,
+  relevantTeamNumbers?: number[],
 ): Map<number, EnrichedTeam> {
   const [siteData, setSiteData] = useState<Map<number, TeamSiteEvent[]>>(new Map());
   const [fetched, setFetched] = useState<string>('');
 
-  // Build the base epaMap
+  // Build the base epaMap from all event teams (used for EPA lookups)
   const baseMap = new Map<number, EnrichedTeam>();
   if (teams) {
     for (const t of teams) {
@@ -54,40 +59,45 @@ export function useSimulationEpa(
     }
   }
 
-  // Determine which teams to fetch site data for
-  const teamNumbers = teams?.map((t) => t.team_number).sort((a, b) => a - b) ?? [];
-  const fetchKey = activeCursor !== null ? `${teamNumbers.join(',')}-${year}` : '';
+  // Only fetch site data for the relevant (match) teams, not all event teams
+  const fetchTeams = relevantTeamNumbers?.slice().sort((a, b) => a - b) ?? [];
+  const fetchKey =
+    activeCursor !== null && fetchTeams.length > 0 ? `${fetchTeams.join(',')}-${year}` : '';
 
   useEffect(() => {
     if (!fetchKey || fetchKey === fetched) return;
 
     const controller = new AbortController();
 
-    async function fetchAll() {
+    async function fetchBatch() {
       const base = getApiBase();
       const results = new Map<number, TeamSiteEvent[]>();
 
-      const promises = teamNumbers.map(async (num) => {
-        try {
-          const res = await fetch(`${base}/team/${num}/site?year=${year}`, {
-            signal: controller.signal,
-          });
-          if (!res.ok) return;
+      try {
+        const res = await fetch(`${base}/teams/site-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teamNumbers: fetchTeams, year }),
+          signal: controller.signal,
+        });
+        if (res.ok) {
           const json = await res.json();
-          results.set(num, json.data ?? []);
-        } catch {
-          // Ignore fetch errors for individual teams
+          const data = json.data as Record<string, TeamSiteEvent[]>;
+          for (const [num, events] of Object.entries(data)) {
+            results.set(parseInt(num, 10), events ?? []);
+          }
         }
-      });
+      } catch {
+        // Ignore fetch errors (abort or network failure)
+      }
 
-      await Promise.all(promises);
       if (!controller.signal.aborted) {
         setSiteData(results);
         setFetched(fetchKey);
       }
     }
 
-    fetchAll();
+    fetchBatch();
     return () => controller.abort();
   }, [fetchKey]);
 

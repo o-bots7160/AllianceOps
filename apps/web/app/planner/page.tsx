@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
@@ -231,7 +231,7 @@ function buildTemplateAssignments(
       // Fallback: rank by category EPA
       const catKey =
         slot.category === 'auto' ? 'auto' :
-        slot.category === 'endgame' ? 'endgame' : 'teleop';
+          slot.category === 'endgame' ? 'endgame' : 'teleop';
       const ranked = [...teamNums].sort(
         (x, y) =>
           (epaMap.get(y)?.epa?.[catKey] ?? 0) - (epaMap.get(x)?.epa?.[catKey] ?? 0),
@@ -273,27 +273,45 @@ export default function PlannerPage() {
 
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : rawMatches;
 
-  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor);
-
   const [selectedMatch, setSelectedMatch] = useState<string>('');
-  const [assignments, setAssignments] = useState<Record<string, number | null>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [template, setTemplate] = useState<string>('');
-  const [saved, setSaved] = useState(false);
 
-  const qualMatches = matches
-    ?.filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  // Compute currentMatch before useSimulationEpa so we can scope the fetch
+  const qualMatches = useMemo(
+    () =>
+      matches
+        ?.filter((m) => m.comp_level === 'qm')
+        .sort((a, b) => a.match_number - b.match_number),
+    [matches],
+  );
 
-  const myMatches = qualMatches?.filter(
-    (m) =>
-      m.alliances.red.team_keys.includes(myTeamKey) ||
-      m.alliances.blue.team_keys.includes(myTeamKey),
+  const myMatches = useMemo(
+    () =>
+      qualMatches?.filter(
+        (m) =>
+          m.alliances.red.team_keys.includes(myTeamKey) ||
+          m.alliances.blue.team_keys.includes(myTeamKey),
+      ),
+    [qualMatches, myTeamKey],
   );
 
   const nextUnplayed = myMatches?.find((m) => m.alliances.red.score < 0);
   const defaultMatch = nextUnplayed ?? myMatches?.[myMatches.length - 1];
   const currentMatch = myMatches?.find((m) => m.key === selectedMatch) ?? defaultMatch;
+
+  // Extract all 6 match team numbers for the simulation EPA fetch
+  const matchTeamNumbers = useMemo(() => {
+    if (!currentMatch) return [];
+    return [
+      ...currentMatch.alliances.red.team_keys,
+      ...currentMatch.alliances.blue.team_keys,
+    ].map((k) => parseInt(k.replace('frc', ''), 10));
+  }, [currentMatch]);
+
+  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
+  const [assignments, setAssignments] = useState<Record<string, number | null>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [template, setTemplate] = useState<string>('');
+  const [saved, setSaved] = useState(false);
 
   const isRed = currentMatch?.alliances.red.team_keys.includes(myTeamKey);
   const allianceTeams = currentMatch
@@ -372,11 +390,10 @@ export default function PlannerPage() {
             )}
             {currentMatch && (
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  isRed
+                className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
                     ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                     : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                }`}
+                  }`}
               >
                 {isRed ? 'Red' : 'Blue'} Alliance
               </span>
@@ -484,9 +501,8 @@ export default function PlannerPage() {
               {dutySlots.map((slot) => (
                 <div
                   key={slot.key}
-                  className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${
-                    CATEGORY_COLORS[slot.category] || ''
-                  } p-3 space-y-2`}
+                  className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${CATEGORY_COLORS[slot.category] || ''
+                    } p-3 space-y-2`}
                 >
                   <div className="font-medium text-sm" title={slot.description}>
                     {slot.label}

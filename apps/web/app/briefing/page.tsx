@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
@@ -108,12 +109,14 @@ export default function BriefingPage() {
 
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
-  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor);
-
-  // Find next unplayed match for our team
-  const qualMatches = matches
-    ?.filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  // Compute currentMatch before useSimulationEpa so we can scope the fetch
+  const qualMatches = useMemo(
+    () =>
+      matches
+        ?.filter((m) => m.comp_level === 'qm')
+        .sort((a, b) => a.match_number - b.match_number),
+    [matches],
+  );
 
   const nextMatch = qualMatches?.find(
     (m) =>
@@ -132,6 +135,17 @@ export default function BriefingPage() {
           m.alliances.blue.team_keys.includes(myTeamKey),
       )
       .pop();
+
+  // Extract only the 6 match team numbers for the simulation EPA fetch
+  const matchTeamNumbers = useMemo(() => {
+    if (!currentMatch) return [];
+    return [
+      ...currentMatch.alliances.red.team_keys,
+      ...currentMatch.alliances.blue.team_keys,
+    ].map((k) => parseInt(k.replace('frc', ''), 10));
+  }, [currentMatch]);
+
+  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
@@ -174,11 +188,10 @@ export default function BriefingPage() {
         heading={`Match Briefing — Q${currentMatch.match_number}`}
         headingExtra={
           <span
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              isRed
+            className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
                 ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                 : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-            }`}
+              }`}
           >
             {isRed ? 'Red' : 'Blue'} Alliance
           </span>
