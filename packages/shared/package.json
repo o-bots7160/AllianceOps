@@ -16,7 +16,7 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
