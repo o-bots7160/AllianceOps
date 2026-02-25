@@ -32,6 +32,9 @@ param budgetAmount int = 20
 @description('Contact email addresses for budget alerts')
 param budgetContactEmails array = []
 
+@description('Custom domains for the SWA. Array of objects: { name: string, validationMethod: string }')
+param customDomains array = []
+
 @description('Budget start date (YYYY-MM-01 format, defaults to current month)')
 param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 
@@ -93,6 +96,7 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     skuName: swaSkuName
     skuTier: swaSkuTier
     functionAppResourceId: functionApp.outputs.resourceId
+    customDomains: customDomains
   }
 }
 
