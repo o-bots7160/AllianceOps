@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
+import { useAuth } from '../../components/use-auth';
 import { useApi } from '../../components/use-api';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { getApiBase } from '../../lib/api-base';
+import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
 
 interface EnrichedTeam {
   team_number: number;
@@ -26,6 +29,16 @@ interface PicklistEntry {
   tags: string[];
   notes: string;
 }
+
+interface SavedPicklistEntry {
+  teamNumber: number;
+  rank: number;
+  tags: string[] | string;
+  notes: string | null;
+  excluded: boolean;
+}
+
+const POLL_INTERVAL_MS = 30_000;
 
 function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
   if (!teams.length) return [];
@@ -50,6 +63,23 @@ function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
     .map((t, i) => ({ ...t, rank: i + 1 }));
 }
 
+/** Merge saved annotations onto EPA-generated entries. */
+function mergePicklist(
+  base: PicklistEntry[],
+  saved: SavedPicklistEntry[],
+): PicklistEntry[] {
+  const savedMap = new Map(saved.map((s) => [s.teamNumber, s]));
+  const merged = base.map((entry) => {
+    const s = savedMap.get(entry.teamNumber);
+    if (!s) return entry;
+    const tags = Array.isArray(s.tags) ? s.tags : [];
+    return { ...entry, rank: s.rank, excluded: s.excluded, tags, notes: s.notes ?? '' };
+  });
+  // Re-sort by saved rank
+  merged.sort((a, b) => a.rank - b.rank);
+  return merged;
+}
+
 function downloadCSV(entries: PicklistEntry[]) {
   const header = 'Rank,Team,Name,Score,EPA Total,Auto,Teleop,Endgame,Tags,Notes';
   const rows = entries
@@ -70,6 +100,9 @@ function downloadCSV(entries: PicklistEntry[]) {
 
 export default function PicklistPage() {
   const { eventKey } = useEventSetup();
+  const { activeTeam } = useAuth();
+  const canEdit = activeTeam !== null;
+  const teamId = activeTeam?.teamId ?? null;
   const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
@@ -78,12 +111,121 @@ export default function PicklistPage() {
   const [tagFilter, setTagFilter] = useState('');
   const [entries, setEntries] = useState<PicklistEntry[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  useUnsavedGuard(dirty);
 
-  // Initialize picklist when teams load
-  if (teams && !initialized) {
-    setEntries(generatePicklist(teams));
-    setInitialized(true);
-  }
+  // Track base entries (from EPA data) for merging
+  const baseEntriesRef = useRef<PicklistEntry[]>([]);
+
+  // Generate base entries from teams
+  const baseEntries = useMemo(() => {
+    if (!teams) return [];
+    return generatePicklist(teams);
+  }, [teams]);
+
+  // Load saved picklist from API
+  const loadPicklist = useCallback(async () => {
+    if (!eventKey || !teamId) return;
+    try {
+      const API_BASE = getApiBase();
+      const res = await fetch(`${API_BASE}/teams/${teamId}/event/${eventKey}/picklist`, {
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) return; // Not authorized — use local only
+        return;
+      }
+      const json = await res.json();
+      if (json.data && json.data.entries && baseEntriesRef.current.length > 0) {
+        const merged = mergePicklist(baseEntriesRef.current, json.data.entries);
+        setEntries(merged);
+        setLastUpdated(json.data.updatedAt);
+        setDirty(false);
+      }
+    } catch {
+      // Silently fail on polling errors
+    }
+  }, [eventKey, teamId]);
+
+  // Initialize: generate base, then load saved data on top
+  useEffect(() => {
+    if (baseEntries.length > 0 && !initialized) {
+      baseEntriesRef.current = baseEntries;
+      setEntries(baseEntries);
+      setInitialized(true);
+    }
+  }, [baseEntries, initialized]);
+
+  // After initialization, load saved picklist
+  useEffect(() => {
+    if (initialized && teamId) {
+      loadPicklist();
+    }
+  }, [initialized, teamId, loadPicklist]);
+
+  // Poll for updates every 30s
+  useEffect(() => {
+    if (!initialized || !teamId || !eventKey) return;
+    const interval = setInterval(() => {
+      if (!dirty) {
+        loadPicklist();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [initialized, teamId, eventKey, dirty, loadPicklist]);
+
+  // Wrapper for setEntries that marks dirty
+  const updateEntries = useCallback(
+    (updater: (prev: PicklistEntry[]) => PicklistEntry[]) => {
+      setEntries((prev) => {
+        const next = updater(prev);
+        setDirty(true);
+        setSaved(false);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!eventKey || !teamId) return;
+    setSaving(true);
+    setLoadError(null);
+    try {
+      const API_BASE = getApiBase();
+      const payload = entries.map((e) => ({
+        teamNumber: e.teamNumber,
+        rank: e.rank,
+        tags: e.tags,
+        notes: e.notes,
+        excluded: e.excluded,
+      }));
+      const res = await fetch(`${API_BASE}/teams/${teamId}/event/${eventKey}/picklist`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ entries: payload }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        setLoadError(`Save failed: ${res.status} ${text}`);
+        return;
+      }
+      const json = await res.json();
+      setLastUpdated(json.data?.updatedAt ?? null);
+      setSaved(true);
+      setDirty(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setLoadError('Save failed — network error');
+    } finally {
+      setSaving(false);
+    }
+  }, [eventKey, teamId, entries]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -109,17 +251,7 @@ export default function PicklistPage() {
 
   return (
     <div className="space-y-6">
-      <InfoBox
-        heading="Picklist"
-        headingExtra={
-          <button
-            onClick={() => downloadCSV(entries)}
-            className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
-          >
-            Export CSV
-          </button>
-        }
-      >
+      <InfoBox heading="Picklist">
         <p>
           <strong>Picklist</strong> ranks all teams at the event by a composite score based on Statbotics
           EPA ratings — auto, teleop, and endgame. Use this during alliance selection to identify the
@@ -128,33 +260,72 @@ export default function PicklistPage() {
         <p>
           <strong>Tags</strong> let you categorize teams (e.g., &quot;strong auto&quot;, &quot;good
           defense&quot;). <strong>Notes</strong> are free-form observations. <strong>Exclude</strong> teams
-          you don&apos;t want to consider. All annotations are local to your browser.
+          you don&apos;t want to consider. Changes are shared with your team when you save.
         </p>
         <p>
           Use <strong>Export CSV</strong> to download the picklist for sharing or printing. Search by team
-          number or name, and filter by tag.
+          number or name, and filter by tag. The picklist auto-refreshes every 30 seconds to pick up
+          changes from teammates.
         </p>
       </InfoBox>
 
-      <div className="flex gap-4">
+      {loadError && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-2">
+          <p className="text-sm text-red-700 dark:text-red-400">{loadError}</p>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-4">
         <input
           type="text"
           placeholder="Search team # or name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+          className="min-w-[12rem] flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
         />
         {allTags.length > 0 && (
           <select
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
-            className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+            className="min-w-[8rem] h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
           >
             <option value="">All tags</option>
             {allTags.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
+        )}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          <button
+            onClick={() => downloadCSV(entries)}
+            className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm whitespace-nowrap"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canEdit || saving}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap ${canEdit
+                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              } disabled:opacity-60`}
+          >
+            {!canEdit ? 'Join Team to Save' : saving ? 'Saving...' : 'Save Picklist'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs">
+        {saved && (
+          <span className="text-green-600 font-medium">&#10003; Saved</span>
+        )}
+        {dirty && !saved && (
+          <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
+        )}
+        {lastUpdated && !dirty && !saved && (
+          <span className="text-gray-400">
+            Last saved {new Date(lastUpdated).toLocaleTimeString()}
+          </span>
         )}
       </div>
 
@@ -177,9 +348,8 @@ export default function PicklistPage() {
             {filtered.map((entry) => (
               <tr
                 key={entry.teamNumber}
-                className={`border-b border-gray-100 dark:border-gray-800 ${
-                  entry.excluded ? 'opacity-40 line-through' : ''
-                }`}
+                className={`border-b border-gray-100 dark:border-gray-800 ${entry.excluded ? 'opacity-40 line-through' : ''
+                  }`}
               >
                 <td className="py-2 px-2 font-mono text-gray-500">{entry.rank}</td>
                 <td className="py-2 px-2">
@@ -196,7 +366,7 @@ export default function PicklistPage() {
                     placeholder="tag1;tag2"
                     value={entry.tags.join(';')}
                     onChange={(e) =>
-                      setEntries((prev) =>
+                      updateEntries((prev) =>
                         prev.map((p) =>
                           p.teamNumber === entry.teamNumber
                             ? { ...p, tags: e.target.value.split(';').filter(Boolean) }
@@ -204,7 +374,8 @@ export default function PicklistPage() {
                         ),
                       )
                     }
-                    className="w-24 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs"
+                    disabled={!canEdit}
+                    className="w-24 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="py-2 px-2">
@@ -213,7 +384,7 @@ export default function PicklistPage() {
                     placeholder="Notes..."
                     value={entry.notes}
                     onChange={(e) =>
-                      setEntries((prev) =>
+                      updateEntries((prev) =>
                         prev.map((p) =>
                           p.teamNumber === entry.teamNumber
                             ? { ...p, notes: e.target.value }
@@ -221,15 +392,17 @@ export default function PicklistPage() {
                         ),
                       )
                     }
-                    className="w-32 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs"
+                    disabled={!canEdit}
+                    className="w-32 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="py-2 px-2 text-center">
                   <input
                     type="checkbox"
                     checked={entry.excluded}
+                    disabled={!canEdit}
                     onChange={() =>
-                      setEntries((prev) =>
+                      updateEntries((prev) =>
                         prev.map((p) =>
                           p.teamNumber === entry.teamNumber
                             ? { ...p, excluded: !p.excluded }
@@ -237,6 +410,7 @@ export default function PicklistPage() {
                         ),
                       )
                     }
+                    className="disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </td>
               </tr>

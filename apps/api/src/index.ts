@@ -21,6 +21,8 @@ setAuthProvider(
 import './functions/health.js';
 import './functions/events.js';
 import './functions/plans.js';
+import './functions/picklists.js';
 import './functions/teams.js';
 import './functions/team-site.js';
+import './functions/team-site-batch.js';
 import './functions/me.js';

@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
+import { useAuth } from '../../components/use-auth';
 import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 import { getApiBase } from '../../lib/api-base';
+import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
 import {
   getAdapter,
   type DutySlotDefinition,
@@ -231,7 +233,7 @@ function buildTemplateAssignments(
       // Fallback: rank by category EPA
       const catKey =
         slot.category === 'auto' ? 'auto' :
-        slot.category === 'endgame' ? 'endgame' : 'teleop';
+          slot.category === 'endgame' ? 'endgame' : 'teleop';
       const ranked = [...teamNums].sort(
         (x, y) =>
           (epaMap.get(y)?.epa?.[catKey] ?? 0) - (epaMap.get(x)?.epa?.[catKey] ?? 0),
@@ -249,6 +251,8 @@ function buildTemplateAssignments(
 export default function PlannerPage() {
   const { eventKey, teamNumber, year } = useEventSetup();
   const { activeCursor } = useSimulation();
+  const { activeTeam } = useAuth();
+  const canEdit = activeTeam !== null;
   const myTeamKey = `frc${teamNumber}`;
 
   let adapter: ReturnType<typeof getAdapter> | null = null;
@@ -273,27 +277,87 @@ export default function PlannerPage() {
 
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : rawMatches;
 
-  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor);
-
   const [selectedMatch, setSelectedMatch] = useState<string>('');
-  const [assignments, setAssignments] = useState<Record<string, number | null>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [template, setTemplate] = useState<string>('');
-  const [saved, setSaved] = useState(false);
 
-  const qualMatches = matches
-    ?.filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  // Compute currentMatch before useSimulationEpa so we can scope the fetch
+  const qualMatches = useMemo(
+    () =>
+      matches
+        ?.filter((m) => m.comp_level === 'qm')
+        .sort((a, b) => a.match_number - b.match_number),
+    [matches],
+  );
 
-  const myMatches = qualMatches?.filter(
-    (m) =>
-      m.alliances.red.team_keys.includes(myTeamKey) ||
-      m.alliances.blue.team_keys.includes(myTeamKey),
+  const myMatches = useMemo(
+    () =>
+      qualMatches?.filter(
+        (m) =>
+          m.alliances.red.team_keys.includes(myTeamKey) ||
+          m.alliances.blue.team_keys.includes(myTeamKey),
+      ),
+    [qualMatches, myTeamKey],
   );
 
   const nextUnplayed = myMatches?.find((m) => m.alliances.red.score < 0);
   const defaultMatch = nextUnplayed ?? myMatches?.[myMatches.length - 1];
   const currentMatch = myMatches?.find((m) => m.key === selectedMatch) ?? defaultMatch;
+
+  // Extract all 6 match team numbers for the simulation EPA fetch
+  const matchTeamNumbers = useMemo(() => {
+    if (!currentMatch) return [];
+    return [
+      ...currentMatch.alliances.red.team_keys,
+      ...currentMatch.alliances.blue.team_keys,
+    ].map((k) => parseInt(k.replace('frc', ''), 10));
+  }, [currentMatch]);
+
+  const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
+  const [assignments, setAssignments] = useState<Record<string, number | null>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [template, setTemplate] = useState<string>('');
+  const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const { confirmIfDirty } = useUnsavedGuard(dirty);
+
+  // Load saved plan when match or team changes
+  useEffect(() => {
+    if (!currentMatch || !activeTeam?.teamId || !eventKey) return;
+    let cancelled = false;
+    setPlanLoading(true);
+    const API_BASE = getApiBase();
+    fetch(
+      `${API_BASE}/teams/${activeTeam.teamId}/event/${eventKey}/match/${currentMatch.key}/plan`,
+      { credentials: 'same-origin' },
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.data) {
+          setPlanLoading(false);
+          return;
+        }
+        const plan = json.data;
+        if (plan.duties && plan.duties.length > 0) {
+          const loadedAssignments: Record<string, number | null> = {};
+          const loadedNotes: Record<string, string> = {};
+          for (const d of plan.duties) {
+            loadedAssignments[d.slotKey] = d.teamNumber;
+            loadedNotes[d.slotKey] = d.notes ?? '';
+          }
+          setAssignments(loadedAssignments);
+          setNotes(loadedNotes);
+          setTemplate('');
+          setDirty(false);
+          setLastUpdated(plan.updatedAt ?? null);
+        }
+        setPlanLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [currentMatch?.key, activeTeam?.teamId, eventKey]);
 
   const isRed = currentMatch?.alliances.red.team_keys.includes(myTeamKey);
   const allianceTeams = currentMatch
@@ -322,6 +386,8 @@ export default function PlannerPage() {
       );
       setAssignments(result.assignments);
       setNotes(result.notes);
+      setDirty(true);
+      setSaved(false);
     },
     [teamNumbers.join(','), teams, dutySlots, dutyTemplates],
   );
@@ -339,7 +405,7 @@ export default function PlannerPage() {
     try {
       const API_BASE = getApiBase();
       await fetch(
-        `${API_BASE}/event/${eventKey}/match/${currentMatch.key}/plan`,
+        `${API_BASE}/teams/${activeTeam?.teamId}/event/${eventKey}/match/${currentMatch.key}/plan`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -347,6 +413,8 @@ export default function PlannerPage() {
         },
       );
       setSaved(true);
+      setDirty(false);
+      setLastUpdated(new Date().toISOString());
       setTimeout(() => setSaved(false), 2000);
     } catch {
       // handle error
@@ -367,16 +435,12 @@ export default function PlannerPage() {
         heading={`Duty Planner${adapter ? ` — ${adapter.gameName} ${adapter.year}` : ''}`}
         headingExtra={
           <div className="flex items-center gap-3">
-            {saved && (
-              <span className="text-green-600 text-sm font-medium">✓ Saved</span>
-            )}
             {currentMatch && (
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  isRed
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                }`}
+                className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                  }`}
               >
                 {isRed ? 'Red' : 'Blue'} Alliance
               </span>
@@ -408,20 +472,24 @@ export default function PlannerPage() {
         </div>
       )}
 
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-[8rem]">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Match
           </label>
           <select
             value={selectedMatch || currentMatch?.key || ''}
             onChange={(e) => {
-              setSelectedMatch(e.target.value);
-              setAssignments({});
-              setNotes({});
-              setTemplate('');
+              const newKey = e.target.value;
+              confirmIfDirty(() => {
+                setSelectedMatch(newKey);
+                setAssignments({});
+                setNotes({});
+                setTemplate('');
+                setDirty(false);
+              });
             }}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+            className="w-full h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
           >
             {myMatches?.map((m) => (
               <option key={m.key} value={m.key}>
@@ -439,7 +507,8 @@ export default function PlannerPage() {
             <select
               value={template}
               onChange={(e) => handleTemplateChange(e.target.value)}
-              className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+              disabled={!canEdit}
+              className="h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Manual</option>
               {dutyTemplates.map((t) => (
@@ -449,6 +518,33 @@ export default function PlannerPage() {
               ))}
             </select>
           </div>
+        )}
+
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          <button
+            onClick={handleSave}
+            disabled={!canEdit}
+            className={`h-[38px] px-4 rounded-md text-sm font-medium whitespace-nowrap ${canEdit
+                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
+          >
+            {canEdit ? 'Save Plan' : 'Join Team to Save'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs">
+        {saved && (
+          <span className="text-green-600 font-medium">&#10003; Saved</span>
+        )}
+        {dirty && !saved && (
+          <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
+        )}
+        {lastUpdated && !dirty && !saved && (
+          <span className="text-gray-400">
+            Last saved {new Date(lastUpdated).toLocaleTimeString()}
+          </span>
         )}
       </div>
 
@@ -484,22 +580,24 @@ export default function PlannerPage() {
               {dutySlots.map((slot) => (
                 <div
                   key={slot.key}
-                  className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${
-                    CATEGORY_COLORS[slot.category] || ''
-                  } p-3 space-y-2`}
+                  className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${CATEGORY_COLORS[slot.category] || ''
+                    } p-3 space-y-2`}
                 >
                   <div className="font-medium text-sm" title={slot.description}>
                     {slot.label}
                   </div>
                   <select
                     value={assignments[slot.key] ?? ''}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setAssignments((a) => ({
                         ...a,
                         [slot.key]: e.target.value ? parseInt(e.target.value, 10) : null,
-                      }))
-                    }
-                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm"
+                      }));
+                      setDirty(true);
+                      setSaved(false);
+                    }}
+                    disabled={!canEdit}
+                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Unassigned</option>
                     {teamNumbers.map((t) => (
@@ -510,22 +608,18 @@ export default function PlannerPage() {
                     type="text"
                     placeholder="Notes..."
                     value={notes[slot.key] || ''}
-                    onChange={(e) =>
-                      setNotes((n) => ({ ...n, [slot.key]: e.target.value }))
-                    }
-                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs"
+                    onChange={(e) => {
+                      setNotes((n) => ({ ...n, [slot.key]: e.target.value }));
+                      setDirty(true);
+                      setSaved(false);
+                    }}
+                    disabled={!canEdit}
+                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               ))}
             </div>
           )}
-
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
-          >
-            Save Plan
-          </button>
         </div>
       )}
     </div>

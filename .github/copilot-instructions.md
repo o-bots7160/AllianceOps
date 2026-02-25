@@ -291,6 +291,9 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 017: SWA CLI as Default Dev Mode (supersedes 016)
   - 018: Diagnostic Settings and Enhanced Telemetry
   - 019: Node.js 22 and Flex Consumption
+  - 020: Custom Domains and SSL
+  - 021: Batch API and Request Deduplication
+  - 022: Picklist Persistence
 
 ## Anti-Patterns to Avoid
 
