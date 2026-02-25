@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node esbuild.config.js",
     "dev": "tsc && tsc -w & func start --typescript",
-    "lint": "eslint src/ --ext .ts",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prestart": "npm run build"

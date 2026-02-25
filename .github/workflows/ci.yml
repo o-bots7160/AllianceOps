@@ -51,7 +51,7 @@ jobs:
             az bicep build --file infra/main.bicep
 
       - name: Azure Login (OIDC)
-        if: env.HAS_AZURE_CREDS != ''
+        if: env.HAS_AZURE_CREDS != '' && github.event_name != 'pull_request'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -59,7 +59,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: What-If (Dev)
-        if: env.HAS_AZURE_CREDS != ''
+        if: env.HAS_AZURE_CREDS != '' && github.event_name != 'pull_request'
         uses: azure/CLI@v2
         with:
           inlineScript: |
