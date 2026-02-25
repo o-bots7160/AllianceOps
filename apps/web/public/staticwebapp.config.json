@@ -21,10 +21,6 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/privacy",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
       "route": "/privacy/",
       "allowedRoles": ["anonymous", "authenticated"]
     },
