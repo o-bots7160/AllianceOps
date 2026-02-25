@@ -13,8 +13,10 @@ param swaDefaultHostname string
 @description('Resource ID of the prod SWA (required for prod apex alias, ignored for dev)')
 param swaResourceId string = ''
 
+var deployPrefix = deployment().name
+
 module dnsZone 'modules/dnsZone.bicep' = {
-  name: 'dnsZone'
+  name: '${deployPrefix}-dnsZone'
   params: {
     domainName: domainName
     environmentName: environmentName

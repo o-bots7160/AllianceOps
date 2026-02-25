@@ -42,9 +42,11 @@ param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 var suffix = '${namePrefix}-${environmentName}'
 // Storage accounts cannot have hyphens
 var storageAccountName = 'st${namePrefix}${environmentName}'
+// Sub-deployment names inherit the parent deployment name for traceability
+var deployPrefix = deployment().name
 
 module appInsights 'modules/appInsights.bicep' = {
-  name: 'appInsights'
+  name: '${deployPrefix}-appInsights'
   params: {
     appInsightsName: 'appi-${suffix}'
     logAnalyticsName: 'log-${suffix}'
@@ -53,7 +55,7 @@ module appInsights 'modules/appInsights.bicep' = {
 }
 
 module postgres 'modules/postgres.bicep' = {
-  name: 'postgres'
+  name: '${deployPrefix}-postgres'
   params: {
     name: 'psql-${suffix}'
     location: location
@@ -63,7 +65,7 @@ module postgres 'modules/postgres.bicep' = {
 }
 
 module functionApp 'modules/functionApp.bicep' = {
-  name: 'functionApp'
+  name: '${deployPrefix}-functionApp'
   params: {
     name: 'func-${suffix}'
     planName: 'asp-${suffix}'
@@ -76,7 +78,7 @@ module functionApp 'modules/functionApp.bicep' = {
 }
 
 module keyVault 'modules/keyVault.bicep' = {
-  name: 'keyVault'
+  name: '${deployPrefix}-keyVault'
   params: {
     name: 'kv-${suffix}'
     location: location
@@ -89,7 +91,7 @@ module keyVault 'modules/keyVault.bicep' = {
 }
 
 module staticWebApp 'modules/staticWebApp.bicep' = {
-  name: 'staticWebApp'
+  name: '${deployPrefix}-staticWebApp'
   params: {
     name: 'stapp-${suffix}'
     location: location
@@ -101,7 +103,7 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
 }
 
 module budget 'modules/budget.bicep' = if (!empty(budgetContactEmails)) {
-  name: 'budget'
+  name: '${deployPrefix}-budget'
   params: {
     name: 'budget-${suffix}'
     amount: budgetAmount
