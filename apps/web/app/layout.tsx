@@ -53,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span>{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</span>
               <span>·</span>
               <Link
-                href="/privacy"
+                href="/privacy/"
                 className="underline hover:text-gray-700 dark:hover:text-gray-300"
               >
                 Privacy

@@ -36,7 +36,6 @@ export function TeamCombobox({
     const [inputValue, setInputValue] = useState(teamNumber ? String(teamNumber) : '');
     const [highlightIndex, setHighlightIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -65,6 +64,13 @@ export function TeamCombobox({
             item?.scrollIntoView({ block: 'nearest' });
         }
     }, [highlightIndex, open]);
+
+    // Clear debounce timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, []);
 
     // Close on outside click
     useEffect(() => {
@@ -151,7 +157,6 @@ export function TeamCombobox({
     return (
         <div ref={containerRef} className="relative">
             <input
-                ref={inputRef}
                 type="text"
                 inputMode="numeric"
                 value={inputValue}

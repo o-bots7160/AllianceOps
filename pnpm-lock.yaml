@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      embla-carousel-autoplay:
-        specifier: ^8.6.0
-        version: 8.6.0(embla-carousel@8.6.0)
-      embla-carousel-react:
-        specifier: ^8.6.0
-        version: 8.6.0(react@19.2.4)
     devDependencies:
       '@azure/static-web-apps-cli':
         specifier: ^2.0.0

@@ -9,11 +9,11 @@ on:
         description: GitHub environment name (dev / production)
         required: true
         type: string
-      env-suffix:
+      env_suffix:
         description: Short env label used in resource names (dev / prod)
         required: true
         type: string
-      register-apex:
+      register_apex:
         description: Whether to register the apex custom domain (prod only)
         required: false
         type: boolean
@@ -90,7 +90,7 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            az group create --name rg-aops-${{ inputs.env-suffix }} --location centralus
+            az group create --name rg-aops-${{ inputs.env_suffix }} --location centralus
 
       - name: Deploy Infrastructure
         uses: azure/CLI@v2
@@ -100,9 +100,9 @@ jobs:
         with:
           inlineScript: |
             az deployment group create \
-              --resource-group rg-aops-${{ inputs.env-suffix }} \
+              --resource-group rg-aops-${{ inputs.env_suffix }} \
               --name ${{ env.DEPLOY_NAME }} \
-              --parameters infra/parameters/${{ inputs.env-suffix }}.bicepparam
+              --parameters infra/parameters/${{ inputs.env_suffix }}.bicepparam
 
       - name: Ensure DNS Resource Group
         uses: azure/CLI@v2
@@ -113,30 +113,30 @@ jobs:
       - name: Deploy DNS Records
         uses: azure/CLI@v2
         env:
-          ENVIRONMENT_NAME: ${{ inputs.env-suffix }}
+          ENVIRONMENT_NAME: ${{ inputs.env_suffix }}
         with:
           inlineScript: |
             export SWA_DEFAULT_HOSTNAME=$(az staticwebapp show \
-              --name stapp-aops-${{ inputs.env-suffix }} \
+              --name stapp-aops-${{ inputs.env_suffix }} \
               --query defaultHostname -o tsv)
 
-            if [ "${{ inputs.env-suffix }}" = "prod" ]; then
+            if [ "${{ inputs.env_suffix }}" = "prod" ]; then
               export SWA_RESOURCE_ID=$(az staticwebapp show \
-                --name stapp-aops-${{ inputs.env-suffix }} \
+                --name stapp-aops-${{ inputs.env_suffix }} \
                 --query id -o tsv)
             fi
 
             az deployment group create \
               --resource-group rg-aops-global \
-              --name dns-${{ inputs.env-suffix }}-${{ env.DEPLOY_NAME }} \
+              --name dns-${{ inputs.env_suffix }}-${{ env.DEPLOY_NAME }} \
               --parameters infra/parameters/dns.bicepparam
 
       - name: Register Apex Domain
-        if: inputs.register-apex
+        if: inputs.register_apex
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            SWA_NAME="stapp-aops-${{ inputs.env-suffix }}"
+            SWA_NAME="stapp-aops-${{ inputs.env_suffix }}"
             APEX="allianceops.io"
             DNS_RG="rg-aops-global"
 
@@ -218,7 +218,7 @@ jobs:
         with:
           inlineScript: |
             DEPLOYER_OID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
-            KV_ID=$(az keyvault show --name kv-aops-${{ inputs.env-suffix }} --query id -o tsv)
+            KV_ID=$(az keyvault show --name kv-aops-${{ inputs.env_suffix }} --query id -o tsv)
             az role assignment create \
               --assignee-object-id $DEPLOYER_OID \
               --assignee-principal-type ServicePrincipal \
@@ -229,24 +229,27 @@ jobs:
         run: |
           RUNNER_IP=$(curl -s https://api.ipify.org)
           az postgres flexible-server firewall-rule create \
-            --resource-group rg-aops-${{ inputs.env-suffix }} \
-            --name psql-aops-${{ inputs.env-suffix }} \
+            --resource-group rg-aops-${{ inputs.env_suffix }} \
+            --name psql-aops-${{ inputs.env_suffix }} \
             --rule-name AllowGitHubRunner \
             --start-ip-address $RUNNER_IP \
             --end-ip-address $RUNNER_IP
 
           export DATABASE_URL=$(az keyvault secret show \
-            --vault-name kv-aops-${{ inputs.env-suffix }} \
+            --vault-name kv-aops-${{ inputs.env_suffix }} \
             --name DatabaseUrl \
             --query value -o tsv)
           cd apps/api
           npx --yes prisma@^6 migrate deploy
 
+      - name: Cleanup Postgres Firewall Rule
+        if: always()
+        run: |
           az postgres flexible-server firewall-rule delete \
-            --resource-group rg-aops-${{ inputs.env-suffix }} \
-            --name psql-aops-${{ inputs.env-suffix }} \
+            --resource-group rg-aops-${{ inputs.env_suffix }} \
+            --name psql-aops-${{ inputs.env_suffix }} \
             --rule-name AllowGitHubRunner \
-            --yes
+            --yes || true
 
       - name: Package Function App
         run: |
@@ -280,14 +283,14 @@ jobs:
         with:
           inlineScript: |
             az functionapp deployment source config-zip \
-              --resource-group rg-aops-${{ inputs.env-suffix }} \
-              --name func-aops-${{ inputs.env-suffix }} \
+              --resource-group rg-aops-${{ inputs.env_suffix }} \
+              --name func-aops-${{ inputs.env_suffix }} \
               --src api-deploy.zip
 
       - name: Get SWA Deployment Token
         run: |
           SWA_TOKEN=$(az staticwebapp secrets list \
-            --name stapp-aops-${{ inputs.env-suffix }} \
+            --name stapp-aops-${{ inputs.env_suffix }} \
             --query "properties.apiKey" -o tsv)
           echo "::add-mask::$SWA_TOKEN"
           echo "SWA_DEPLOY_TOKEN=$SWA_TOKEN" >> $GITHUB_ENV
@@ -306,12 +309,12 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            for RG in "rg-aops-${{ inputs.env-suffix }}" "rg-aops-global"; do
+            for RG in "rg-aops-${{ inputs.env_suffix }}" "rg-aops-global"; do
               echo "Pruning deployments in $RG (keeping latest 10)..."
               az deployment group list \
                 --resource-group "$RG" \
-                --query "[].name" -o tsv \
-              | tail -n +11 \
+                --query "[?properties.provisioningState!='Running'] | sort_by(@,&properties.timestamp)[].name" -o tsv \
+              | head -n -10 \
               | xargs -r -I{} az deployment group delete \
                   --resource-group "$RG" --name {} --no-wait
             done
