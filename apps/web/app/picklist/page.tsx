@@ -121,6 +121,7 @@ export default function PicklistPage() {
 
   // Track base entries (from EPA data) for merging
   const baseEntriesRef = useRef<PicklistEntry[]>([]);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
   // Track previous eventKey to detect changes and reset state
   const prevEventKeyRef = useRef(eventKey);
@@ -138,7 +139,12 @@ export default function PicklistPage() {
       }
     }
 
+    // Abort any in-flight picklist load for the previous event
+    loadAbortRef.current?.abort();
+
     // Reset state for new event
+    setEntries([]);
+    baseEntriesRef.current = [];
     setInitialized(false);
     setDirty(false);
     setSaved(false);
@@ -155,16 +161,21 @@ export default function PicklistPage() {
   // Load saved picklist from API
   const loadPicklist = useCallback(async () => {
     if (!eventKey || !teamId) return;
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
     try {
       const API_BASE = getApiBase();
       const res = await fetch(`${API_BASE}/teams/${teamId}/event/${eventKey}/picklist`, {
         credentials: 'same-origin',
+        signal: controller.signal,
       });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) return; // Not authorized — use local only
         return;
       }
       const json = await res.json();
+      if (controller.signal.aborted) return;
       if (json.data && json.data.entries && baseEntriesRef.current.length > 0) {
         const merged = mergePicklist(baseEntriesRef.current, json.data.entries);
         setEntries(merged);

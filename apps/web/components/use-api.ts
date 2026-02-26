@@ -118,11 +118,19 @@ export function useApi<T>(path: string | null) {
   }, [path]);
 
   useEffect(() => {
+    // Clear stale data immediately when the API path changes
+    setData(null);
+    setMeta(null);
+    setError(null);
+    if (!path) {
+      setLoading(false);
+      return;
+    }
     fetchData();
     return () => {
       abortRef.current?.abort();
     };
-  }, [fetchData]);
+  }, [path, fetchData]);
 
   return { data, loading, error, meta, refetch: fetchData };
 }
