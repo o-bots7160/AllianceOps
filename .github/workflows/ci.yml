@@ -28,7 +28,26 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Cache Prisma engines so db:generate doesn't re-download them
+      - name: Cache Prisma Engines
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.prisma
+            node_modules/@prisma/engines
+          key: prisma-${{ runner.os }}-${{ hashFiles('apps/api/prisma/schema.prisma', 'pnpm-lock.yaml') }}
+
       - run: pnpm db:generate
+
+      # Turborepo local cache — persisted across runs via actions/cache
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

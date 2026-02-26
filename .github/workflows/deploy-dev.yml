@@ -23,5 +23,4 @@ jobs:
     with:
       environment: dev
       env_suffix: dev
-      register_apex: false
     secrets: inherit
