@@ -12,6 +12,26 @@ interface ApiResponse<T> {
   };
 }
 
+/** Custom error that carries the HTTP status and optional Retry-After value. */
+class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly retryAfter: number | null,
+  ) {
+    super(`API error: ${status}`);
+    this.name = 'ApiError';
+  }
+
+  get retryable(): boolean {
+    return this.status === 503 || this.status === 429;
+  }
+}
+
+/** Maximum number of automatic retries for retryable errors (503, 429). */
+const MAX_RETRIES = 3;
+/** Default backoff in ms when no Retry-After header is present. */
+const DEFAULT_BACKOFF_MS = 2000;
+
 /**
  * In-flight request deduplication.
  * When multiple components request the same path simultaneously,
@@ -19,19 +39,43 @@ interface ApiResponse<T> {
  */
 const inflight = new Map<string, Promise<ApiResponse<unknown>>>();
 
+function fetchOnce<T>(url: string): Promise<ApiResponse<T>> {
+  return fetch(url, { redirect: 'manual' }).then(async (response) => {
+    if (response.type === 'opaqueredirect' || response.status === 302) {
+      throw new Error('Authentication required');
+    }
+    if (!response.ok) {
+      const retryHeader = response.headers.get('Retry-After');
+      const retryAfter = retryHeader ? parseInt(retryHeader, 10) * 1000 : null;
+      throw new ApiError(response.status, retryAfter);
+    }
+    return response.json() as Promise<ApiResponse<T>>;
+  });
+}
+
+async function fetchWithRetry<T>(url: string): Promise<ApiResponse<T>> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fetchOnce<T>(url);
+    } catch (err) {
+      lastError = err;
+      const isRetryable = err instanceof ApiError && err.retryable;
+      if (!isRetryable || attempt === MAX_RETRIES) break;
+      const delay = err.retryAfter ?? DEFAULT_BACKOFF_MS * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 function fetchShared<T>(path: string): Promise<ApiResponse<T>> {
   const url = `${getApiBase()}/${path}`;
 
   const existing = inflight.get(path);
   if (existing) return existing as Promise<ApiResponse<T>>;
 
-  const promise = fetch(url, { redirect: 'manual' }).then(async (response) => {
-    if (response.type === 'opaqueredirect' || response.status === 302) {
-      throw new Error('Authentication required');
-    }
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    return response.json() as Promise<ApiResponse<T>>;
-  });
+  const promise = fetchWithRetry<T>(url);
 
   // Store the promise and clean up when it settles
   inflight.set(path, promise as Promise<ApiResponse<unknown>>);

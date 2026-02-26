@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { prisma } from '../lib/prisma.js';
 import { requireUser, requireTeamMember, requireTeamRole, isAuthError } from '../lib/auth.js';
+import { trackException } from '../lib/telemetry.js';
 import { randomBytes } from 'crypto';
 import {
   CreateTeamSchema,
@@ -38,28 +39,35 @@ app.http('createTeam', {
     const body = await parseBody(request, CreateTeamSchema);
     if (isValidationError(body)) return body;
 
-    const existing = await prisma.team.findUnique({ where: { teamNumber: body.teamNumber } });
-    if (existing) {
-      return {
-        status: 409,
-        jsonBody: {
-          error: `Team ${body.teamNumber} already exists. Use a join code or request to join.`,
+    try {
+      const existing = await prisma.team.findUnique({ where: { teamNumber: body.teamNumber } });
+      if (existing) {
+        return {
+          status: 409,
+          jsonBody: {
+            error: `Team ${body.teamNumber} already exists. Use a join code or request to join.`,
+          },
+        };
+      }
+
+      const team = await prisma.team.create({
+        data: {
+          teamNumber: body.teamNumber,
+          name: body.name,
+          members: {
+            create: { userId: auth.id, role: 'COACH' },
+          },
         },
-      };
+        include: { members: { include: { user: true } } },
+      });
+
+      return { status: 201, jsonBody: { data: team } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'createTeam',
+      });
+      return { status: 503, jsonBody: { error: 'Failed to create team. Please try again.' } };
     }
-
-    const team = await prisma.team.create({
-      data: {
-        teamNumber: body.teamNumber,
-        name: body.name,
-        members: {
-          create: { userId: auth.id, role: 'COACH' },
-        },
-      },
-      include: { members: { include: { user: true } } },
-    });
-
-    return { status: 201, jsonBody: { data: team } };
   },
 });
 
@@ -71,24 +79,31 @@ app.http('getMyTeams', {
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
 
-    const memberships = await prisma.teamMember.findMany({
-      where: { userId: auth.id },
-      include: { team: true },
-      orderBy: { joinedAt: 'asc' },
-    });
+    try {
+      const memberships = await prisma.teamMember.findMany({
+        where: { userId: auth.id },
+        include: { team: true },
+        orderBy: { joinedAt: 'asc' },
+      });
 
-    return {
-      status: 200,
-      jsonBody: {
-        data: memberships.map((m) => ({
-          teamId: m.team.id,
-          teamNumber: m.team.teamNumber,
-          name: m.team.name,
-          role: m.role,
-          joinedAt: m.joinedAt,
-        })),
-      },
-    };
+      return {
+        status: 200,
+        jsonBody: {
+          data: memberships.map((m) => ({
+            teamId: m.team.id,
+            teamNumber: m.team.teamNumber,
+            name: m.team.name,
+            role: m.role,
+            joinedAt: m.joinedAt,
+          })),
+        },
+      };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'getMyTeams',
+      });
+      return { status: 503, jsonBody: { error: 'Service temporarily unavailable' } };
+    }
   },
 });
 
@@ -102,17 +117,25 @@ app.http('getTeam', {
     const auth = await requireTeamMember(request, teamId);
     if (isAuthError(auth)) return auth;
 
-    const team = await prisma.team.findUnique({
-      where: { id: teamId },
-      include: {
-        members: {
-          include: { user: { select: { id: true, displayName: true, email: true } } },
-          orderBy: { joinedAt: 'asc' },
+    try {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          members: {
+            include: { user: { select: { id: true, displayName: true, email: true } } },
+            orderBy: { joinedAt: 'asc' },
+          },
         },
-      },
-    });
+      });
 
-    return { status: 200, jsonBody: { data: team } };
+      return { status: 200, jsonBody: { data: team } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'getTeam',
+        teamId,
+      });
+      return { status: 503, jsonBody: { error: 'Service temporarily unavailable' } };
+    }
   },
 });
 
@@ -128,12 +151,21 @@ app.http('updateTeam', {
 
     const body = await parseBody(request, UpdateTeamSchema);
     if (isValidationError(body)) return body;
-    const team = await prisma.team.update({
-      where: { id: teamId },
-      data: { ...(body.name && { name: body.name }) },
-    });
 
-    return { status: 200, jsonBody: { data: team } };
+    try {
+      const team = await prisma.team.update({
+        where: { id: teamId },
+        data: { ...(body.name && { name: body.name }) },
+      });
+
+      return { status: 200, jsonBody: { data: team } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'updateTeam',
+        teamId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to update team. Please try again.' } };
+    }
   },
 });
 
@@ -153,19 +185,27 @@ app.http('createInviteCode', {
     if (isValidationError(body)) return body;
     const code = randomBytes(4).toString('hex').toUpperCase();
 
-    const invite = await prisma.inviteCode.create({
-      data: {
-        teamId,
-        code,
-        createdBy: auth.user.id,
-        maxUses: body.maxUses ?? null,
-        expiresAt: body.expiresInHours
-          ? new Date(Date.now() + body.expiresInHours * 60 * 60 * 1000)
-          : null,
-      },
-    });
+    try {
+      const invite = await prisma.inviteCode.create({
+        data: {
+          teamId,
+          code,
+          createdBy: auth.user.id,
+          maxUses: body.maxUses ?? null,
+          expiresAt: body.expiresInHours
+            ? new Date(Date.now() + body.expiresInHours * 60 * 60 * 1000)
+            : null,
+        },
+      });
 
-    return { status: 201, jsonBody: { data: invite } };
+      return { status: 201, jsonBody: { data: invite } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'createInviteCode',
+        teamId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to create invite. Please try again.' } };
+    }
   },
 });
 
@@ -223,7 +263,10 @@ app.http('joinViaCode', {
       if (err instanceof InviteError) {
         return { status: err.statusCode, jsonBody: { error: err.message } };
       }
-      throw err;
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'joinViaCode',
+      });
+      return { status: 503, jsonBody: { error: 'Failed to join team. Please try again.' } };
     }
   },
 });
@@ -240,32 +283,40 @@ app.http('createJoinRequest', {
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
 
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) {
-      return { status: 404, jsonBody: { error: 'Team not found' } };
+    try {
+      const team = await prisma.team.findUnique({ where: { id: teamId } });
+      if (!team) {
+        return { status: 404, jsonBody: { error: 'Team not found' } };
+      }
+
+      const existing = await prisma.teamMember.findUnique({
+        where: { userId_teamId: { userId: auth.id, teamId } },
+      });
+      if (existing) {
+        return { status: 409, jsonBody: { error: 'You are already a member of this team' } };
+      }
+
+      const pendingRequest = await prisma.joinRequest.findUnique({
+        where: { teamId_userId: { teamId, userId: auth.id } },
+      });
+      if (pendingRequest && pendingRequest.status === 'PENDING') {
+        return { status: 409, jsonBody: { error: 'You already have a pending request' } };
+      }
+
+      const joinRequest = await prisma.joinRequest.upsert({
+        where: { teamId_userId: { teamId, userId: auth.id } },
+        create: { teamId, userId: auth.id },
+        update: { status: 'PENDING', reviewedBy: null, reviewedAt: null },
+      });
+
+      return { status: 201, jsonBody: { data: joinRequest } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'createJoinRequest',
+        teamId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to submit join request. Please try again.' } };
     }
-
-    const existing = await prisma.teamMember.findUnique({
-      where: { userId_teamId: { userId: auth.id, teamId } },
-    });
-    if (existing) {
-      return { status: 409, jsonBody: { error: 'You are already a member of this team' } };
-    }
-
-    const pendingRequest = await prisma.joinRequest.findUnique({
-      where: { teamId_userId: { teamId, userId: auth.id } },
-    });
-    if (pendingRequest && pendingRequest.status === 'PENDING') {
-      return { status: 409, jsonBody: { error: 'You already have a pending request' } };
-    }
-
-    const joinRequest = await prisma.joinRequest.upsert({
-      where: { teamId_userId: { teamId, userId: auth.id } },
-      create: { teamId, userId: auth.id },
-      update: { status: 'PENDING', reviewedBy: null, reviewedAt: null },
-    });
-
-    return { status: 201, jsonBody: { data: joinRequest } };
   },
 });
 
@@ -279,13 +330,21 @@ app.http('listJoinRequests', {
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
-    const requests = await prisma.joinRequest.findMany({
-      where: { teamId, status: 'PENDING' },
-      include: { user: { select: { id: true, displayName: true, email: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
+    try {
+      const requests = await prisma.joinRequest.findMany({
+        where: { teamId, status: 'PENDING' },
+        include: { user: { select: { id: true, displayName: true, email: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
 
-    return { status: 200, jsonBody: { data: requests } };
+      return { status: 200, jsonBody: { data: requests } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'listJoinRequests',
+        teamId,
+      });
+      return { status: 503, jsonBody: { error: 'Service temporarily unavailable' } };
+    }
   },
 });
 
@@ -304,31 +363,40 @@ app.http('reviewJoinRequest', {
     const body = await parseBody(request, ReviewJoinRequestSchema);
     if (isValidationError(body)) return body;
 
-    const joinRequest = await prisma.joinRequest.findFirst({
-      where: { id: requestId, teamId, status: 'PENDING' },
-    });
-    if (!joinRequest) {
-      return { status: 404, jsonBody: { error: 'Pending request not found' } };
-    }
-
-    if (body.action === 'approve') {
-      await prisma.$transaction([
-        prisma.joinRequest.update({
-          where: { id: requestId },
-          data: { status: 'APPROVED', reviewedBy: auth.user.id, reviewedAt: new Date() },
-        }),
-        prisma.teamMember.create({
-          data: { userId: joinRequest.userId, teamId, role: body.role ?? 'STUDENT' },
-        }),
-      ]);
-    } else {
-      await prisma.joinRequest.update({
-        where: { id: requestId },
-        data: { status: 'REJECTED', reviewedBy: auth.user.id, reviewedAt: new Date() },
+    try {
+      const joinRequest = await prisma.joinRequest.findFirst({
+        where: { id: requestId, teamId, status: 'PENDING' },
       });
-    }
+      if (!joinRequest) {
+        return { status: 404, jsonBody: { error: 'Pending request not found' } };
+      }
 
-    return { status: 200, jsonBody: { data: { action: body.action, requestId } } };
+      if (body.action === 'approve') {
+        await prisma.$transaction([
+          prisma.joinRequest.update({
+            where: { id: requestId },
+            data: { status: 'APPROVED', reviewedBy: auth.user.id, reviewedAt: new Date() },
+          }),
+          prisma.teamMember.create({
+            data: { userId: joinRequest.userId, teamId, role: body.role ?? 'STUDENT' },
+          }),
+        ]);
+      } else {
+        await prisma.joinRequest.update({
+          where: { id: requestId },
+          data: { status: 'REJECTED', reviewedBy: auth.user.id, reviewedAt: new Date() },
+        });
+      }
+
+      return { status: 200, jsonBody: { data: { action: body.action, requestId } } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'reviewJoinRequest',
+        teamId,
+        requestId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to process request. Please try again.' } };
+    }
   },
 });
 
@@ -346,29 +414,38 @@ app.http('removeMember', {
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
-    const target = await prisma.teamMember.findUnique({
-      where: { userId_teamId: { userId: targetUserId, teamId } },
-    });
-    if (!target) {
-      return { status: 404, jsonBody: { error: 'Member not found' } };
-    }
+    try {
+      const target = await prisma.teamMember.findUnique({
+        where: { userId_teamId: { userId: targetUserId, teamId } },
+      });
+      if (!target) {
+        return { status: 404, jsonBody: { error: 'Member not found' } };
+      }
 
-    // Mentors can only remove Students; Coaches can remove anyone except themselves
-    if (auth.role === 'MENTOR' && target.role !== 'STUDENT') {
-      return { status: 403, jsonBody: { error: 'Mentors can only remove Students' } };
-    }
-    if (targetUserId === auth.user.id) {
-      return {
-        status: 400,
-        jsonBody: { error: 'Cannot remove yourself. Transfer ownership first.' },
-      };
-    }
+      // Mentors can only remove Students; Coaches can remove anyone except themselves
+      if (auth.role === 'MENTOR' && target.role !== 'STUDENT') {
+        return { status: 403, jsonBody: { error: 'Mentors can only remove Students' } };
+      }
+      if (targetUserId === auth.user.id) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Cannot remove yourself. Transfer ownership first.' },
+        };
+      }
 
-    await prisma.teamMember.delete({
-      where: { userId_teamId: { userId: targetUserId, teamId } },
-    });
+      await prisma.teamMember.delete({
+        where: { userId_teamId: { userId: targetUserId, teamId } },
+      });
 
-    return { status: 200, jsonBody: { data: { removed: targetUserId } } };
+      return { status: 200, jsonBody: { data: { removed: targetUserId } } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'removeMember',
+        teamId,
+        targetUserId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to remove member. Please try again.' } };
+    }
   },
 });
 
@@ -387,19 +464,28 @@ app.http('changeMemberRole', {
     const body = await parseBody(request, ChangeMemberRoleSchema);
     if (isValidationError(body)) return body;
 
-    const target = await prisma.teamMember.findUnique({
-      where: { userId_teamId: { userId: targetUserId, teamId } },
-    });
-    if (!target) {
-      return { status: 404, jsonBody: { error: 'Member not found' } };
+    try {
+      const target = await prisma.teamMember.findUnique({
+        where: { userId_teamId: { userId: targetUserId, teamId } },
+      });
+      if (!target) {
+        return { status: 404, jsonBody: { error: 'Member not found' } };
+      }
+
+      await prisma.teamMember.update({
+        where: { userId_teamId: { userId: targetUserId, teamId } },
+        data: { role: body.role },
+      });
+
+      return { status: 200, jsonBody: { data: { userId: targetUserId, role: body.role } } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'changeMemberRole',
+        teamId,
+        targetUserId,
+      });
+      return { status: 503, jsonBody: { error: 'Failed to change role. Please try again.' } };
     }
-
-    await prisma.teamMember.update({
-      where: { userId_teamId: { userId: targetUserId, teamId } },
-      data: { role: body.role },
-    });
-
-    return { status: 200, jsonBody: { data: { userId: targetUserId, role: body.role } } };
   },
 });
 
@@ -417,15 +503,22 @@ app.http('findTeamByNumber', {
       return { status: 400, jsonBody: { error: 'Invalid team number' } };
     }
 
-    const team = await prisma.team.findUnique({
-      where: { teamNumber },
-      select: { id: true, teamNumber: true, name: true },
-    });
+    try {
+      const team = await prisma.team.findUnique({
+        where: { teamNumber },
+        select: { id: true, teamNumber: true, name: true },
+      });
 
-    if (!team) {
-      return { status: 404, jsonBody: { error: 'Team not found' } };
+      if (!team) {
+        return { status: 404, jsonBody: { error: 'Team not found' } };
+      }
+
+      return { status: 200, jsonBody: { data: team } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'findTeamByNumber',
+      });
+      return { status: 503, jsonBody: { error: 'Service temporarily unavailable' } };
     }
-
-    return { status: 200, jsonBody: { data: team } };
   },
 });
