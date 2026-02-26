@@ -481,8 +481,8 @@ export default function PlannerPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex-1 min-w-[8rem]">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[8rem]">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Match
           </label>
@@ -509,7 +509,7 @@ export default function PlannerPage() {
         </div>
 
         {dutyTemplates.length > 0 && (
-          <div>
+          <div className="w-full sm:w-auto min-w-0 sm:max-w-[16rem] md:max-w-xs">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Template
             </label>
@@ -517,7 +517,7 @@ export default function PlannerPage() {
               value={template}
               onChange={(e) => handleTemplateChange(e.target.value)}
               disabled={!canEdit}
-              className="h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm truncate disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Manual</option>
               {dutyTemplates.map((t) => (
@@ -529,7 +529,7 @@ export default function PlannerPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-3 sm:ml-auto shrink-0">
           <button
             onClick={handleSave}
             disabled={!canEdit}
