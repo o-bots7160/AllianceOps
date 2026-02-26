@@ -68,6 +68,7 @@ jobs:
         with:
           inlineScript: |
             az bicep build --file infra/main.bicep
+            az bicep build --file infra/dashboard.bicep
 
       - name: Azure Login (OIDC)
         if: env.HAS_AZURE_CREDS != '' && github.event_name != 'pull_request'
