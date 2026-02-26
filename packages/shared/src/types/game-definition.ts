@@ -47,7 +47,7 @@ export interface DutyTemplateSlot {
 
 /** Named duty template */
 export interface DutyTemplate {
-  name: 'safe' | 'balanced' | 'aggressive';
+  name: string;
   label: string;
   description: string;
   /** Slot key → assignment hint string or full slot configuration */
