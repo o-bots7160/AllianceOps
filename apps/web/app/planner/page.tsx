@@ -6,6 +6,7 @@ import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { useAuth } from '../../components/use-auth';
 import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
+import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
@@ -21,6 +22,7 @@ import {
 interface TBAMatch {
   key: string;
   comp_level: string;
+  set_number: number;
   match_number: number;
   alliances: {
     red: { team_keys: string[]; score: number };
@@ -281,22 +283,19 @@ export default function PlannerPage() {
   const [selectedMatch, setSelectedMatch] = useState<string>('');
 
   // Compute currentMatch before useSimulationEpa so we can scope the fetch
-  const qualMatches = useMemo(
-    () =>
-      matches
-        ?.filter((m) => m.comp_level === 'qm')
-        .sort((a, b) => a.match_number - b.match_number),
+  const allSortedMatches = useMemo(
+    () => (matches ? sortMatches(matches) : undefined),
     [matches],
   );
 
   const myMatches = useMemo(
     () =>
-      qualMatches?.filter(
+      allSortedMatches?.filter(
         (m) =>
           m.alliances.red.team_keys.includes(myTeamKey) ||
           m.alliances.blue.team_keys.includes(myTeamKey),
       ),
-    [qualMatches, myTeamKey],
+    [allSortedMatches, myTeamKey],
   );
 
   const nextUnplayed = myMatches?.find((m) => m.alliances.red.score < 0);
@@ -502,7 +501,7 @@ export default function PlannerPage() {
           >
             {myMatches?.map((m) => (
               <option key={m.key} value={m.key}>
-                Q{m.match_number}
+                {matchLabel(m)}
               </option>
             ))}
           </select>

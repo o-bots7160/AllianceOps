@@ -1,5 +1,8 @@
+import { sortMatches } from './match-utils';
+
 interface SimMatch {
   comp_level: string;
+  set_number?: number;
   match_number: number;
   alliances: {
     red: { team_keys: string[]; score: number };
@@ -9,7 +12,9 @@ interface SimMatch {
 }
 
 /**
- * Filter qual matches to only those up to the cursor position.
+ * Filter matches to only those up to the cursor position.
+ * Cursor is a 1-based index into the competition-order sorted match list.
+ * Matches beyond the cursor appear as unplayed (score = -1).
  * Returns all matches unmodified if cursor is null.
  */
 export function filterMatchesByCursor<T extends SimMatch>(
@@ -18,9 +23,14 @@ export function filterMatchesByCursor<T extends SimMatch>(
 ): T[] {
   if (cursor === null) return matches;
 
+  const sorted = sortMatches(matches);
+  const playedKeys = new Set(
+    sorted.slice(0, cursor).map((m) => `${m.comp_level}-${m.set_number ?? 0}-${m.match_number}`),
+  );
+
   return matches.map((m) => {
-    if (m.comp_level !== 'qm') return m;
-    if (m.match_number <= cursor) return m;
+    const key = `${m.comp_level}-${m.set_number ?? 0}-${m.match_number}`;
+    if (playedKeys.has(key)) return m;
     // Matches beyond cursor appear as unplayed
     return {
       ...m,
@@ -35,6 +45,7 @@ export function filterMatchesByCursor<T extends SimMatch>(
 
 /**
  * Find the next unplayed match for a team, respecting cursor.
+ * Searches across all match types in competition order.
  */
 export function getNextMatch<T extends SimMatch>(
   matches: T[],
@@ -42,11 +53,9 @@ export function getNextMatch<T extends SimMatch>(
   cursor: number | null,
 ): T | undefined {
   const filtered = filterMatchesByCursor(matches, cursor);
-  const qualMatches = filtered
-    .filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  const sorted = sortMatches(filtered);
 
-  return qualMatches.find(
+  return sorted.find(
     (m) =>
       (m.alliances.red.team_keys.includes(teamKey) ||
         m.alliances.blue.team_keys.includes(teamKey)) &&
@@ -56,6 +65,7 @@ export function getNextMatch<T extends SimMatch>(
 
 /**
  * Calculate a team's W-L record up to the cursor position.
+ * Includes all match types (quals + playoffs).
  */
 export function getTeamRecord<T extends SimMatch>(
   matches: T[],
@@ -68,7 +78,6 @@ export function getTeamRecord<T extends SimMatch>(
   let ties = 0;
 
   for (const m of filtered) {
-    if (m.comp_level !== 'qm') continue;
     if (m.alliances.red.score < 0) continue;
 
     const isRed = m.alliances.red.team_keys.includes(teamKey);
@@ -96,10 +105,7 @@ interface SimEpa {
  * Scale an EPA breakdown proportionally using a start-of-event total.
  * Returns an adjusted EPA where each component is scaled by (startTotal / finalTotal).
  */
-export function scaleEpaToStart(
-  epa: SimEpa,
-  startTotal: number,
-): SimEpa {
+export function scaleEpaToStart(epa: SimEpa, startTotal: number): SimEpa {
   if (!epa.total || epa.total === 0) return { ...epa, total: startTotal };
   const scale = startTotal / epa.total;
   const scaled: SimEpa = {

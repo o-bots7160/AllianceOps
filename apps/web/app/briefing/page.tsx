@@ -5,6 +5,7 @@ import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
+import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
@@ -12,6 +13,7 @@ import { LoadingSpinner } from '../../components/loading-spinner';
 interface TBAMatch {
   key: string;
   comp_level: string;
+  set_number: number;
   match_number: number;
   alliances: {
     red: { team_keys: string[]; score: number };
@@ -110,15 +112,12 @@ export default function BriefingPage() {
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
   // Compute currentMatch before useSimulationEpa so we can scope the fetch
-  const qualMatches = useMemo(
-    () =>
-      matches
-        ?.filter((m) => m.comp_level === 'qm')
-        .sort((a, b) => a.match_number - b.match_number),
+  const allSortedMatches = useMemo(
+    () => (matches ? sortMatches(matches) : undefined),
     [matches],
   );
 
-  const nextMatch = qualMatches?.find(
+  const nextMatch = allSortedMatches?.find(
     (m) =>
       (m.alliances.red.team_keys.includes(myTeamKey) ||
         m.alliances.blue.team_keys.includes(myTeamKey)) &&
@@ -128,7 +127,7 @@ export default function BriefingPage() {
   // Fall back to last match if all played
   const currentMatch =
     nextMatch ??
-    qualMatches
+    allSortedMatches
       ?.filter(
         (m) =>
           m.alliances.red.team_keys.includes(myTeamKey) ||
@@ -185,12 +184,12 @@ export default function BriefingPage() {
   return (
     <div className="space-y-6">
       <InfoBox
-        heading={`Match Briefing — Q${currentMatch.match_number}`}
+        heading={`Match Briefing — ${matchLabel(currentMatch)}`}
         headingExtra={
           <span
             className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
-                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+              ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
               }`}
           >
             {isRed ? 'Red' : 'Blue'} Alliance

@@ -4,6 +4,7 @@ import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor } from '../../lib/simulation-filters';
+import { matchLabel } from '../../lib/match-utils';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 
@@ -185,13 +186,13 @@ export default function PathPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="rounded-lg border border-red-200 dark:border-red-800 p-3">
             <p className="font-medium text-red-600">
-              Hardest: Q{hardest.match.match_number}
+              Hardest: {matchLabel(hardest.match)}
             </p>
             <p className="text-gray-500">Difficulty: {hardest.difficultyScore.toFixed(2)}</p>
           </div>
           <div className="rounded-lg border border-green-200 dark:border-green-800 p-3">
             <p className="font-medium text-green-600">
-              Easiest: Q{easiest.match.match_number}
+              Easiest: {matchLabel(easiest.match)}
             </p>
             <p className="text-gray-500">Difficulty: {easiest.difficultyScore.toFixed(2)}</p>
           </div>
@@ -217,12 +218,11 @@ export default function PathPage() {
               return (
                 <tr
                   key={m.match.key}
-                  className={`border-b border-gray-100 dark:border-gray-800 ${
-                    m.isSwing ? 'bg-amber-50 dark:bg-amber-950' : ''
-                  }`}
+                  className={`border-b border-gray-100 dark:border-gray-800 ${m.isSwing ? 'bg-amber-50 dark:bg-amber-950' : ''
+                    }`}
                 >
                   <td className="py-2 px-2 font-mono">
-                    Q{m.match.match_number}
+                    {matchLabel(m.match)}
                     {m.isSwing && <span className="ml-1 text-amber-500">⚡</span>}
                   </td>
                   <td className="py-2 px-2">
