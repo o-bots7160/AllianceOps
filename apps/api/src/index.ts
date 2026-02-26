@@ -8,8 +8,10 @@ config({ path: resolve(process.cwd(), '../../.env') });
 
 import { initTelemetry, trackAuthEvent } from './lib/telemetry.js';
 import { SWAAuthProvider, setAuthProvider } from '@allianceops/shared';
+import { registerHooks } from './lib/hooks.js';
 
 initTelemetry();
+registerHooks();
 
 // Configure SWA auth provider with telemetry for blob parse errors
 setAuthProvider(

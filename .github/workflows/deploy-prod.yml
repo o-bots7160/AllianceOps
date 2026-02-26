@@ -23,5 +23,4 @@ jobs:
     with:
       environment: production
       env_suffix: prod
-      register_apex: true
     secrets: inherit

@@ -1,0 +1,150 @@
+# On-demand workflow to register and validate the apex custom domain for
+# the production Static Web App.  This is a one-time setup task — once the
+# domain is validated it does not need to run again unless DNS changes.
+#
+# Extracted from deploy.yml to avoid the 15s–5min polling overhead on every
+# prod deployment (see ADR-025).
+name: Register Apex Domain
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: register-apex
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  register:
+    name: Register & Validate Apex Domain
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Register Apex Domain
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SWA_NAME="stapp-aops-prod"
+            SWA_RG="rg-aops-prod"
+            APEX="allianceops.io"
+            DNS_RG="rg-aops-global"
+
+            # Check if apex domain is already registered and validated
+            DOMAIN_STATUS=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
+              --hostname "$APEX" \
+              --query status -o tsv 2>/dev/null || echo "NotFound")
+
+            if [ "$DOMAIN_STATUS" == "Ready" ]; then
+              echo "Apex domain already validated — nothing to do"
+              exit 0
+            fi
+
+            # Start domain registration (non-blocking so deployment doesn't hang)
+            az staticwebapp hostname set \
+              --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
+              --hostname "$APEX" \
+              --validation-method dns-txt-token \
+              --no-wait
+
+            # Wait briefly for Azure to generate the validation token
+            sleep 10
+
+            # Retrieve the validation token
+            VALIDATION_TOKEN=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
+              --hostname "$APEX" \
+              --query validationToken -o tsv)
+
+            if [ -z "$VALIDATION_TOKEN" ] || [ "$VALIDATION_TOKEN" == "None" ]; then
+              echo "::error::Failed to retrieve validation token for apex domain"
+              exit 1
+            fi
+
+            echo "Validation token: ${VALIDATION_TOKEN:0:8}..."
+
+            # Create or update TXT record in Azure DNS zone for validation
+            az network dns record-set txt create \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --name "@" \
+              --ttl 300 2>/dev/null || true
+
+            # Remove any stale TXT values and add the current token
+            az network dns record-set txt remove-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "@" \
+              --value "$VALIDATION_TOKEN" 2>/dev/null || true
+
+            az network dns record-set txt add-record \
+              --resource-group "$DNS_RG" \
+              --zone-name "$APEX" \
+              --record-set-name "@" \
+              --value "$VALIDATION_TOKEN"
+
+            # Poll for validation to complete (up to 5 minutes)
+            echo "Waiting for apex domain validation..."
+            for i in $(seq 1 30); do
+              STATUS=$(az staticwebapp hostname show \
+                --name "$SWA_NAME" \
+                --resource-group "$SWA_RG" \
+                --hostname "$APEX" \
+                --query status -o tsv 2>/dev/null || echo "Unknown")
+
+              if [ "$STATUS" == "Ready" ]; then
+                echo "Apex domain validated successfully"
+                exit 0
+              fi
+
+              echo "  Attempt $i/30 — status: $STATUS"
+              sleep 10
+            done
+
+            echo "::warning::Apex domain validation did not complete within 5 minutes. It may complete asynchronously."
+
+      - name: Set www as Default Domain
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SWA_NAME="stapp-aops-prod"
+            SWA_RG="rg-aops-prod"
+            WWW_DOMAIN="www.allianceops.io"
+
+            # Only proceed if www domain is validated and ready
+            WWW_STATUS=$(az staticwebapp hostname show \
+              --name "$SWA_NAME" \
+              --resource-group "$SWA_RG" \
+              --hostname "$WWW_DOMAIN" \
+              --query status -o tsv 2>/dev/null || echo "Unknown")
+
+            if [ "$WWW_STATUS" != "Ready" ]; then
+              echo "::warning::www domain status is '$WWW_STATUS' (not Ready) — skipping set-default. Set manually in Azure portal: $SWA_NAME → Custom domains → $WWW_DOMAIN → Set default."
+              exit 0
+            fi
+
+            # Construct the ARM resource ID for the www custom domain
+            SUB=$(az account show --query id -o tsv)
+            RESOURCE_ID="/subscriptions/${SUB}/resourceGroups/${SWA_RG}/providers/Microsoft.Web/staticSites/${SWA_NAME}/customDomains/${WWW_DOMAIN}"
+
+            # POST the setDefault action — causes apex domain to 308-redirect → www
+            if az rest --method POST \
+              --uri "https://management.azure.com${RESOURCE_ID}/setDefault?api-version=2023-12-01" \
+              --body '{}' 2>/dev/null; then
+              echo "$WWW_DOMAIN set as default domain — allianceops.io will redirect to www with 308"
+            else
+              echo "::warning::Could not set default domain via API. Set manually in Azure portal: $SWA_NAME → Custom domains → $WWW_DOMAIN → Set default."
+            fi

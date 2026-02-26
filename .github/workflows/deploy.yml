@@ -1,5 +1,13 @@
 # Reusable deployment workflow shared by dev and prod.
 # Called from deploy-dev.yml and deploy-prod.yml with environment-specific inputs.
+#
+# Optimizations applied (see ADR-025):
+#   - Turborepo build cache via actions/cache
+#   - Next.js incremental build cache
+#   - Conditional Bicep infra deploy (skip when infra/ unchanged)
+#   - Cached Function App npm install + Prisma engines
+#   - Parallel Function App + SWA deployment
+#   - Sparse checkout in deploy job
 name: Deploy
 
 on:
@@ -13,11 +21,6 @@ on:
         description: Short env label used in resource names (dev / prod)
         required: true
         type: string
-      register_apex:
-        description: Whether to register the apex custom domain (prod only)
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   id-token: write
@@ -38,7 +41,34 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Cache Prisma engines so db:generate doesn't re-download them
+      - name: Cache Prisma Engines
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.prisma
+            node_modules/@prisma/engines
+          key: prisma-${{ runner.os }}-${{ hashFiles('apps/api/prisma/schema.prisma', 'pnpm-lock.yaml') }}
+
       - run: pnpm db:generate
+
+      # Turborepo local cache — persisted across runs via actions/cache
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      # Next.js incremental build cache (SWC + webpack)
+      - name: Cache Next.js Build
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'pnpm-lock.yaml') }}
+          restore-keys: nextjs-${{ runner.os }}-
+
       - name: Build
         run: |
           export NEXT_PUBLIC_APP_VERSION="v1.0.${{ github.run_number }}+${GITHUB_SHA::7}"
@@ -60,7 +90,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      # Sparse checkout — deploy only needs infra/, prisma schema, and API packaging files
       - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            infra
+            apps/api/prisma
+            apps/api/host.json
+            apps/api/package.json
+          fetch-depth: 2
 
       - uses: actions/download-artifact@v4
         with:
@@ -79,6 +117,18 @@ jobs:
       - name: Set Deployment Name
         run: echo "DEPLOY_NAME=aop-${{ github.run_number }}-${GITHUB_SHA::7}" >> $GITHUB_ENV
 
+      # Detect whether infra/ files changed to skip expensive Bicep deploy
+      - name: Check for Infrastructure Changes
+        id: infra-check
+        run: |
+          if git diff --name-only HEAD~1 -- infra/ 2>/dev/null | grep -q .; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Infrastructure files changed — will deploy Bicep"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No infrastructure changes — skipping Bicep deploy"
+          fi
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -87,12 +137,14 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Ensure Resource Group
+        if: steps.infra-check.outputs.changed == 'true'
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az group create --name rg-aops-${{ inputs.env_suffix }} --location centralus
 
       - name: Deploy Infrastructure
+        if: steps.infra-check.outputs.changed == 'true'
         uses: azure/CLI@v2
         env:
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
@@ -105,12 +157,14 @@ jobs:
               --parameters infra/parameters/${{ inputs.env_suffix }}.bicepparam
 
       - name: Ensure DNS Resource Group
+        if: steps.infra-check.outputs.changed == 'true'
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az group create --name rg-aops-global --location centralus
 
       - name: Deploy DNS Records
+        if: steps.infra-check.outputs.changed == 'true'
         uses: azure/CLI@v2
         env:
           ENVIRONMENT_NAME: ${{ inputs.env_suffix }}
@@ -130,93 +184,6 @@ jobs:
               --resource-group rg-aops-global \
               --name dns-${{ inputs.env_suffix }}-${{ env.DEPLOY_NAME }} \
               --parameters infra/parameters/dns.bicepparam
-
-      - name: Register Apex Domain
-        if: inputs.register_apex
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            SWA_NAME="stapp-aops-${{ inputs.env_suffix }}"
-            SWA_RG="rg-aops-${{ inputs.env_suffix }}"
-            APEX="allianceops.io"
-            DNS_RG="rg-aops-global"
-
-            # Check if apex domain is already registered and validated
-            DOMAIN_STATUS=$(az staticwebapp hostname show \
-              --name "$SWA_NAME" \
-              --resource-group "$SWA_RG" \
-              --hostname "$APEX" \
-              --query status -o tsv 2>/dev/null || echo "NotFound")
-
-            if [ "$DOMAIN_STATUS" == "Ready" ]; then
-              echo "Apex domain already validated — skipping"
-              exit 0
-            fi
-
-            # Start domain registration (non-blocking so deployment doesn't hang)
-            az staticwebapp hostname set \
-              --name "$SWA_NAME" \
-              --resource-group "$SWA_RG" \
-              --hostname "$APEX" \
-              --validation-method dns-txt-token \
-              --no-wait
-
-            # Wait briefly for Azure to generate the validation token
-            sleep 10
-
-            # Retrieve the validation token
-            VALIDATION_TOKEN=$(az staticwebapp hostname show \
-              --name "$SWA_NAME" \
-              --resource-group "$SWA_RG" \
-              --hostname "$APEX" \
-              --query validationToken -o tsv)
-
-            if [ -z "$VALIDATION_TOKEN" ] || [ "$VALIDATION_TOKEN" == "None" ]; then
-              echo "::error::Failed to retrieve validation token for apex domain"
-              exit 1
-            fi
-
-            echo "Validation token: ${VALIDATION_TOKEN:0:8}..."
-
-            # Create or update TXT record in Azure DNS zone for validation
-            az network dns record-set txt create \
-              --resource-group "$DNS_RG" \
-              --zone-name "$APEX" \
-              --name "_dnsvalidation" \
-              --ttl 300 2>/dev/null || true
-
-            # Remove any stale TXT values and add the current token
-            az network dns record-set txt remove-record \
-              --resource-group "$DNS_RG" \
-              --zone-name "$APEX" \
-              --record-set-name "_dnsvalidation" \
-              --value "$VALIDATION_TOKEN" 2>/dev/null || true
-
-            az network dns record-set txt add-record \
-              --resource-group "$DNS_RG" \
-              --zone-name "$APEX" \
-              --record-set-name "_dnsvalidation" \
-              --value "$VALIDATION_TOKEN"
-
-            # Poll for validation to complete (up to 5 minutes)
-            echo "Waiting for apex domain validation..."
-            for i in $(seq 1 30); do
-              STATUS=$(az staticwebapp hostname show \
-                --name "$SWA_NAME" \
-                --resource-group "$SWA_RG" \
-                --hostname "$APEX" \
-                --query status -o tsv 2>/dev/null || echo "Unknown")
-
-              if [ "$STATUS" == "Ready" ]; then
-                echo "Apex domain validated successfully"
-                exit 0
-              fi
-
-              echo "  Attempt $i/30 — status: $STATUS"
-              sleep 10
-            done
-
-            echo "::warning::Apex domain validation did not complete within 5 minutes. It may complete asynchronously."
 
       - name: Grant Deployer Key Vault Access
         uses: azure/CLI@v2
@@ -256,11 +223,17 @@ jobs:
             --rule-name AllowGitHubRunner \
             --yes || true
 
+      # Cache npm dependencies for Function App packaging — avoids cold
+      # install when apps/api/package.json hasn't changed.
+      - name: Cache Function App Dependencies
+        id: fa-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/api-deploy/node_modules
+          key: fa-deps-${{ runner.os }}-${{ hashFiles('apps/api/package.json') }}
+
       - name: Package Function App
         run: |
-          # The API is bundled by esbuild — @allianceops/shared and dotenv are
-          # inlined into dist/index.js. Only three external runtime deps need
-          # npm install: @azure/functions, @prisma/client, applicationinsights.
           STAGING=/tmp/api-deploy
           mkdir -p $STAGING
 
@@ -277,37 +250,55 @@ jobs:
           cp -r apps/api/prisma $STAGING/
 
           cd $STAGING
-          npm install --omit=dev
+
+          # Only run npm install if cache missed
+          if [ "${{ steps.fa-cache.outputs.cache-hit }}" != "true" ]; then
+            npm install --omit=dev
+          fi
+
           npx --yes prisma@^6 generate
 
           zip -r $GITHUB_WORKSPACE/api-deploy.zip dist/ host.json package.json node_modules/ \
             -x "node_modules/.cache/*"
 
-      - name: Deploy Function App
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az functionapp deployment source config-zip \
-              --resource-group rg-aops-${{ inputs.env_suffix }} \
-              --name func-aops-${{ inputs.env_suffix }} \
-              --src api-deploy.zip
-
-      - name: Get SWA Deployment Token
+      # Deploy Function App and Static Web App in parallel using background processes
+      - name: Deploy Function App & Static Web App
         run: |
+          # Get SWA deployment token
           SWA_TOKEN=$(az staticwebapp secrets list \
             --name stapp-aops-${{ inputs.env_suffix }} \
             --query "properties.apiKey" -o tsv)
           echo "::add-mask::$SWA_TOKEN"
-          echo "SWA_DEPLOY_TOKEN=$SWA_TOKEN" >> $GITHUB_ENV
 
-      - name: Deploy Static Web App
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOY_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: apps/web/out
-          skip_app_build: true
+          # Deploy Function App (background)
+          az functionapp deployment source config-zip \
+            --resource-group rg-aops-${{ inputs.env_suffix }} \
+            --name func-aops-${{ inputs.env_suffix }} \
+            --src api-deploy.zip &
+          FA_PID=$!
+
+          # Deploy Static Web App (background) — using npx to call the SWA CLI
+          npx --yes @azure/static-web-apps-cli@latest deploy \
+            apps/web/out \
+            --deployment-token "$SWA_TOKEN" \
+            --env production &
+          SWA_PID=$!
+
+          # Wait for both deployments and capture exit codes
+          FA_EXIT=0
+          SWA_EXIT=0
+          wait $FA_PID || FA_EXIT=$?
+          wait $SWA_PID || SWA_EXIT=$?
+
+          if [ $FA_EXIT -ne 0 ]; then
+            echo "::error::Function App deployment failed (exit code $FA_EXIT)"
+          fi
+          if [ $SWA_EXIT -ne 0 ]; then
+            echo "::error::Static Web App deployment failed (exit code $SWA_EXIT)"
+          fi
+
+          # Fail the step if either deployment failed
+          [ $FA_EXIT -eq 0 ] && [ $SWA_EXIT -eq 0 ]
 
       - name: Cleanup Old Deployments
         if: always()

@@ -5,6 +5,7 @@ import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor } from '../../lib/simulation-filters';
+import { matchLabel, groupMatchesByPhase, compLevelName, sortMatches } from '../../lib/match-utils';
 import { InfoBox } from '../../components/info-box';
 
 interface TBAEvent {
@@ -18,6 +19,7 @@ interface TBAEvent {
 interface TBAMatch {
   key: string;
   comp_level: string;
+  set_number: number;
   match_number: number;
   alliances: {
     red: { team_keys: string[]; score: number };
@@ -51,9 +53,8 @@ export default function EventPage() {
   const matches = rawMatches ? filterMatchesByCursor(rawMatches, activeCursor) : undefined;
 
   const myTeamKey = `frc${teamNumber}`;
-  const sortedMatches = matches
-    ?.filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  const sortedMatches = matches ? sortMatches(matches) : undefined;
+  const matchGroups = sortedMatches ? groupMatchesByPhase(sortedMatches) : [];
 
   const teamEventKeys = useMemo(
     () => new Set(teamEvents?.map((e) => e.key)),
@@ -79,8 +80,8 @@ export default function EventPage() {
           <strong>Statbotics</strong> (EPA ratings, predictions). No manual scouting or data entry needed.
         </p>
         <p>
-          The qual schedule below shows all matches for the selected event. Your team&apos;s matches are
-          highlighted. Scores appear as matches are played.
+          The schedule below shows all matches for the selected event — qualifications, semifinals,
+          and finals. Your team&apos;s matches are highlighted. Scores appear as matches are played.
         </p>
       </InfoBox>
 
@@ -111,11 +112,10 @@ export default function EventPage() {
                   <button
                     key={ev.key}
                     onClick={() => setEventKey(ev.key)}
-                    className={`text-left rounded-lg border p-3 text-sm transition-colors ${
-                      isSelected
+                    className={`text-left rounded-lg border p-3 text-sm transition-colors ${isSelected
                         ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
                         : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
-                    }`}
+                      }`}
                   >
                     <div className="font-medium flex items-center gap-2">
                       {ev.name}
@@ -155,9 +155,11 @@ export default function EventPage() {
 
       {matchesLoading && <p className="text-gray-500">Loading matches...</p>}
 
-      {sortedMatches && sortedMatches.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Qual Schedule ({sortedMatches.length} matches)</h3>
+      {matchGroups.length > 0 && matchGroups.map(([compLevel, phaseMatches]) => (
+        <div key={compLevel} className="space-y-2">
+          <h3 className="text-lg font-semibold">
+            {compLevelName(compLevel)} ({phaseMatches.length} {phaseMatches.length === 1 ? 'match' : 'matches'})
+          </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -169,25 +171,23 @@ export default function EventPage() {
                 </tr>
               </thead>
               <tbody>
-                {sortedMatches.map((match) => {
+                {phaseMatches.map((match) => {
                   const isMyMatch =
                     match.alliances.red.team_keys.includes(myTeamKey) ||
                     match.alliances.blue.team_keys.includes(myTeamKey);
                   return (
                     <tr
                       key={match.key}
-                      className={`border-b border-gray-100 dark:border-gray-800 ${
-                        isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
-                      }`}
+                      className={`border-b border-gray-100 dark:border-gray-800 ${isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
+                        }`}
                     >
-                      <td className="py-2 px-3 font-mono">Q{match.match_number}</td>
+                      <td className="py-2 px-3 font-mono">{matchLabel(match)}</td>
                       <td className="py-2 px-3">
                         {match.alliances.red.team_keys.map((t) => (
                           <span
                             key={t}
-                            className={`inline-block mr-2 ${
-                              t === myTeamKey ? 'font-bold text-primary-600' : 'text-red-700 dark:text-red-400'
-                            }`}
+                            className={`inline-block mr-2 ${t === myTeamKey ? 'font-bold text-primary-600' : 'text-red-700 dark:text-red-400'
+                              }`}
                           >
                             {teamDisplay(t)}
                           </span>
@@ -197,9 +197,8 @@ export default function EventPage() {
                         {match.alliances.blue.team_keys.map((t) => (
                           <span
                             key={t}
-                            className={`inline-block mr-2 ${
-                              t === myTeamKey ? 'font-bold text-primary-600' : 'text-blue-700 dark:text-blue-400'
-                            }`}
+                            className={`inline-block mr-2 ${t === myTeamKey ? 'font-bold text-primary-600' : 'text-blue-700 dark:text-blue-400'
+                              }`}
                           >
                             {teamDisplay(t)}
                           </span>
@@ -217,9 +216,9 @@ export default function EventPage() {
             </table>
           </div>
         </div>
-      )}
+      ))}
 
-      {eventKey && !matchesLoading && (!sortedMatches || sortedMatches.length === 0) && (
+      {eventKey && !matchesLoading && matchGroups.length === 0 && (
         <p className="text-gray-500">No matches found for this event.</p>
       )}
     </div>

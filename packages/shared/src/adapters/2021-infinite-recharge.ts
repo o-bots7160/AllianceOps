@@ -1,0 +1,286 @@
+import type {
+  GameDefinition,
+  GenericBreakdown,
+  DutySlotDefinition,
+  DutyTemplate,
+  GameMetricDefinition,
+} from '../types/game-definition.js';
+import type { TBAScoreBreakdown } from '../types/tba.js';
+import { registerAdapter } from './registry.js';
+
+// 2021 INFINITE RECHARGE At Home was a remote challenge using the same
+// 2020 Infinite Recharge game and TBA score breakdown schema.
+
+function num(val: unknown): number {
+  return typeof val === 'number' ? val : 0;
+}
+
+const dutySlots: DutySlotDefinition[] = [
+  {
+    key: 'AUTO_ROLE_1',
+    label: 'Auto Role 1',
+    description: 'Primary autonomous scorer',
+    category: 'auto',
+    epaRankKeys: ['auto_points'],
+  },
+  {
+    key: 'AUTO_ROLE_2',
+    label: 'Auto Role 2',
+    description: 'Secondary autonomous scorer',
+    category: 'auto',
+    epaRankKeys: ['auto_points'],
+  },
+  {
+    key: 'AUTO_ROLE_3',
+    label: 'Auto Role 3',
+    description: 'Tertiary autonomous role',
+    category: 'auto',
+    epaRankKeys: ['auto_points'],
+  },
+  {
+    key: 'POWER_CELL_SCORER_1',
+    label: 'Power Cell Scorer 1',
+    description: 'Primary power cell shooter',
+    category: 'teleop',
+    epaRankKeys: ['teleop_cell_points'],
+  },
+  {
+    key: 'POWER_CELL_SCORER_2',
+    label: 'Power Cell Scorer 2',
+    description: 'Secondary power cell shooter',
+    category: 'teleop',
+    epaRankKeys: ['teleop_cell_points'],
+  },
+  {
+    key: 'CLIMBER_1',
+    label: 'Climber 1',
+    description: 'Primary shield generator climber',
+    category: 'endgame',
+    epaRankKeys: ['endgame_points'],
+  },
+  {
+    key: 'CLIMBER_2',
+    label: 'Climber 2',
+    description: 'Secondary shield generator climber',
+    category: 'endgame',
+    epaRankKeys: ['endgame_points'],
+  },
+  {
+    key: 'DEFENSE_ROLE',
+    label: 'Defense',
+    description: 'Defensive play coordinator',
+    category: 'defense',
+  },
+  {
+    key: 'FOUL_DISCIPLINE',
+    label: 'Foul Discipline',
+    description: 'Foul avoidance focus',
+    category: 'discipline',
+  },
+];
+
+const dutyTemplates: DutyTemplate[] = [
+  {
+    name: 'safe',
+    label: 'Safe',
+    description: 'Conservative — reliable cell scoring, one hang, no defense',
+    assignments: {
+      AUTO_ROLE_1: {
+        hint: 'Most reliable auto — init line + outer goal shots',
+        strategy: 'strongest',
+      },
+      AUTO_ROLE_2: { hint: 'Second most reliable auto path', strategy: 'strongest' },
+      AUTO_ROLE_3: {
+        hint: 'Init line crossing only — stay out of alliance paths',
+        strategy: 'skip',
+      },
+      POWER_CELL_SCORER_1: {
+        hint: 'Best shooter — inner/outer goal cycles',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['cells_inner', 'cells_outer'],
+      },
+      POWER_CELL_SCORER_2: {
+        hint: 'Bottom goal scoring — consistent and fast',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['teleop_cell_points'],
+      },
+      CLIMBER_1: {
+        hint: 'Most reliable climber — only attempt if consistent',
+        strategy: 'strongest',
+      },
+      CLIMBER_2: {
+        hint: 'Park instead of risky climb — no guaranteed park points, but avoids failed hang',
+        strategy: 'skip',
+      },
+      DEFENSE_ROLE: { hint: 'No defense — all robots focus on scoring', strategy: 'skip' },
+      FOUL_DISCIPLINE: {
+        hint: 'All robots — avoid opponent trench run (G31 = FOUL) and target zone shield',
+        strategy: 'all',
+      },
+    },
+  },
+  {
+    name: 'balanced',
+    label: 'Balanced',
+    description: 'Standard play — outer/inner goal mix, two hangs, light defense',
+    assignments: {
+      AUTO_ROLE_1: { hint: 'Best auto scorer — init line + 3 cell shots', strategy: 'strongest' },
+      AUTO_ROLE_2: { hint: 'Second best auto — standard cell path', strategy: 'strongest' },
+      AUTO_ROLE_3: { hint: 'Init line + grab one trench cell if safe', strategy: 'strongest' },
+      POWER_CELL_SCORER_1: {
+        hint: 'Best shooter — target inner port for bonus points',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['cells_inner', 'cells_outer'],
+      },
+      POWER_CELL_SCORER_2: {
+        hint: 'Support shooter — outer + bottom port cycling',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['teleop_cell_points'],
+      },
+      CLIMBER_1: { hint: 'Best climber — hang for full endgame points', strategy: 'strongest' },
+      CLIMBER_2: {
+        hint: 'Second climber — Shield Generator RP needs all 3 robots hanging or level',
+        strategy: 'strongest',
+      },
+      DEFENSE_ROLE: {
+        hint: 'Weakest scorer plays light defense — must attempt hang at endgame for Shield Generator RP (all 3 required)',
+        strategy: 'weakest',
+      },
+      FOUL_DISCIPLINE: {
+        hint: 'Defender — avoid opponent trench run (G31 = FOUL) and target zone shield',
+        strategy: 'all',
+      },
+    },
+  },
+  {
+    name: 'aggressive',
+    label: 'Aggressive',
+    description: 'Max ceiling — inner port focus, shield energized RP, double hang, active defense',
+    assignments: {
+      AUTO_ROLE_1: {
+        hint: 'Best auto — 3+ power cell shots, build toward Stage 2 (20 cells)',
+        strategy: 'strongest',
+      },
+      AUTO_ROLE_2: {
+        hint: 'Aggressive auto — contest trench cells and maximize shot count',
+        strategy: 'strongest',
+      },
+      AUTO_ROLE_3: {
+        hint: 'Aggressive — deny opponent trench access in auto',
+        strategy: 'strongest',
+      },
+      POWER_CELL_SCORER_1: {
+        hint: 'Inner port specialist — target shield energized RP',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['cells_inner'],
+      },
+      POWER_CELL_SCORER_2: {
+        hint: 'High-volume outer/inner port shooter — maximize cell count for RP threshold',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['cells_inner', 'cells_outer'],
+      },
+      CLIMBER_1: {
+        hint: 'Hang — full endgame points, Shield Generator RP needs all 3 robots',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['endgame_points'],
+      },
+      CLIMBER_2: {
+        hint: 'Hang — both robots attempt hang, defender must also hang for RP',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['endgame_points'],
+      },
+      DEFENSE_ROLE: {
+        hint: 'Dedicated defender early — must hang at endgame for Shield Generator RP (all 3 robots required on switch)',
+        strategy: 'weakest',
+      },
+      FOUL_DISCIPLINE: {
+        hint: 'Avoid opponent trench run (G31 = FOUL) and target zone shield — TECH FOUL = 15 pts to opponent',
+        strategy: 'all',
+      },
+    },
+  },
+];
+
+const gameSpecificMetrics: GameMetricDefinition[] = [
+  {
+    key: 'auto_cells',
+    label: 'Auto Cells',
+    description: 'Power cells scored in autonomous',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'teleop_cell_points',
+    label: 'Cell Points',
+    description: 'Points from power cells in teleop',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'cells_inner',
+    label: 'Inner Port',
+    description: 'Cells scored in inner port',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'cells_outer',
+    label: 'Outer Port',
+    description: 'Cells scored in outer port',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'cells_bottom',
+    label: 'Bottom Port',
+    description: 'Cells scored in bottom port',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'foul_count',
+    label: 'Fouls',
+    description: 'Number of fouls committed',
+    renderLocation: 'picklist',
+    higherIsBetter: false,
+  },
+];
+
+function mapInfiniteRechargeBreakdown(raw: TBAScoreBreakdown): GenericBreakdown {
+  const autoPoints = num(raw['autoPoints']);
+  const teleopPoints = num(raw['teleopPoints']);
+  const endgamePoints = num(raw['endgamePoints']);
+  const foulPoints = num(raw['foulPoints']);
+  const totalPoints = num(raw['totalPoints']);
+  const miscPoints = totalPoints - autoPoints - teleopPoints - endgamePoints - foulPoints;
+
+  return {
+    auto_points: autoPoints,
+    teleop_points: teleopPoints,
+    endgame_points: endgamePoints,
+    penalty_points: foulPoints,
+    misc_points: miscPoints,
+    gameSpecific: {
+      auto_cells:
+        num(raw['autoCellsBottom']) + num(raw['autoCellsOuter']) + num(raw['autoCellsInner']),
+      teleop_cell_points: num(raw['teleopCellPoints']),
+      cells_inner: num(raw['teleopCellsInner']),
+      cells_outer: num(raw['teleopCellsOuter']),
+      cells_bottom: num(raw['teleopCellsBottom']),
+      foul_count: num(raw['foulCount']),
+    },
+  };
+}
+
+const infiniteRechargeAtHome2021: GameDefinition = {
+  year: 2021,
+  gameName: 'Infinite Recharge At Home',
+  mapScoreBreakdown: mapInfiniteRechargeBreakdown,
+  dutySlots,
+  dutyTemplates,
+  gameSpecificMetrics,
+};
+
+registerAdapter(infiniteRechargeAtHome2021);
+
+export default infiniteRechargeAtHome2021;

@@ -101,18 +101,18 @@ model JoinRequest {
 
 model MatchPlan {
   id        String   @id @default(cuid())
-  teamId    String?
+  teamId    String
   eventKey  String
   matchKey  String
-  createdBy String?
+  createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  team   Team?            @relation(fields: [teamId], references: [id])
+  team   Team             @relation(fields: [teamId], references: [id])
   duties DutyAssignment[]
   notes  MatchNote[]
 
-  @@unique([eventKey, matchKey])
+  @@unique([teamId, eventKey, matchKey])
   @@index([eventKey])
   @@index([teamId])
 }
@@ -143,14 +143,14 @@ model MatchNote {
 
 model Picklist {
   id        String   @id @default(cuid())
-  teamId    String?
+  teamId    String
   eventKey  String
   name      String
-  createdBy String?
+  createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  team    Team?           @relation(fields: [teamId], references: [id])
+  team    Team            @relation(fields: [teamId], references: [id])
   entries PicklistEntry[]
 
   @@unique([teamId, eventKey, name])

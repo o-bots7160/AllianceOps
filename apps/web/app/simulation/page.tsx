@@ -4,11 +4,13 @@ import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { getTeamRecord } from '../../lib/simulation-filters';
+import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { InfoBox } from '../../components/info-box';
 
 interface TBAMatch {
   key: string;
   comp_level: string;
+  set_number: number;
   match_number: number;
   alliances: {
     red: { team_keys: string[]; score: number };
@@ -30,20 +32,20 @@ export default function SimulationPage() {
     activeEventKey ? `event/${activeEventKey}/matches` : null,
   );
 
-  const qualMatches = matches
-    ?.filter((m) => m.comp_level === 'qm')
-    .sort((a, b) => a.match_number - b.match_number);
+  const allSortedMatches = matches ? sortMatches(matches) : undefined;
 
-  const maxCursor = qualMatches?.length ?? 1;
+  // For the cursor, we use ALL matches in competition order
+  // The cursor number maps to position in sorted array
+  const maxCursor = allSortedMatches?.length ?? 1;
   const activeCursor = Math.min(cursor, maxCursor);
-  const visibleMatches = qualMatches?.slice(0, activeCursor);
+  const visibleMatches = allSortedMatches?.slice(0, activeCursor);
   const playedMatches = visibleMatches?.filter(
     (m) => m.alliances.red.score >= 0 && m.alliances.blue.score >= 0,
   );
-  const upcomingMatches = qualMatches?.slice(activeCursor);
+  const upcomingMatches = allSortedMatches?.slice(activeCursor);
 
-  const record = qualMatches
-    ? getTeamRecord(qualMatches, myTeamKey, activeCursor)
+  const record = allSortedMatches
+    ? getTeamRecord(allSortedMatches, myTeamKey, activeCursor)
     : { wins: 0, losses: 0, ties: 0 };
 
   if (!eventKey) {
@@ -55,7 +57,8 @@ export default function SimulationPage() {
       <InfoBox heading="Simulation Replay">
         <p>
           <strong>Simulation Replay</strong> lets you time-travel through a past event match by match.
-          Use the cursor slider to step through the qualification schedule and see how the event unfolded.
+          Use the cursor slider to step through the full schedule — qualifications, semifinals,
+          and finals — and see how the event unfolded.
         </p>
         <p>
           Click <strong>Start Simulation</strong> to activate simulation mode across the entire dashboard.
@@ -73,6 +76,11 @@ export default function SimulationPage() {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Match Cursor: {activeCursor} / {maxCursor}
+            {allSortedMatches && activeCursor > 0 && activeCursor <= allSortedMatches.length && (
+              <span className="ml-2 font-mono text-xs text-gray-500">
+                ({matchLabel(allSortedMatches[activeCursor - 1])})
+              </span>
+            )}
           </label>
           <input
             type="range"
@@ -142,11 +150,10 @@ export default function SimulationPage() {
                 return (
                   <div
                     key={m.key}
-                    className={`text-xs py-1 px-2 rounded ${
-                      isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
-                    }`}
+                    className={`text-xs py-1 px-2 rounded ${isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
+                      }`}
                   >
-                    <span className="font-mono mr-2">Q{m.match_number}</span>
+                    <span className="font-mono mr-2">{matchLabel(m)}</span>
                     <span className="text-red-600">
                       {m.alliances.red.team_keys.map((t) => t.replace('frc', '')).join(' ')}
                     </span>
@@ -177,11 +184,10 @@ export default function SimulationPage() {
                 return (
                   <div
                     key={m.key}
-                    className={`text-xs py-1 px-2 rounded ${
-                      isMyMatch ? 'bg-primary-50 dark:bg-primary-950 font-medium' : ''
-                    }`}
+                    className={`text-xs py-1 px-2 rounded ${isMyMatch ? 'bg-primary-50 dark:bg-primary-950 font-medium' : ''
+                      }`}
                   >
-                    <span className="font-mono mr-2">Q{m.match_number}</span>
+                    <span className="font-mono mr-2">{matchLabel(m)}</span>
                     <span className="text-red-600">
                       {m.alliances.red.team_keys.map((t) => t.replace('frc', '')).join(' ')}
                     </span>
