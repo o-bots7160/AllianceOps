@@ -99,7 +99,7 @@ function downloadCSV(entries: PicklistEntry[]) {
 }
 
 export default function PicklistPage() {
-  const { eventKey, teamNumber } = useEventSetup();
+  const { eventKey, teamNumber, setEventKey } = useEventSetup();
   const { activeTeam } = useAuth();
   const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
   const canEdit = isOwnTeam;
@@ -121,6 +121,30 @@ export default function PicklistPage() {
 
   // Track base entries (from EPA data) for merging
   const baseEntriesRef = useRef<PicklistEntry[]>([]);
+
+  // Track previous eventKey to detect changes and reset state
+  const prevEventKeyRef = useRef(eventKey);
+  useEffect(() => {
+    if (prevEventKeyRef.current === eventKey) return;
+    const oldKey = prevEventKeyRef.current;
+    prevEventKeyRef.current = eventKey;
+
+    if (dirty) {
+      if (!window.confirm('You have unsaved changes. Discard them?')) {
+        // User cancelled — revert eventKey
+        setEventKey(oldKey);
+        prevEventKeyRef.current = oldKey;
+        return;
+      }
+    }
+
+    // Reset state for new event
+    setInitialized(false);
+    setDirty(false);
+    setSaved(false);
+    setLastUpdated(null);
+    setLoadError(null);
+  }, [eventKey, dirty, setEventKey]);
 
   // Generate base entries from teams
   const baseEntries = useMemo(() => {
