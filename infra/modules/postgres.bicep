@@ -14,6 +14,12 @@ param adminPassword string
 @description('Azure AD tenant ID for Entra ID authentication')
 param tenantId string = subscription().tenantId
 
+@description('PostgreSQL SKU name (e.g. Standard_B1ms, Standard_B2s)')
+param skuName string = 'Standard_B1ms'
+
+@description('PostgreSQL SKU tier (Burstable, GeneralPurpose, MemoryOptimized)')
+param skuTier string = 'Burstable'
+
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
@@ -21,8 +27,8 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' =
   name: name
   location: location
   sku: {
-    name: 'Standard_B1ms'
-    tier: 'Burstable'
+    name: skuName
+    tier: skuTier
   }
   properties: {
     version: '16'

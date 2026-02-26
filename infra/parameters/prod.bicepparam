@@ -4,6 +4,8 @@ param environmentName = 'prod'
 param location = 'centralus'
 param swaSkuName = 'Standard'
 param swaSkuTier = 'Standard'
+param postgresSkuName = 'Standard_B2s'
+param postgresSkuTier = 'Burstable'
 param budgetAmount = 50
 param customDomains = [
   { name: 'www.allianceops.io', validationMethod: 'cname-delegation' }

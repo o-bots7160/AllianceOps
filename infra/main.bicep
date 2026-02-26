@@ -26,6 +26,12 @@ param postgresAdminPassword string
 @secure()
 param tbaApiKey string = ''
 
+@description('PostgreSQL SKU name')
+param postgresSkuName string = 'Standard_B1ms'
+
+@description('PostgreSQL SKU tier')
+param postgresSkuTier string = 'Burstable'
+
 @description('Monthly budget amount in USD')
 param budgetAmount int = 20
 
@@ -60,6 +66,8 @@ module postgres 'modules/postgres.bicep' = {
     name: 'psql-${suffix}'
     location: location
     adminPassword: postgresAdminPassword
+    skuName: postgresSkuName
+    skuTier: postgresSkuTier
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
