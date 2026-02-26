@@ -2,6 +2,34 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { getTBAClient, getStatboticsClient } from '../lib/clients.js';
 import { cached } from '../cache/index.js';
 import { mergeTeams, mergeMatches } from '../lib/merge.js';
+import { trackUpstreamError } from '../lib/telemetry.js';
+
+interface TBAEvent {
+  key: string;
+  name: string;
+  event_code: string;
+  event_type: number;
+  start_date: string;
+  end_date: string;
+  city: string;
+  state_prov: string;
+  country: string;
+}
+
+/** Map a TBA event to the API response shape. */
+function mapEvent(e: TBAEvent) {
+  return {
+    key: e.key,
+    name: e.name,
+    event_code: e.event_code,
+    event_type: e.event_type,
+    start_date: e.start_date,
+    end_date: e.end_date,
+    city: e.city,
+    state_prov: e.state_prov,
+    country: e.country,
+  };
+}
 
 app.http('getEvents', {
   methods: ['GET'],
@@ -15,17 +43,7 @@ app.http('getEvents', {
 
     const result = await cached(`events:${year}`, 'STATIC', async () => {
       const events = await getTBAClient().getEvents(parseInt(year, 10));
-      return events.map((e) => ({
-        key: e.key,
-        name: e.name,
-        event_code: e.event_code,
-        event_type: e.event_type,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        city: e.city,
-        state_prov: e.state_prov,
-        country: e.country,
-      }));
+      return events.map(mapEvent);
     });
 
     return { status: 200, jsonBody: result };
@@ -50,7 +68,12 @@ app.http('getEventMatches', {
       async () => {
         const [tbaMatches, statboticsMatches] = await Promise.all([
           getTBAClient().getEventMatches(eventKey),
-          getStatboticsClient().getEventMatches(eventKey).catch(() => []),
+          getStatboticsClient()
+            .getEventMatches(eventKey)
+            .catch((err) => {
+              trackUpstreamError('statbotics', `eventMatches:${eventKey}`, err?.status ?? 0);
+              return [];
+            }),
         ]);
         return mergeMatches(tbaMatches, statboticsMatches, includeBreakdowns);
       },
@@ -73,7 +96,12 @@ app.http('getEventTeams', {
     const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', async () => {
       const [tbaTeams, statboticsTeams] = await Promise.all([
         getTBAClient().getEventTeams(eventKey),
-        getStatboticsClient().getEventTeams(eventKey).catch(() => []),
+        getStatboticsClient()
+          .getEventTeams(eventKey)
+          .catch((err) => {
+            trackUpstreamError('statbotics', `eventTeams:${eventKey}`, err?.status ?? 0);
+            return [];
+          }),
       ]);
       return mergeTeams(tbaTeams, statboticsTeams);
     });
@@ -114,22 +142,23 @@ app.http('getTeamEvents', {
     try {
       const result = await cached(`team-events:frc${teamNumber}:${year}`, 'STATIC', async () => {
         const events = await getTBAClient().getTeamEvents(`frc${teamNumber}`, parseInt(year, 10));
-        return events.map((e) => ({
-          key: e.key,
-          name: e.name,
-          event_code: e.event_code,
-          event_type: e.event_type,
-          start_date: e.start_date,
-          end_date: e.end_date,
-          city: e.city,
-          state_prov: e.state_prov,
-          country: e.country,
-        }));
+        return events.map(mapEvent);
       });
 
       return { status: 200, jsonBody: result };
-    } catch {
-      return { status: 200, jsonBody: { data: [], meta: { lastRefresh: new Date().toISOString(), stale: false, ttlClass: 'STATIC' } } };
+    } catch (err) {
+      trackUpstreamError(
+        'tba',
+        `teamEvents:frc${teamNumber}`,
+        (err as { status?: number })?.status ?? 0,
+      );
+      return {
+        status: 200,
+        jsonBody: {
+          data: [],
+          meta: { lastRefresh: new Date().toISOString(), stale: true, ttlClass: 'STATIC' },
+        },
+      };
     }
   },
 });

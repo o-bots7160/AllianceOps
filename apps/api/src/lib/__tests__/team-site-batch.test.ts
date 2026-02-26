@@ -85,7 +85,8 @@ describe('getTeamSiteBatch', () => {
     const teams = Array.from({ length: 11 }, (_, i) => 100 + i);
     const res = await handler(makeRequest({ teamNumbers: teams, year: 2025 }), mockContext);
     expect(res.status).toBe(400);
-    expect(res.jsonBody).toEqual({ error: 'Maximum 10 teams per batch request' });
+    const body = res.jsonBody as { error: string };
+    expect(body.error).toBe('Validation failed');
   });
 
   it('returns site data for valid batch request', async () => {

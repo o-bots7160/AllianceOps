@@ -1,7 +1,7 @@
 import { HttpRequest, HttpResponseInit } from '@azure/functions';
 import { getAuthProvider, type AuthUser } from '@allianceops/shared';
 import { prisma } from './prisma.js';
-import { trackAuthEvent } from './telemetry.js';
+import { trackAuthEvent, trackException } from './telemetry.js';
 import type { TeamRole } from '@prisma/client';
 
 /** Role hierarchy for permission checks (higher index = more privilege). */
@@ -10,6 +10,13 @@ const ROLE_RANK: Record<TeamRole, number> = {
   MENTOR: 1,
   COACH: 2,
 };
+
+/**
+ * Short-lived in-memory cache to avoid upsert-per-request DB pressure.
+ * Keys are user IDs; values are the timestamp of the last successful upsert.
+ */
+const UPSERT_CACHE_TTL_MS = 60_000; // 60 seconds
+const recentUpserts = new Map<string, number>();
 
 /** Extract headers from Azure Functions HttpRequest into a plain record. */
 function extractHeaders(request: HttpRequest): Record<string, string | undefined> {
@@ -22,7 +29,8 @@ function extractHeaders(request: HttpRequest): Record<string, string | undefined
 
 /**
  * Resolve the current user from request headers.
- * Returns null if not authenticated. Upserts User record in database.
+ * Returns null if not authenticated. Upserts User record in database
+ * (throttled to once per 60s per user to reduce DB pressure).
  */
 export async function resolveUser(request: HttpRequest): Promise<AuthUser | null> {
   const provider = getAuthProvider();
@@ -45,6 +53,12 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
 
   trackAuthEvent('success', { identityId: authUser.id, url: request.url });
 
+  // Skip upsert if this user was recently upserted
+  const lastUpsert = recentUpserts.get(authUser.id);
+  if (lastUpsert && Date.now() - lastUpsert < UPSERT_CACHE_TTL_MS) {
+    return authUser;
+  }
+
   // Upsert user record in the database
   try {
     await prisma.user.upsert({
@@ -59,15 +73,14 @@ export async function resolveUser(request: HttpRequest): Promise<AuthUser | null
         displayName: authUser.displayName ?? null,
       },
     });
+    recentUpserts.set(authUser.id, Date.now());
   } catch (err) {
     // Log but don't crash — the user is authenticated even if the DB
     // upsert fails (e.g., schema drift, connection issue). The caller
     // can still use the AuthUser for basic auth checks.
-    console.error('User upsert failed:', {
-      id: authUser.id,
-      email: authUser.email,
-      displayName: authUser.displayName,
-      error: err instanceof Error ? err.message : String(err),
+    trackException(err instanceof Error ? err : new Error(String(err)), {
+      operation: 'resolveUser.upsert',
+      userId: authUser.id,
     });
   }
 

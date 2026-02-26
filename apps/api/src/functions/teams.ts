@@ -2,7 +2,28 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { prisma } from '../lib/prisma.js';
 import { requireUser, requireTeamMember, requireTeamRole, isAuthError } from '../lib/auth.js';
 import { randomBytes } from 'crypto';
-import type { TeamRole } from '@prisma/client';
+import {
+  CreateTeamSchema,
+  UpdateTeamSchema,
+  CreateInviteCodeSchema,
+  ReviewJoinRequestSchema,
+  ChangeMemberRoleSchema,
+  parseBody,
+  isValidationError,
+  requiredParam,
+  isParamError,
+} from '../lib/validation.js';
+
+/** Custom error class for invite code validation within transactions. */
+class InviteError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'InviteError';
+  }
+}
 
 // ─── Team CRUD ───────────────────────────────────────────
 
@@ -14,11 +35,8 @@ app.http('createTeam', {
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as { teamNumber: number; name: string };
-
-    if (!body.teamNumber || !body.name) {
-      return { status: 400, jsonBody: { error: 'teamNumber and name are required' } };
-    }
+    const body = await parseBody(request, CreateTeamSchema);
+    if (isValidationError(body)) return body;
 
     const existing = await prisma.team.findUnique({ where: { teamNumber: body.teamNumber } });
     if (existing) {
@@ -79,7 +97,8 @@ app.http('getTeam', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
     const auth = await requireTeamMember(request, teamId);
     if (isAuthError(auth)) return auth;
 
@@ -102,11 +121,13 @@ app.http('updateTeam', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
     const auth = await requireTeamRole(request, teamId, 'COACH');
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as { name?: string };
+    const body = await parseBody(request, UpdateTeamSchema);
+    if (isValidationError(body)) return body;
     const team = await prisma.team.update({
       where: { id: teamId },
       data: { ...(body.name && { name: body.name }) },
@@ -123,11 +144,13 @@ app.http('createInviteCode', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/invite',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as { maxUses?: number; expiresInHours?: number };
+    const body = await parseBody(request, CreateInviteCodeSchema);
+    if (isValidationError(body)) return body;
     const code = randomBytes(4).toString('hex').toUpperCase();
 
     const invite = await prisma.inviteCode.create({
@@ -153,43 +176,55 @@ app.http('joinViaCode', {
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
-    const code = request.params.code!;
+    const code = requiredParam(request, 'code');
+    if (isParamError(code)) return code;
 
-    const invite = await prisma.inviteCode.findUnique({ where: { code } });
-    if (!invite || !invite.active) {
-      return { status: 404, jsonBody: { error: 'Invalid or inactive invite code' } };
-    }
-    if (invite.expiresAt && invite.expiresAt < new Date()) {
-      return { status: 410, jsonBody: { error: 'Invite code has expired' } };
-    }
-    if (invite.maxUses && invite.useCount >= invite.maxUses) {
-      return { status: 410, jsonBody: { error: 'Invite code has reached max uses' } };
-    }
+    // Use a serializable transaction to prevent race conditions on maxUses
+    try {
+      const member = await prisma.$transaction(async (tx) => {
+        const invite = await tx.inviteCode.findUnique({ where: { code } });
+        if (!invite || !invite.active) {
+          throw new InviteError(404, 'Invalid or inactive invite code');
+        }
+        if (invite.expiresAt && invite.expiresAt < new Date()) {
+          throw new InviteError(410, 'Invite code has expired');
+        }
+        if (invite.maxUses && invite.useCount >= invite.maxUses) {
+          throw new InviteError(410, 'Invite code has reached max uses');
+        }
 
-    const existing = await prisma.teamMember.findUnique({
-      where: { userId_teamId: { userId: auth.id, teamId: invite.teamId } },
-    });
-    if (existing) {
-      return { status: 409, jsonBody: { error: 'You are already a member of this team' } };
+        const existing = await tx.teamMember.findUnique({
+          where: { userId_teamId: { userId: auth.id, teamId: invite.teamId } },
+        });
+        if (existing) {
+          throw new InviteError(409, 'You are already a member of this team');
+        }
+
+        const newMember = await tx.teamMember.create({
+          data: { userId: auth.id, teamId: invite.teamId, role: 'STUDENT' },
+          include: { team: true },
+        });
+
+        await tx.inviteCode.update({
+          where: { id: invite.id },
+          data: { useCount: { increment: 1 } },
+        });
+
+        return newMember;
+      });
+
+      return {
+        status: 201,
+        jsonBody: {
+          data: { teamId: member.teamId, teamNumber: member.team.teamNumber, role: member.role },
+        },
+      };
+    } catch (err) {
+      if (err instanceof InviteError) {
+        return { status: err.statusCode, jsonBody: { error: err.message } };
+      }
+      throw err;
     }
-
-    const [member] = await prisma.$transaction([
-      prisma.teamMember.create({
-        data: { userId: auth.id, teamId: invite.teamId, role: 'STUDENT' },
-        include: { team: true },
-      }),
-      prisma.inviteCode.update({
-        where: { id: invite.id },
-        data: { useCount: { increment: 1 } },
-      }),
-    ]);
-
-    return {
-      status: 201,
-      jsonBody: {
-        data: { teamId: member.teamId, teamNumber: member.team.teamNumber, role: member.role },
-      },
-    };
   },
 });
 
@@ -200,7 +235,8 @@ app.http('createJoinRequest', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/join-request',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
 
@@ -238,7 +274,8 @@ app.http('listJoinRequests', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/join-requests',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
@@ -257,12 +294,15 @@ app.http('reviewJoinRequest', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/join-requests/{requestId}',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
-    const requestId = request.params.requestId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
+    const requestId = requiredParam(request, 'requestId');
+    if (isParamError(requestId)) return requestId;
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as { action: 'approve' | 'reject'; role?: TeamRole };
+    const body = await parseBody(request, ReviewJoinRequestSchema);
+    if (isValidationError(body)) return body;
 
     const joinRequest = await prisma.joinRequest.findFirst({
       where: { id: requestId, teamId, status: 'PENDING' },
@@ -299,8 +339,10 @@ app.http('removeMember', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/members/{userId}',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
-    const targetUserId = request.params.userId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
+    const targetUserId = requiredParam(request, 'userId');
+    if (isParamError(targetUserId)) return targetUserId;
     const auth = await requireTeamRole(request, teamId, 'MENTOR');
     if (isAuthError(auth)) return auth;
 
@@ -335,15 +377,15 @@ app.http('changeMemberRole', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/members/{userId}/role',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
-    const targetUserId = request.params.userId!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
+    const targetUserId = requiredParam(request, 'userId');
+    if (isParamError(targetUserId)) return targetUserId;
     const auth = await requireTeamRole(request, teamId, 'COACH');
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as { role: TeamRole };
-    if (!['COACH', 'MENTOR', 'STUDENT'].includes(body.role)) {
-      return { status: 400, jsonBody: { error: 'Invalid role' } };
-    }
+    const body = await parseBody(request, ChangeMemberRoleSchema);
+    if (isValidationError(body)) return body;
 
     const target = await prisma.teamMember.findUnique({
       where: { userId_teamId: { userId: targetUserId, teamId } },
@@ -368,7 +410,9 @@ app.http('findTeamByNumber', {
   authLevel: 'anonymous',
   route: 'teams/lookup/{teamNumber}',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamNumber = parseInt(request.params.teamNumber!, 10);
+    const rawTeamNumber = requiredParam(request, 'teamNumber');
+    if (isParamError(rawTeamNumber)) return rawTeamNumber;
+    const teamNumber = parseInt(rawTeamNumber, 10);
     if (isNaN(teamNumber)) {
       return { status: 400, jsonBody: { error: 'Invalid team number' } };
     }

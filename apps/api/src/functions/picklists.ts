@@ -1,6 +1,13 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { prisma } from '../lib/prisma.js';
 import { requireTeamMember, isAuthError } from '../lib/auth.js';
+import {
+  UpsertPicklistSchema,
+  parseBody,
+  isValidationError,
+  requiredParam,
+  isParamError,
+} from '../lib/validation.js';
 
 const DEFAULT_PICKLIST_NAME = 'default';
 
@@ -9,8 +16,10 @@ app.http('getPicklist', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/picklist',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
-    const eventKey = request.params.eventKey!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
+    const eventKey = requiredParam(request, 'eventKey');
+    if (isParamError(eventKey)) return eventKey;
 
     const auth = await requireTeamMember(request, teamId);
     if (isAuthError(auth)) return auth;
@@ -33,10 +42,6 @@ app.http('getPicklist', {
       },
     });
 
-    if (picklist && picklist.teamId && picklist.teamId !== teamId) {
-      return { status: 403, jsonBody: { error: 'Picklist belongs to a different team' } };
-    }
-
     return {
       status: 200,
       jsonBody: {
@@ -51,21 +56,16 @@ app.http('upsertPicklist', {
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/picklist',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = request.params.teamId!;
-    const eventKey = request.params.eventKey!;
+    const teamId = requiredParam(request, 'teamId');
+    if (isParamError(teamId)) return teamId;
+    const eventKey = requiredParam(request, 'eventKey');
+    if (isParamError(eventKey)) return eventKey;
 
     const auth = await requireTeamMember(request, teamId);
     if (isAuthError(auth)) return auth;
 
-    const body = (await request.json()) as {
-      entries: Array<{
-        teamNumber: number;
-        rank: number;
-        tags: string[];
-        notes: string;
-        excluded: boolean;
-      }>;
-    };
+    const body = await parseBody(request, UpsertPicklistSchema);
+    if (isValidationError(body)) return body;
 
     const picklist = await prisma.picklist.upsert({
       where: {

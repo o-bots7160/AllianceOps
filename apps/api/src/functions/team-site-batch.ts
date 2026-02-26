@@ -1,40 +1,17 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getStatboticsClient } from '../lib/clients.js';
 import { cached } from '../cache/index.js';
-
-const MAX_TEAMS = 10;
-
-interface BatchRequestBody {
-  teamNumbers: number[];
-  year: number;
-}
+import { TeamSiteBatchSchema, parseBody, isValidationError } from '../lib/validation.js';
 
 app.http('getTeamSiteBatch', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'teams/site-batch',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    let body: BatchRequestBody;
-    try {
-      body = (await request.json()) as BatchRequestBody;
-    } catch {
-      return { status: 400, jsonBody: { error: 'Invalid JSON body' } };
-    }
+    const body = await parseBody(request, TeamSiteBatchSchema);
+    if (isValidationError(body)) return body;
 
     const { teamNumbers, year } = body;
-    if (!Array.isArray(teamNumbers) || teamNumbers.length === 0 || !year) {
-      return {
-        status: 400,
-        jsonBody: { error: 'teamNumbers (non-empty array) and year are required' },
-      };
-    }
-
-    if (teamNumbers.length > MAX_TEAMS) {
-      return {
-        status: 400,
-        jsonBody: { error: `Maximum ${MAX_TEAMS} teams per batch request` },
-      };
-    }
 
     const results: Record<number, unknown> = {};
     const client = getStatboticsClient();

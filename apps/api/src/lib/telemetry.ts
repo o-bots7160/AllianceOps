@@ -60,6 +60,11 @@ export function trackAuthEvent(event: AuthEventType, properties?: Record<string,
   });
 }
 
+/** Track an exception with optional custom properties. */
+export function trackException(error: Error, properties?: Record<string, string>): void {
+  client?.trackException({ exception: error, properties });
+}
+
 /** Returns true if the Application Insights client is initialized. */
 export function isTelemetryEnabled(): boolean {
   return client !== null;
