@@ -189,15 +189,13 @@ jobs:
 
       - name: Capture FA Hostname
         id: capture-hostname
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            HOSTNAME=$(az functionapp show \
-              --name func-aops-test \
-              --resource-group rg-aops-test \
-              --query defaultHostName -o tsv)
-            echo "fa_hostname=$HOSTNAME" >> $GITHUB_OUTPUT
-            echo "Function App hostname: $HOSTNAME"
+        run: |
+          HOSTNAME=$(az functionapp show \
+            --name func-aops-test \
+            --resource-group rg-aops-test \
+            --query defaultHostName -o tsv)
+          echo "fa_hostname=$HOSTNAME" >> "$GITHUB_OUTPUT"
+          echo "Function App hostname: $HOSTNAME"
 
       - name: Warm Up Function App
         run: |
