@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { prisma } from '../lib/prisma.js';
 import { requireUser, isAuthError } from '../lib/auth.js';
+import { trackException } from '../lib/telemetry.js';
 
 app.http('getMe', {
   methods: ['GET'],
@@ -10,15 +11,24 @@ app.http('getMe', {
     const auth = await requireUser(request);
     if (isAuthError(auth)) return auth;
 
-    const user = await prisma.user.findUnique({
-      where: { id: auth.id },
-      include: {
-        memberships: {
-          include: { team: true },
-          orderBy: { joinedAt: 'asc' },
+    let user;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id: auth.id },
+        include: {
+          memberships: {
+            include: { team: true },
+            orderBy: { joinedAt: 'asc' },
+          },
         },
-      },
-    });
+      });
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'getMe.findUser',
+        userId: auth.id,
+      });
+      // Fall through — treat as if user record doesn't exist yet
+    }
 
     // User is authenticated but may not have a DB record yet
     // (e.g., first login and upsert failed). Return auth info directly.

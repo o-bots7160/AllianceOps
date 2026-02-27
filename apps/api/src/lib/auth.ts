@@ -4,6 +4,13 @@ import { prisma } from './prisma.js';
 import { trackAuthEvent, trackException } from './telemetry.js';
 import type { TeamRole } from '@prisma/client';
 
+/** Reusable 503 response for transient database failures. */
+const DB_UNAVAILABLE: HttpResponseInit = {
+  status: 503,
+  jsonBody: { error: 'Service temporarily unavailable. Please try again.' },
+  headers: { 'Retry-After': '5' },
+};
+
 /** Role hierarchy for permission checks (higher index = more privilege). */
 const ROLE_RANK: Record<TeamRole, number> = {
   STUDENT: 0,
@@ -109,9 +116,19 @@ export async function requireTeamMember(
   const result = await requireUser(request);
   if (isAuthError(result)) return result;
 
-  const member = await prisma.teamMember.findUnique({
-    where: { userId_teamId: { userId: result.id, teamId } },
-  });
+  let member;
+  try {
+    member = await prisma.teamMember.findUnique({
+      where: { userId_teamId: { userId: result.id, teamId } },
+    });
+  } catch (err) {
+    trackException(err instanceof Error ? err : new Error(String(err)), {
+      operation: 'requireTeamMember.lookup',
+      userId: result.id,
+      teamId,
+    });
+    return DB_UNAVAILABLE;
+  }
 
   if (!member) {
     return { status: 403, jsonBody: { error: 'Team membership required' } };

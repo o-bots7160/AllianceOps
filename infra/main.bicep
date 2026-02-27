@@ -1,7 +1,7 @@
 targetScope = 'resourceGroup'
 
-@description('Environment name (dev or prod)')
-@allowed(['dev', 'prod'])
+@description('Environment name (dev, prod, or test)')
+@allowed(['dev', 'prod', 'test'])
 param environmentName string
 
 @description('Azure region for all resources')
@@ -26,6 +26,12 @@ param postgresAdminPassword string
 @secure()
 param tbaApiKey string = ''
 
+@description('PostgreSQL SKU name')
+param postgresSkuName string = 'Standard_B1ms'
+
+@description('PostgreSQL SKU tier')
+param postgresSkuTier string = 'Burstable'
+
 @description('Monthly budget amount in USD')
 param budgetAmount int = 20
 
@@ -34,6 +40,9 @@ param budgetContactEmails array = []
 
 @description('Custom domains for the SWA. Array of objects: { name: string, validationMethod: string }')
 param customDomains array = []
+
+@description('Number of always-ready Function App HTTP instances (0 = none)')
+param functionAlwaysReadyCount int = 0
 
 @description('Budget start date (YYYY-MM-01 format, defaults to current month)')
 param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
@@ -60,6 +69,8 @@ module postgres 'modules/postgres.bicep' = {
     name: 'psql-${suffix}'
     location: location
     adminPassword: postgresAdminPassword
+    skuName: postgresSkuName
+    skuTier: postgresSkuTier
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
@@ -74,6 +85,7 @@ module functionApp 'modules/functionApp.bicep' = {
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: 'kv-${suffix}'
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+    alwaysReadyCount: functionAlwaysReadyCount
   }
 }
 

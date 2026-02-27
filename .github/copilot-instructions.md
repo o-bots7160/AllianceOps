@@ -212,6 +212,7 @@ The shared package must build before api and web can typecheck. Turborepo handle
 - Infrastructure deployment (Bicep) is conditionally skipped when `infra/` files haven't changed
 - Function App and SWA are deployed in parallel using shell background processes
 - Apex domain registration is a separate on-demand workflow (`register-apex.yml`)
+- Operations dashboard deployment is a separate on-demand workflow (`deploy-dashboard.yml`)
 
 ### Pipeline Reproducibility
 
@@ -299,6 +300,9 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 023: Reusable Deploy Workflow
   - 024: Apex Domain Redirect
   - 025: Pipeline Optimization
+  - 026: Azure Operations Dashboard
+  - 027: Ephemeral Test Environment
+  - 028: Function Cold Start Optimization
 
 ## Anti-Patterns to Avoid
 

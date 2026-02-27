@@ -1,0 +1,13 @@
+{
+  "name": "@allianceops/tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:integration": "vitest run --config integration/vitest.config.ts",
+    "test:integration:watch": "vitest --config integration/vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^3.0.0"
+  }
+}

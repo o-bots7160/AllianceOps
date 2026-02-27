@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { getTBAClient, getStatboticsClient } from '../lib/clients.js';
 import { cached } from '../cache/index.js';
 import { mergeTeams, mergeMatches } from '../lib/merge.js';
-import { trackUpstreamError } from '../lib/telemetry.js';
+import { trackUpstreamError, trackException } from '../lib/telemetry.js';
 
 interface TBAEvent {
   key: string;
@@ -41,12 +41,23 @@ app.http('getEvents', {
       return { status: 400, jsonBody: { error: 'year query parameter is required' } };
     }
 
-    const result = await cached(`events:${year}`, 'STATIC', async () => {
-      const events = await getTBAClient().getEvents(parseInt(year, 10));
-      return events.map(mapEvent);
-    });
+    try {
+      const result = await cached(`events:${year}`, 'STATIC', async () => {
+        const events = await getTBAClient().getEvents(parseInt(year, 10));
+        return events.map(mapEvent);
+      });
 
-    return { status: 200, jsonBody: result };
+      return { status: 200, jsonBody: result };
+    } catch (err) {
+      trackUpstreamError('tba', `events:${year}`, (err as { status?: number })?.status ?? 0);
+      return {
+        status: 200,
+        jsonBody: {
+          data: [],
+          meta: { lastRefresh: new Date().toISOString(), stale: true, ttlClass: 'STATIC' },
+        },
+      };
+    }
   },
 });
 
@@ -62,24 +73,35 @@ app.http('getEventMatches', {
 
     const includeBreakdowns = request.query.get('breakdowns') === 'true';
 
-    const result = await cached(
-      `matches:${eventKey}:${includeBreakdowns ? 'full' : 'slim'}`,
-      'LIVE',
-      async () => {
-        const [tbaMatches, statboticsMatches] = await Promise.all([
-          getTBAClient().getEventMatches(eventKey),
-          getStatboticsClient()
-            .getEventMatches(eventKey)
-            .catch((err) => {
-              trackUpstreamError('statbotics', `eventMatches:${eventKey}`, err?.status ?? 0);
-              return [];
-            }),
-        ]);
-        return mergeMatches(tbaMatches, statboticsMatches, includeBreakdowns);
-      },
-    );
+    try {
+      const result = await cached(
+        `matches:${eventKey}:${includeBreakdowns ? 'full' : 'slim'}`,
+        'LIVE',
+        async () => {
+          const [tbaMatches, statboticsMatches] = await Promise.all([
+            getTBAClient().getEventMatches(eventKey),
+            getStatboticsClient()
+              .getEventMatches(eventKey)
+              .catch((err) => {
+                trackUpstreamError('statbotics', `eventMatches:${eventKey}`, err?.status ?? 0);
+                return [];
+              }),
+          ]);
+          return mergeMatches(tbaMatches, statboticsMatches, includeBreakdowns);
+        },
+      );
 
-    return { status: 200, jsonBody: result };
+      return { status: 200, jsonBody: result };
+    } catch (err) {
+      trackUpstreamError('tba', `eventMatches:${eventKey}`, (err as { status?: number })?.status ?? 0);
+      return {
+        status: 200,
+        jsonBody: {
+          data: [],
+          meta: { lastRefresh: new Date().toISOString(), stale: true, ttlClass: 'LIVE' },
+        },
+      };
+    }
   },
 });
 
@@ -93,20 +115,31 @@ app.http('getEventTeams', {
       return { status: 400, jsonBody: { error: 'eventKey is required' } };
     }
 
-    const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', async () => {
-      const [tbaTeams, statboticsTeams] = await Promise.all([
-        getTBAClient().getEventTeams(eventKey),
-        getStatboticsClient()
-          .getEventTeams(eventKey)
-          .catch((err) => {
-            trackUpstreamError('statbotics', `eventTeams:${eventKey}`, err?.status ?? 0);
-            return [];
-          }),
-      ]);
-      return mergeTeams(tbaTeams, statboticsTeams);
-    });
+    try {
+      const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', async () => {
+        const [tbaTeams, statboticsTeams] = await Promise.all([
+          getTBAClient().getEventTeams(eventKey),
+          getStatboticsClient()
+            .getEventTeams(eventKey)
+            .catch((err) => {
+              trackUpstreamError('statbotics', `eventTeams:${eventKey}`, err?.status ?? 0);
+              return [];
+            }),
+        ]);
+        return mergeTeams(tbaTeams, statboticsTeams);
+      });
 
-    return { status: 200, jsonBody: result };
+      return { status: 200, jsonBody: result };
+    } catch (err) {
+      trackUpstreamError('tba', `eventTeams:${eventKey}`, (err as { status?: number })?.status ?? 0);
+      return {
+        status: 200,
+        jsonBody: {
+          data: [],
+          meta: { lastRefresh: new Date().toISOString(), stale: true, ttlClass: 'SEMI_STATIC' },
+        },
+      };
+    }
   },
 });
 
@@ -120,11 +153,22 @@ app.http('getEventRankings', {
       return { status: 400, jsonBody: { error: 'eventKey is required' } };
     }
 
-    const result = await cached(`rankings:${eventKey}`, 'SEMI_STATIC', () =>
-      getTBAClient().getEventRankings(eventKey),
-    );
+    try {
+      const result = await cached(`rankings:${eventKey}`, 'SEMI_STATIC', () =>
+        getTBAClient().getEventRankings(eventKey),
+      );
 
-    return { status: 200, jsonBody: result };
+      return { status: 200, jsonBody: result };
+    } catch (err) {
+      trackUpstreamError('tba', `rankings:${eventKey}`, (err as { status?: number })?.status ?? 0);
+      return {
+        status: 200,
+        jsonBody: {
+          data: null,
+          meta: { lastRefresh: new Date().toISOString(), stale: true, ttlClass: 'SEMI_STATIC' },
+        },
+      };
+    }
   },
 });
 

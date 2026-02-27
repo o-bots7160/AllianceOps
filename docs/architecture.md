@@ -69,12 +69,12 @@ The `GameDefinition` adapter pattern ensures season-agnostic core logic:
 
 ## Authentication
 
-- Pluggable `AuthProvider` abstraction
-- Azure Static Web Apps built-in auth (EasyAuth) with Google and GitHub SSO
-- Landing page is public; all other routes require authentication via SWA route rules
-- The `staticwebapp.config.json` enforces `allowedRoles: ["authenticated"]` on all non-root routes, redirecting unauthenticated users to Google login
-- Roles: `viewer` (read-only) and `editor` (read-write)
-- Team management: users create or join teams via invite codes or join requests
+- Pluggable `AuthProvider` abstraction (`SWAAuthProvider` reads Azure SWA EasyAuth headers)
+- Azure Static Web Apps built-in auth (EasyAuth) with Google, Microsoft (AAD), and GitHub SSO
+- Landing page (`/`) and privacy page (`/privacy/`) are public; all other routes require authentication via SWA route rules
+- `staticwebapp.config.json` enforces `allowedRoles: ["authenticated"]` on `/*`, with anonymous exceptions for `/`, `/privacy/`, `/api/*`, `/_next/*`, `/.auth/*`, and `/images/*`. Unauthenticated users hitting protected routes get a 302 redirect to `/` (landing page with sign-in buttons)
+- Roles: `viewer` (read-only) and `editor` (read-write) at the app level
+- **Team management**: Users create or join teams via invite codes or join requests. Team roles: COACH > MENTOR > STUDENT
 
 ## Local Development
 
@@ -84,4 +84,4 @@ Full dev environment runs in a Dev Container with:
 - PostgreSQL 16 (Docker)
 - Azurite (Azure Storage emulator)
 - Azure Functions Core Tools
-- MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma, Next.js DevTools, Bicep)
+- MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma)

@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { prisma } from '../lib/prisma.js';
 import { requireTeamMember, isAuthError } from '../lib/auth.js';
+import { trackException } from '../lib/telemetry.js';
 import {
   UpsertMatchPlanSchema,
   ApplyTemplateSchema,
@@ -25,18 +26,28 @@ app.http('getMatchPlan', {
     const auth = await requireTeamMember(request, teamId);
     if (isAuthError(auth)) return auth;
 
-    const plan = await prisma.matchPlan.findUnique({
-      where: { teamId_eventKey_matchKey: { teamId, eventKey, matchKey } },
-      include: {
-        duties: { select: { slotKey: true, teamNumber: true, notes: true } },
-        notes: {
-          select: { id: true, content: true, createdAt: true },
-          orderBy: { createdAt: 'asc' },
+    try {
+      const plan = await prisma.matchPlan.findUnique({
+        where: { teamId_eventKey_matchKey: { teamId, eventKey, matchKey } },
+        include: {
+          duties: { select: { slotKey: true, teamNumber: true, notes: true } },
+          notes: {
+            select: { id: true, content: true, createdAt: true },
+            orderBy: { createdAt: 'asc' },
+          },
         },
-      },
-    });
+      });
 
-    return { status: 200, jsonBody: { data: plan ?? null } };
+      return { status: 200, jsonBody: { data: plan ?? null } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'getMatchPlan',
+        teamId,
+        eventKey,
+        matchKey,
+      });
+      return { status: 503, jsonBody: { error: 'Service temporarily unavailable' } };
+    }
   },
 });
 
@@ -58,41 +69,51 @@ app.http('upsertMatchPlan', {
     const body = await parseBody(request, UpsertMatchPlanSchema);
     if (isValidationError(body)) return body;
 
-    const plan = await prisma.matchPlan.upsert({
-      where: { teamId_eventKey_matchKey: { teamId, eventKey, matchKey } },
-      create: {
+    try {
+      const plan = await prisma.matchPlan.upsert({
+        where: { teamId_eventKey_matchKey: { teamId, eventKey, matchKey } },
+        create: {
+          teamId,
+          eventKey,
+          matchKey,
+          createdBy: auth.user.id,
+          duties: {
+            create: body.duties.map((d) => ({
+              slotKey: d.slotKey,
+              teamNumber: d.teamNumber,
+              notes: d.notes ?? null,
+            })),
+          },
+        },
+        update: {
+          duties: {
+            deleteMany: {},
+            create: body.duties.map((d) => ({
+              slotKey: d.slotKey,
+              teamNumber: d.teamNumber,
+              notes: d.notes ?? null,
+            })),
+          },
+        },
+        include: {
+          duties: { select: { slotKey: true, teamNumber: true, notes: true } },
+          notes: {
+            select: { id: true, content: true, createdAt: true },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      return { status: 200, jsonBody: { data: plan } };
+    } catch (err) {
+      trackException(err instanceof Error ? err : new Error(String(err)), {
+        operation: 'upsertMatchPlan',
         teamId,
         eventKey,
         matchKey,
-        createdBy: auth.user.id,
-        duties: {
-          create: body.duties.map((d) => ({
-            slotKey: d.slotKey,
-            teamNumber: d.teamNumber,
-            notes: d.notes ?? null,
-          })),
-        },
-      },
-      update: {
-        duties: {
-          deleteMany: {},
-          create: body.duties.map((d) => ({
-            slotKey: d.slotKey,
-            teamNumber: d.teamNumber,
-            notes: d.notes ?? null,
-          })),
-        },
-      },
-      include: {
-        duties: { select: { slotKey: true, teamNumber: true, notes: true } },
-        notes: {
-          select: { id: true, content: true, createdAt: true },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-    });
-
-    return { status: 200, jsonBody: { data: plan } };
+      });
+      return { status: 503, jsonBody: { error: 'Failed to save match plan. Please try again.' } };
+    }
   },
 });
 

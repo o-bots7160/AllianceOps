@@ -1,9 +1,7 @@
 # Reusable deployment workflow shared by dev and prod.
-# Called from deploy-dev.yml and deploy-prod.yml with environment-specific inputs.
+# Called from deploy-dev.yml and deploy-prod.yml after build.yml produces artifacts.
 #
 # Optimizations applied (see ADR-025):
-#   - Turborepo build cache via actions/cache
-#   - Next.js incremental build cache
 #   - Conditional Bicep infra deploy (skip when infra/ unchanged)
 #   - Cached Function App npm install + Prisma engines
 #   - Parallel Function App + SWA deployment
@@ -27,66 +25,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      # Cache Prisma engines so db:generate doesn't re-download them
-      - name: Cache Prisma Engines
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules/.prisma
-            node_modules/@prisma/engines
-          key: prisma-${{ runner.os }}-${{ hashFiles('apps/api/prisma/schema.prisma', 'pnpm-lock.yaml') }}
-
-      - run: pnpm db:generate
-
-      # Turborepo local cache — persisted across runs via actions/cache
-      - name: Cache Turborepo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
-
-      # Next.js incremental build cache (SWC + webpack)
-      - name: Cache Next.js Build
-        uses: actions/cache@v4
-        with:
-          path: apps/web/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'pnpm-lock.yaml') }}
-          restore-keys: nextjs-${{ runner.os }}-
-
-      - name: Build
-        run: |
-          export NEXT_PUBLIC_APP_VERSION="v1.0.${{ github.run_number }}+${GITHUB_SHA::7}"
-          pnpm build
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: apps/web/out/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: api-build
-          path: apps/api/dist/
-
   deploy:
     name: Deploy to ${{ inputs.environment }}
-    needs: build
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:

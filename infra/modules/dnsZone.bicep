@@ -1,8 +1,8 @@
 @description('Domain name for the DNS zone (e.g. allianceops.io)')
 param domainName string
 
-@description('Environment name (dev or prod)')
-@allowed(['dev', 'prod'])
+@description('Environment name (dev, prod, or test)')
+@allowed(['dev', 'prod', 'test'])
 param environmentName string
 
 @description('Default hostname of the current environment\'s SWA (e.g. random-name.azurestaticapps.net)')

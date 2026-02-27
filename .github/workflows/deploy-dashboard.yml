@@ -1,0 +1,50 @@
+# Deploy the AllianceOps operations dashboard to rg-aops-global.
+# Manual-dispatch workflow — run on-demand when dashboard changes are needed.
+name: Deploy Dashboard
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Dashboard
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout infra
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: infra
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az group create --name rg-aops-global --location centralus
+
+      - name: Deploy Dashboard
+        uses: azure/CLI@v2
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group rg-aops-global \
+              --template-file infra/dashboard.bicep \
+              --parameters infra/parameters/dashboard.bicepparam \
+              --name "dashboard-$(date +%s)"
