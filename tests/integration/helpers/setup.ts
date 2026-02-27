@@ -10,10 +10,11 @@ import { PERSONAS } from './auth';
 import { get, post, put } from './api-client';
 import { TEAM_7160_NUMBER, TEAM_6328_NUMBER, sharedState } from './test-data';
 
-const MAX_HEALTH_RETRIES = 30;
-const HEALTH_RETRY_DELAY_MS = 2000;
+const MAX_HEALTH_RETRIES = 60;
+const HEALTH_RETRY_DELAY_MS = 3000;
 
 async function waitForHealthy(): Promise<void> {
+  console.log(`Health check target: ${process.env.API_BASE_URL}/api/health`);
   let connectionRefusedCount = 0;
   for (let i = 0; i < MAX_HEALTH_RETRIES; i++) {
     try {
@@ -22,6 +23,7 @@ async function waitForHealthy(): Promise<void> {
         console.log(`Health check passed on attempt ${i + 1}`);
         return;
       }
+      console.log(`Health check attempt ${i + 1}: status ${res.status}`);
     } catch (err: unknown) {
       // If the server is refusing connections, fail fast after a few tries
       const message = err instanceof Error ? err.message : String(err);

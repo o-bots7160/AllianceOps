@@ -199,6 +199,13 @@ jobs:
             echo "fa_hostname=$HOSTNAME" >> $GITHUB_OUTPUT
             echo "Function App hostname: $HOSTNAME"
 
+      - name: Warm Up Function App
+        run: |
+          HOSTNAME=$(echo "${{ steps.capture-hostname.outputs.fa_hostname }}")
+          echo "Triggering cold start: https://$HOSTNAME/api/health"
+          curl -sf --max-time 120 --retry 5 --retry-delay 10 \
+            "https://$HOSTNAME/api/health" || echo "Warm-up ping returned non-200 (FA may still be starting)"
+
   integration:
     name: Integration Tests
     needs: deploy-test-env
