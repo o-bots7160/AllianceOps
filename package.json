@@ -16,7 +16,8 @@
     "db:generate": "pnpm --filter @allianceops/api exec prisma generate",
     "db:studio": "pnpm --filter @allianceops/api exec prisma studio",
     "seed:sim": "pnpm --filter @allianceops/shared exec tsx src/simulation/seed.ts",
-    "simulate-deploy": "./scripts/simulate-deploy.sh"
+    "simulate-deploy": "./scripts/simulate-deploy.sh",
+    "test:integration": "API_BASE_URL=http://localhost:7071 pnpm --filter @allianceops/tests test:integration"
   },
   "devDependencies": {
     "@azure/static-web-apps-cli": "^2.0.0",
