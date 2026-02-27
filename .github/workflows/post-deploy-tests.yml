@@ -1,24 +1,19 @@
 # Post-deploy integration and load tests against an ephemeral Azure environment.
-# Triggered after a successful Deploy Dev workflow run.
+# Called from deploy-dev.yml after a successful deploy.
 # Spins up rg-aops-test, deploys the same build artifacts, runs tests, tears down.
 name: Post-Deploy Tests
 
 on:
-  workflow_run:
-    workflows: ['Deploy Dev']
-    types: [completed]
-    branches: [dev]
+  workflow_call:
 
 jobs:
   deploy-test-env:
     name: Deploy Test Environment
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: test
     permissions:
       id-token: write
       contents: read
-      actions: read
     outputs:
       fa_hostname: ${{ steps.capture-hostname.outputs.fa_hostname }}
     steps:
@@ -36,16 +31,12 @@ jobs:
         with:
           name: api-build
           path: apps/api/dist/
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Web Build Artifact
         uses: actions/download-artifact@v4
         with:
           name: web-build
           path: apps/web/out/
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v6
         with:
@@ -321,7 +312,6 @@ jobs:
           BODY="## Post-Deploy Test Failures
 
           **Workflow Run:** [#${{ github.run_number }}]($RUN_URL)
-          **Triggered by:** Deploy Dev run #${{ github.event.workflow_run.run_number }}
           **Branch:** \`dev\`
 
           ### Results
