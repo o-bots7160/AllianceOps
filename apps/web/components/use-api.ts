@@ -46,7 +46,8 @@ function fetchOnce<T>(url: string): Promise<ApiResponse<T>> {
     }
     if (!response.ok) {
       const retryHeader = response.headers.get('Retry-After');
-      const retryAfter = retryHeader ? parseInt(retryHeader, 10) * 1000 : null;
+      const parsed = retryHeader ? parseInt(retryHeader, 10) : NaN;
+      const retryAfter = Number.isNaN(parsed) ? null : parsed * 1000;
       throw new ApiError(response.status, retryAfter);
     }
     return response.json() as Promise<ApiResponse<T>>;
