@@ -238,7 +238,9 @@ jobs:
         run: k6 run tests/load/scripts/smoke.js
 
       - name: Run Load Test
-        run: k6 run tests/load/scripts/load.js --out json=tests/load/test-results/load.json
+        run: |
+          mkdir -p tests/load/test-results
+          k6 run tests/load/scripts/load.js --out json=tests/load/test-results/load.json
 
       - name: Upload Load Test Results
         if: always()
