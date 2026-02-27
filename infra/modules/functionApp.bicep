@@ -20,6 +20,14 @@ param keyVaultName string = ''
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
+@description('Number of always-ready HTTP trigger instances (0 = none, eliminates cold starts when > 0)')
+@minValue(0)
+param alwaysReadyCount int = 0
+
+@description('Max concurrent HTTP requests per instance')
+@minValue(1)
+param httpConcurrency int = 16
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
@@ -123,8 +131,21 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       }
       scaleAndConcurrency: {
+        alwaysReady: alwaysReadyCount > 0
+          ? [
+              {
+                name: 'http'
+                instanceCount: alwaysReadyCount
+              }
+            ]
+          : []
         instanceMemoryMB: 2048
         maximumInstanceCount: 100
+        triggers: {
+          http: {
+            perInstanceConcurrency: httpConcurrency
+          }
+        }
       }
       runtime: {
         name: 'node'

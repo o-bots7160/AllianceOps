@@ -41,6 +41,9 @@ param budgetContactEmails array = []
 @description('Custom domains for the SWA. Array of objects: { name: string, validationMethod: string }')
 param customDomains array = []
 
+@description('Number of always-ready Function App HTTP instances (0 = none)')
+param functionAlwaysReadyCount int = 0
+
 @description('Budget start date (YYYY-MM-01 format, defaults to current month)')
 param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 
@@ -82,6 +85,7 @@ module functionApp 'modules/functionApp.bicep' = {
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: 'kv-${suffix}'
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+    alwaysReadyCount: functionAlwaysReadyCount
   }
 }
 

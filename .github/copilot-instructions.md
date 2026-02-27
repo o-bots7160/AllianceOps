@@ -301,6 +301,8 @@ The shared package must build before api and web can typecheck. Turborepo handle
   - 024: Apex Domain Redirect
   - 025: Pipeline Optimization
   - 026: Azure Operations Dashboard
+  - 027: Ephemeral Test Environment
+  - 028: Function Cold Start Optimization
 
 ## Anti-Patterns to Avoid
 

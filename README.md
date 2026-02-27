@@ -53,7 +53,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-The web app runs at `http://localhost:3000` and the API at `http://localhost:7071`.
+The app runs at `http://localhost:4280` (SWA CLI proxy fronting the web app and API).
 
 ### Dev Container
 
@@ -61,7 +61,7 @@ Open in VS Code with the Dev Containers extension for a fully configured environ
 
 - Node.js, pnpm, Azure Functions Core Tools
 - PostgreSQL and Azurite running automatically
-- MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma, Next.js DevTools, Bicep)
+- MCP servers for AI-assisted development (TBA, Tailwind CSS, Prisma)
 
 #### SSH Authentication
 
@@ -114,6 +114,23 @@ docs/            → Architecture docs and ADRs
 - [ADR 009: CI/CD with GitHub Actions](docs/adr/009-cicd-github-actions-oidc.md)
 - [ADR 010: Statbotics Integration](docs/adr/010-statbotics-integration.md)
 - [ADR 011: Simulation Play-by-Play](docs/adr/011-simulation-play-by-play.md)
+- [ADR 012: Game-Agnostic Duty Planner](docs/adr/012-game-agnostic-duty-planner.md)
+- [ADR 013: Global Event Setup Context](docs/adr/013-global-event-setup-context.md)
+- [ADR 014: Production Azure Infrastructure](docs/adr/014-production-azure-infrastructure.md)
+- [ADR 015: User & Team Management](docs/adr/015-user-team-management.md)
+- [ADR 016: SWA CLI Local Auth Parity](docs/adr/016-swa-cli-local-auth-parity.md)
+- [ADR 017: SWA CLI as Default Dev Mode](docs/adr/017-swa-default-dev-mode.md)
+- [ADR 018: Diagnostic Settings & Telemetry](docs/adr/018-diagnostic-settings-telemetry.md)
+- [ADR 019: Node.js 22 & Flex Consumption](docs/adr/019-node22-flex-consumption.md)
+- [ADR 020: Custom Domains & SSL](docs/adr/020-custom-domains-ssl.md)
+- [ADR 021: Batch API & Request Deduplication](docs/adr/021-batch-api-and-request-dedup.md)
+- [ADR 022: Picklist Persistence](docs/adr/022-picklist-persistence.md)
+- [ADR 023: Reusable Deploy Workflow](docs/adr/023-reusable-deploy-workflow.md)
+- [ADR 024: Apex Domain Redirect](docs/adr/024-apex-domain-redirect.md)
+- [ADR 025: Pipeline Optimization](docs/adr/025-pipeline-optimization.md)
+- [ADR 026: Azure Operations Dashboard](docs/adr/026-azure-ops-dashboard.md)
+- [ADR 027: Ephemeral Test Environment](docs/adr/027-ephemeral-test-environment.md)
+- [ADR 028: Function Cold Start Optimization](docs/adr/028-function-cold-start-optimization.md)
 
 ## License
 
