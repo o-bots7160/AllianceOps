@@ -44,15 +44,41 @@ describe.skipIf(!TBA_API_KEY)('TBA Data Integrity', () => {
   });
 
   it('match count and alliances match TBA for event', async () => {
+    interface MatchData {
+      key: string;
+      alliances: {
+        red: { team_keys: string[]; score: number };
+        blue: { team_keys: string[]; score: number };
+      };
+    }
+
     const [ours, tba] = await Promise.all([
-      get<{ data: Array<{ key: string; alliances: { red: unknown; blue: unknown } }> }>(
-        `/api/event/${EVENT_KEY}/matches`,
+      get<{ data: MatchData[] }>(`/api/event/${EVENT_KEY}/matches`),
+      tbaGet<Array<{ key: string; alliances: MatchData['alliances'] }>>(
+        `/event/${EVENT_KEY}/matches/simple`,
       ),
-      tbaGet<Array<{ key: string }>>(`/event/${EVENT_KEY}/matches/simple`),
     ]);
 
     expect(ours.status).toBe(200);
     expect(ours.body.data.length).toBe(tba.length);
+
+    // Verify match keys are identical
+    const ourKeys = new Set(ours.body.data.map((m) => m.key));
+    for (const m of tba) {
+      expect(ourKeys.has(m.key), `Missing match ${m.key}`).toBe(true);
+    }
+
+    // Spot-check: alliance scores match for completed matches
+    const tbaByKey = new Map(tba.map((m) => [m.key, m]));
+    for (const match of ours.body.data) {
+      const tbaMatch = tbaByKey.get(match.key);
+      if (tbaMatch && match.alliances?.red?.score != null && match.alliances.red.score >= 0) {
+        expect(match.alliances.red.score).toBe(tbaMatch.alliances.red.score);
+        expect(match.alliances.blue.score).toBe(tbaMatch.alliances.blue.score);
+        expect(match.alliances.red.team_keys).toEqual(tbaMatch.alliances.red.team_keys);
+        expect(match.alliances.blue.team_keys).toEqual(tbaMatch.alliances.blue.team_keys);
+      }
+    }
   });
 
   it('all TBA team numbers present in our event teams', async () => {
@@ -68,34 +94,74 @@ describe.skipIf(!TBA_API_KEY)('TBA Data Integrity', () => {
     }
   });
 
-  it('ranking positions match TBA', async () => {
+  it('ranking positions and records match TBA', async () => {
+    interface RankingEntry {
+      rank: number;
+      team_key: string;
+      record: { wins: number; losses: number; ties: number };
+      matches_played: number;
+    }
+
     const [ours, tba] = await Promise.all([
-      get<{ data: Array<{ rank: number; team_key: string }> }>(`/api/event/${EVENT_KEY}/rankings`),
-      tbaGet<{ rankings: Array<{ rank: number; team_key: string }> }>(
-        `/event/${EVENT_KEY}/rankings`,
-      ),
+      get<{ data: { rankings: RankingEntry[] } }>(`/api/event/${EVENT_KEY}/rankings`),
+      tbaGet<{ rankings: RankingEntry[] }>(`/event/${EVENT_KEY}/rankings`),
     ]);
 
     expect(ours.status).toBe(200);
-    if (tba.rankings && tba.rankings.length > 0) {
-      expect(ours.body.data.length).toBe(tba.rankings.length);
-      // Top 5 ranks should match
-      for (let i = 0; i < Math.min(5, tba.rankings.length); i++) {
-        expect(ours.body.data[i].team_key).toBe(tba.rankings[i].team_key);
+    const ourRankings = ours.body.data?.rankings ?? [];
+    const tbaRankings = tba.rankings ?? [];
+
+    if (tbaRankings.length > 0) {
+      // Same number of ranked teams
+      expect(ourRankings.length).toBe(tbaRankings.length);
+
+      // Top 5 ranks should match exactly (team + position)
+      for (let i = 0; i < Math.min(5, tbaRankings.length); i++) {
+        expect(ourRankings[i].rank).toBe(tbaRankings[i].rank);
+        expect(ourRankings[i].team_key).toBe(tbaRankings[i].team_key);
+      }
+
+      // Verify W-L-T records match for all teams
+      const tbaByTeam = new Map(tbaRankings.map((r) => [r.team_key, r]));
+      for (const ranking of ourRankings) {
+        const tbaRanking = tbaByTeam.get(ranking.team_key);
+        expect(tbaRanking, `Missing ranking for ${ranking.team_key}`).toBeDefined();
+        if (tbaRanking) {
+          expect(ranking.record.wins).toBe(tbaRanking.record.wins);
+          expect(ranking.record.losses).toBe(tbaRanking.record.losses);
+          expect(ranking.matches_played).toBe(tbaRanking.matches_played);
+        }
       }
     }
   });
 
   it('team events match TBA for team 7160', async () => {
+    interface EventData {
+      key: string;
+      name: string;
+      start_date: string;
+      city: string;
+    }
+
     const [ours, tba] = await Promise.all([
-      get<{ data: Array<{ key: string }> }>(`/api/team/${TEAM_7160_NUMBER}/events?year=${YEAR}`),
-      tbaGet<Array<{ key: string }>>(`/team/frc${TEAM_7160_NUMBER}/events/${YEAR}/simple`),
+      get<{ data: EventData[] }>(`/api/team/${TEAM_7160_NUMBER}/events?year=${YEAR}`),
+      tbaGet<EventData[]>(`/team/frc${TEAM_7160_NUMBER}/events/${YEAR}/simple`),
     ]);
 
     expect(ours.status).toBe(200);
-    const ourKeys = new Set(ours.body.data.map((e) => e.key));
-    for (const event of tba) {
-      expect(ourKeys.has(event.key)).toBe(true);
+
+    // Same event count
+    expect(ours.body.data.length).toBe(tba.length);
+
+    // Verify keys, names, and dates match
+    const ourByKey = new Map(ours.body.data.map((e) => [e.key, e]));
+    for (const tbaEvent of tba) {
+      const ours = ourByKey.get(tbaEvent.key);
+      expect(ours, `Missing event ${tbaEvent.key}`).toBeDefined();
+      if (ours) {
+        expect(ours.name).toBe(tbaEvent.name);
+        expect(ours.start_date).toBe(tbaEvent.start_date);
+      }
     }
   });
 });

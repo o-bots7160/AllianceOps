@@ -57,7 +57,7 @@ describe('GET /api/event/{eventKey}/rankings', () => {
   });
 
   it('handles event with no rankings', async () => {
-    const res = await get<Envelope<Ranking[]>>('/api/event/2025zzfake/rankings');
+    const res = await get<Envelope<RankingsData | null>>('/api/event/2025zzfake/rankings');
     expect([200, 400, 404]).toContain(res.status);
   });
 
