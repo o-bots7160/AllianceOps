@@ -16,7 +16,7 @@ describe('Team Membership — Invite & Role Management', () => {
         { maxUses: 5, expiresInHours: 1 },
         PERSONAS.MENTOR_7160,
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(201);
       expect(res.body.data.code).toBeDefined();
       expect(typeof res.body.data.code).toBe('string');
     });

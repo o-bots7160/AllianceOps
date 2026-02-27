@@ -7,7 +7,7 @@
  */
 
 import { PERSONAS } from './auth';
-import { get, post } from './api-client';
+import { get, post, put } from './api-client';
 import { TEAM_7160_NUMBER, TEAM_6328_NUMBER, sharedState } from './test-data';
 
 const MAX_HEALTH_RETRIES = 30;
@@ -100,6 +100,16 @@ async function bootstrapMembers(teamId: string): Promise<string> {
   const studentJoin = await post(`/api/teams/join/${code}`, undefined, PERSONAS.STUDENT_7160);
   if (studentJoin.status !== 200 && studentJoin.status !== 201) {
     console.warn(`Student join returned ${studentJoin.status} (may already be a member)`);
+  }
+
+  // Promote mentor from STUDENT (the default join role) to MENTOR
+  const promote = await put(
+    `/api/teams/${teamId}/members/${PERSONAS.MENTOR_7160.userId}/role`,
+    { role: 'MENTOR' },
+    PERSONAS.COACH_7160,
+  );
+  if (promote.status !== 200) {
+    console.warn(`Mentor promotion returned ${promote.status} — role-based tests may fail`);
   }
 
   return code;

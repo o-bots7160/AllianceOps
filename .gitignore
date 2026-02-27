@@ -32,8 +32,10 @@ apps/api/prisma/*.db-journal
 # Deploy simulation
 .deploy-staging/
 
-# Test coverage
+# Test coverage & results
 coverage/
+test-results/
+tests/integration/.test-state/
 
 # Debug logs
 npm-debug.log*
