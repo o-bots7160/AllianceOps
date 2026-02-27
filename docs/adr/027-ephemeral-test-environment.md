@@ -79,3 +79,24 @@ Rejected. Wasteful (adds ~5 minutes build time), and the artifacts may not match
 - **Azure OIDC credential management**: Requires maintaining the `github-allianceops-test` federated credential
 - **Resource group deletion latency**: `az group delete --no-wait` means resources may persist briefly after workflow completion
 - **TBA API key dependency**: Data integrity tests require the `TBA_API_KEY` secret; tests are skipped if unavailable
+
+## Open Security Issues
+
+### ⚠️ Function App Direct-Access Header Spoofing
+
+**Severity:** High  
+**Tracking:** Captured from code review on PR #17 (review comment r2862670909)
+
+All 22+ API endpoints use `authLevel: 'anonymous'` in Azure Functions. Identity is derived entirely from the `x-ms-client-principal` header read by `SWAAuthProvider`. Because the Function App is publicly reachable via its `defaultHostName` (e.g., `https://func-aops-test.azurewebsites.net`), and these headers carry **no cryptographic signature**, an attacker can bypass SWA authentication entirely by sending requests directly to the Function App with a hand-crafted `x-ms-client-principal` header to impersonate any user or team role.
+
+This risk exists in **all three environments** (dev, prod, and the ephemeral test environment). The test workflow's deliberate use of forged headers demonstrates how easy this attack is to execute.
+
+**Recommended mitigations (choose one or both):**
+
+1. **Network-layer lockdown**: Restrict the Function App so only the Azure Static Web App can reach it. Options:
+   - Add an IP restriction rule that allowlists the SWA outbound IPs and blocks all other traffic.
+   - Deploy the Function App into a VNet and configure a private endpoint; configure the SWA to use VNet integration for backend calls.
+
+2. **Token-based identity validation**: Derive identity from a cryptographically signed token rather than a caller-supplied header. Azure SWA injects `x-ms-token-aad-access-token` (for AAD/Microsoft logins) and equivalent tokens for other providers. The Function App can validate these JWTs against the provider's JWKS endpoint instead of trusting the `x-ms-client-principal` blob.
+
+**Current risk acceptance**: For the ephemeral test environment, the resource group is torn down within ~20 minutes, limiting the exposure window. For dev and prod, this remains an unmitigated risk until one of the above controls is implemented.
