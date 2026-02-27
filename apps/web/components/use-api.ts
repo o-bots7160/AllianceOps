@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiBase } from '../lib/api-base';
+import { parseRetryAfterMs } from '../lib/retry-after';
 
 interface ApiResponse<T> {
   data: T;
@@ -45,10 +46,7 @@ function fetchOnce<T>(url: string): Promise<ApiResponse<T>> {
       throw new Error('Authentication required');
     }
     if (!response.ok) {
-      const retryHeader = response.headers.get('Retry-After');
-      const parsed = retryHeader ? parseInt(retryHeader, 10) : NaN;
-      const retryAfter = Number.isNaN(parsed) ? null : parsed * 1000;
-      throw new ApiError(response.status, retryAfter);
+      throw new ApiError(response.status, parseRetryAfterMs(response.headers.get('Retry-After')));
     }
     return response.json() as Promise<ApiResponse<T>>;
   });
