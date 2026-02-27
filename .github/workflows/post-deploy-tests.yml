@@ -209,6 +209,7 @@ jobs:
       - name: Run Integration Tests
         working-directory: tests
         run: |
+          mkdir -p test-results
           npx vitest run \
             --config integration/vitest.config.ts \
             --reporter=default \
