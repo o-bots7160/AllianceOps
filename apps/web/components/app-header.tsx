@@ -51,11 +51,10 @@ function UserMenu({ displayLabel }: { displayLabel: string }) {
           <Link
             href="/team/"
             onClick={close}
-            className={`block px-4 py-2 text-sm ${
-              teamActive
+            className={`block px-4 py-2 text-sm ${teamActive
                 ? 'text-primary-600 dark:text-primary-400 font-semibold'
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
+              }`}
           >
             Team
           </Link>
@@ -90,7 +89,7 @@ export function AppHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const showControls = !loading && user;
+  const showControls = !loading;
   const userLabel = user?.displayName || user?.email || 'Account';
 
   return (
@@ -114,7 +113,16 @@ export function AppHeader() {
           {showControls && (
             <div className="hidden md:flex items-center gap-4">
               <NavLinks />
-              {user && <UserMenu displayLabel={userLabel} />}
+              {user ? (
+                <UserMenu displayLabel={userLabel} />
+              ) : (
+                <a
+                  href="/"
+                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                >
+                  Log In
+                </a>
+              )}
             </div>
           )}
 
@@ -156,31 +164,43 @@ export function AppHeader() {
           <NavLinks vertical onNavigate={() => setMobileOpen(false)} />
           <hr className="border-gray-200 dark:border-gray-700" />
           <div className="flex flex-col gap-2 text-sm">
-            <Link
-              href="/team/"
-              onClick={() => setMobileOpen(false)}
-              className={
-                pathname.startsWith('/team')
-                  ? 'text-primary-600 dark:text-primary-400 font-semibold'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
-              }
-            >
-              Team
-            </Link>
-            <a
-              href="/.auth/logout?post_logout_redirect_uri=/"
-              onClick={() => {
-                setMobileOpen(false);
-                try {
-                  localStorage.clear();
-                } catch (_) {
-                  // Ignore storage access errors
-                }
-              }}
-              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-            >
-              Log Out
-            </a>
+            {user ? (
+              <>
+                <Link
+                  href="/team/"
+                  onClick={() => setMobileOpen(false)}
+                  className={
+                    pathname.startsWith('/team')
+                      ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
+                  }
+                >
+                  Team
+                </Link>
+                <a
+                  href="/.auth/logout?post_logout_redirect_uri=/"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    try {
+                      localStorage.clear();
+                    } catch (_) {
+                      // Ignore storage access errors
+                    }
+                  }}
+                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                >
+                  Log Out
+                </a>
+              </>
+            ) : (
+              <a
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="text-primary-600 dark:text-primary-400 font-medium hover:text-primary-700"
+              >
+                Log In
+              </a>
+            )}
           </div>
         </div>
       )}

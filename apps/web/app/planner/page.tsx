@@ -253,7 +253,7 @@ function buildTemplateAssignments(
 export default function PlannerPage() {
   const { eventKey, teamNumber, year } = useEventSetup();
   const { activeCursor } = useSimulation();
-  const { activeTeam } = useAuth();
+  const { user, activeTeam } = useAuth();
   const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
   const canEdit = isOwnTeam;
   const myTeamKey = `frc${teamNumber}`;
@@ -537,7 +537,7 @@ export default function PlannerPage() {
               : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               }`}
           >
-            {canEdit ? 'Save Plan' : !activeTeam ? 'Join Team to Save' : 'Read Only'}
+            {canEdit ? 'Save Plan' : !user ? 'Log In to Save' : !activeTeam ? 'Join Team to Save' : 'Read Only'}
           </button>
         </div>
       </div>
@@ -584,48 +584,67 @@ export default function PlannerPage() {
           </div>
 
           {dutySlots.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {dutySlots.map((slot) => (
-                <div
-                  key={slot.key}
-                  className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${CATEGORY_COLORS[slot.category] || ''
-                    } p-3 space-y-2`}
-                >
-                  <div className="font-medium text-sm" title={slot.description}>
-                    {slot.label}
+            <div className="relative">
+              {!canEdit && !activeTeam && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm rounded-lg">
+                  <div className="text-center px-6 py-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg max-w-sm">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {!user
+                        ? 'Log In to Create or Join a Team to Plan Matches'
+                        : 'Join a Team to Plan Matches'}
+                    </p>
+                    <a
+                      href={!user ? '/' : '/team/'}
+                      className="mt-3 inline-block text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                    >
+                      {!user ? 'Log In' : 'Go to Team Page'} &rarr;
+                    </a>
                   </div>
-                  <select
-                    value={assignments[slot.key] ?? ''}
-                    onChange={(e) => {
-                      setAssignments((a) => ({
-                        ...a,
-                        [slot.key]: e.target.value ? parseInt(e.target.value, 10) : null,
-                      }));
-                      setDirty(true);
-                      setSaved(false);
-                    }}
-                    disabled={!canEdit}
-                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Unassigned</option>
-                    {teamNumbers.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Notes..."
-                    value={notes[slot.key] || ''}
-                    onChange={(e) => {
-                      setNotes((n) => ({ ...n, [slot.key]: e.target.value }));
-                      setDirty(true);
-                      setSaved(false);
-                    }}
-                    disabled={!canEdit}
-                    className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
                 </div>
-              ))}
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {dutySlots.map((slot) => (
+                  <div
+                    key={slot.key}
+                    className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${CATEGORY_COLORS[slot.category] || ''
+                      } p-3 space-y-2`}
+                  >
+                    <div className="font-medium text-sm" title={slot.description}>
+                      {slot.label}
+                    </div>
+                    <select
+                      value={assignments[slot.key] ?? ''}
+                      onChange={(e) => {
+                        setAssignments((a) => ({
+                          ...a,
+                          [slot.key]: e.target.value ? parseInt(e.target.value, 10) : null,
+                        }));
+                        setDirty(true);
+                        setSaved(false);
+                      }}
+                      disabled={!canEdit}
+                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Unassigned</option>
+                      {teamNumbers.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Notes..."
+                      value={notes[slot.key] || ''}
+                      onChange={(e) => {
+                        setNotes((n) => ({ ...n, [slot.key]: e.target.value }));
+                        setDirty(true);
+                        setSaved(false);
+                      }}
+                      disabled={!canEdit}
+                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
