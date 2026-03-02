@@ -44,6 +44,9 @@ param customDomains array = []
 @description('Number of always-ready Function App HTTP instances (0 = none)')
 param functionAlwaysReadyCount int = 0
 
+@description('Link the Function App as a SWA backend (enables EasyAuth; disable for direct FA testing)')
+param linkFunctionAppBackend bool = true
+
 @description('Budget start date (YYYY-MM-01 format, defaults to current month)')
 param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 
@@ -109,7 +112,7 @@ module staticWebApp 'modules/staticWebApp.bicep' = {
     location: location
     skuName: swaSkuName
     skuTier: swaSkuTier
-    functionAppResourceId: functionApp.outputs.resourceId
+    functionAppResourceId: linkFunctionAppBackend ? functionApp.outputs.resourceId : ''
     customDomains: customDomains
   }
 }
