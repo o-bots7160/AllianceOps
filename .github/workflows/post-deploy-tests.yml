@@ -112,6 +112,13 @@ jobs:
             --rule-name AllowGitHubRunner \
             --yes || true
 
+      - name: Cache Function App Dependencies
+        id: fa-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/api-deploy/node_modules
+          key: fa-deps-${{ runner.os }}-${{ hashFiles('apps/api/package.json') }}
+
       - name: Package Function App
         run: |
           STAGING=/tmp/api-deploy
@@ -130,7 +137,12 @@ jobs:
           cp -r apps/api/prisma $STAGING/
 
           cd $STAGING
-          npm install --omit=dev
+
+          # Only run npm install if cache missed
+          if [ "${{ steps.fa-cache.outputs.cache-hit }}" != "true" ]; then
+            npm install --omit=dev
+          fi
+
           npx --yes prisma@^6 generate
 
           zip -r $GITHUB_WORKSPACE/api-deploy.zip dist/ host.json package.json node_modules/ \
@@ -187,6 +199,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # The SWA linked backend auto-enables EasyAuth on the FA with an
+      # azureStaticWebApps provider. Tests hit the FA directly with forged
+      # x-ms-client-principal headers, so platform-level auth must be off.
+      - name: Disable FA EasyAuth (allow direct test access)
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp auth update \
+              --resource-group rg-aops-test \
+              --name func-aops-test \
+              --enabled false
+            echo "Disabled EasyAuth on func-aops-test for direct test access"
+
       - name: Capture FA Hostname
         id: capture-hostname
         uses: azure/CLI@v2
@@ -219,8 +244,12 @@ jobs:
         run: |
           HOSTNAME="${{ steps.capture-hostname.outputs.fa_hostname }}"
           echo "Triggering cold start: https://$HOSTNAME/api/health"
-          curl -sf --max-time 120 --retry 5 --retry-delay 10 \
-            "https://$HOSTNAME/api/health" || echo "Warm-up ping returned non-200 (FA may still be starting)"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 --retry 5 --retry-delay 10 \
+            "https://$HOSTNAME/api/health" || echo "000")
+          echo "Warm-up response status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::warning::Warm-up returned HTTP $HTTP_STATUS — FA may still be starting. Tests will retry via health check loop."
+          fi
 
   integration:
     name: Integration Tests
