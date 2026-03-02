@@ -53,8 +53,9 @@ async function bootstrapTeam(
   // Check if team already exists
   const lookup = await get<{ data: { id: string } | null }>(`/api/teams/lookup/${teamNumber}`);
   if (lookup.status === 200 && lookup.body?.data) {
-    console.log(`Team ${teamNumber} already exists (id: ${lookup.body.data.id})`);
-    return lookup.body.data.id;
+    const teamId = lookup.body.data.id;
+    console.log(`Team ${teamNumber} already exists (id: ${teamId})`);
+    return teamId;
   }
 
   // Create team as coach
