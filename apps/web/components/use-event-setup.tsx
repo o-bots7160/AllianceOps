@@ -48,7 +48,8 @@ export function EventSetupProvider({ children }: { children: ReactNode }) {
     ...setup,
     setYear: (year: number) => setSetup((s) => ({ ...s, year, eventKey: '' })),
     setEventKey: (eventKey: string) => setSetup((s) => ({ ...s, eventKey })),
-    setTeamNumber: (teamNumber: number) => setSetup((s) => ({ ...s, teamNumber })),
+    setTeamNumber: (teamNumber: number) =>
+      setSetup((s) => ({ ...s, teamNumber, eventKey: s.teamNumber !== teamNumber ? '' : s.eventKey })),
   };
 
   return <EventSetupContext.Provider value={value}>{children}</EventSetupContext.Provider>;
