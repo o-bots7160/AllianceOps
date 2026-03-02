@@ -137,6 +137,13 @@ jobs:
               --role "Key Vault Secrets User" \
               --scope $KV_ID 2>/dev/null || true
 
+      - name: Azure Re-Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Run Database Migrations
         run: |
           RUNNER_IP=$(curl -s https://api.ipify.org)
@@ -200,6 +207,13 @@ jobs:
 
           zip -r $GITHUB_WORKSPACE/api-deploy.zip dist/ host.json package.json node_modules/ \
             -x "node_modules/.cache/*"
+
+      - name: Azure Re-Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # Deploy Function App and Static Web App in parallel using background processes
       - name: Deploy Function App & Static Web App

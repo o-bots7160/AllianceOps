@@ -189,6 +189,7 @@ export default function Home() {
         <>
           <LoginCTA />
           <FeatureCarousel features={FEATURES} />
+          <FeatureLinks />
         </>
       ) : user.teams.length > 0 ? (
         <FeatureLinks />

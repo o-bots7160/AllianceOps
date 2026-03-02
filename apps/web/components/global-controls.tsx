@@ -1,11 +1,17 @@
 'use client';
 
-import { useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEventSetup } from './use-event-setup';
 import { useAuth } from './use-auth';
 import { useApi } from './use-api';
 import { Combobox } from './combobox';
-import { TeamCombobox, type TeamOption } from './team-combobox';
+import {
+  TeamCombobox,
+  type TeamOption,
+  type RecentSearch,
+  loadRecentSearches,
+  addRecentSearch,
+} from './team-combobox';
 
 interface TBAEvent {
   key: string;
@@ -13,6 +19,11 @@ interface TBAEvent {
   start_date: string;
   city: string;
   state_prov: string;
+}
+
+interface TBATeamInfo {
+  nickname: string;
+  team_number: number;
 }
 
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
@@ -24,6 +35,12 @@ export function GlobalControls() {
   const { year, eventKey, teamNumber, setYear, setEventKey, setTeamNumber } = useEventSetup();
   const { user, activeTeam, setActiveTeamId } = useAuth();
   const hasInitializedRef = useRef(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+
+  // Load recent searches from localStorage on mount
+  useEffect(() => {
+    setRecentSearches(loadRecentSearches());
+  }, []);
 
   // Auto-populate team number from active team on first load only
   useEffect(() => {
@@ -60,9 +77,35 @@ export function GlobalControls() {
     [setTeamNumber],
   );
 
-  const { data: teamEvents } = useApi<TBAEvent[]>(
+  const { data: teamEvents, error: teamEventsError } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
   );
+
+  // Fetch team info (nickname) from TBA for any valid team number
+  const { data: teamInfo } = useApi<TBATeamInfo>(
+    teamNumber ? `team/${teamNumber}/info` : null,
+  );
+
+  // Only record a recent search after TBA confirms the team exists (returns event data)
+  const lastRecordedTeamRef = useRef<number>(0);
+  useEffect(() => {
+    if (teamNumber && teamEvents && !teamEventsError && teamNumber !== lastRecordedTeamRef.current) {
+      lastRecordedTeamRef.current = teamNumber;
+      const memberTeam = teamOptions.find((t) => t.teamNumber === teamNumber);
+      const name = memberTeam?.name ?? teamInfo?.nickname;
+      setRecentSearches(addRecentSearch(teamNumber, name));
+    }
+  }, [teamNumber, teamEvents, teamEventsError, teamOptions, teamInfo]);
+
+  // Update recent search name when team info loads after initial recording
+  useEffect(() => {
+    if (teamNumber && teamInfo?.nickname && lastRecordedTeamRef.current === teamNumber) {
+      const memberTeam = teamOptions.find((t) => t.teamNumber === teamNumber);
+      if (!memberTeam) {
+        setRecentSearches(addRecentSearch(teamNumber, teamInfo.nickname));
+      }
+    }
+  }, [teamInfo, teamNumber, teamOptions]);
 
   const eventOptions = useMemo(
     () =>
@@ -82,6 +125,7 @@ export function GlobalControls() {
         <TeamCombobox
           teamNumber={teamNumber}
           teams={teamOptions}
+          recentSearches={recentSearches}
           onTeamSelect={handleTeamSelect}
           onManualEntry={handleManualEntry}
           compact

@@ -62,14 +62,14 @@ const dutySlots: DutySlotDefinition[] = [
     label: 'Tower Climber 1',
     description: 'Primary tower climber — target highest achievable level for Traversal RP',
     category: 'endgame',
-    epaRankKeys: ['endgame_points'],
+    epaRankKeys: ['total_tower'],
   },
   {
     key: 'TOWER_CLIMBER_2',
     label: 'Tower Climber 2',
     description: 'Secondary tower climber — need ≥50 tower pts total for Traversal RP',
     category: 'endgame',
-    epaRankKeys: ['endgame_points'],
+    epaRankKeys: ['total_tower'],
   },
   {
     key: 'DEFENSE_ROLE',
@@ -202,12 +202,12 @@ const dutyTemplates: DutyTemplate[] = [
       TOWER_CLIMBER_1: {
         hint: 'Level 3 tower climb (bumpers above MID RUNG at 45in, 30 pts) — can climb from inside the tower. Only grab rungs & uprights (G412: MAJOR FOUL + YELLOW CARD for other field elements). G420 protects climbers in last 30s',
         strategy: 'strongest',
-        epaRankKeysOverride: ['endgame_points'],
+        epaRankKeysOverride: ['total_tower'],
       },
       TOWER_CLIMBER_2: {
         hint: "Level 3 or Level 2 tower climb — need combined ≥50 tower pts for Traversal RP (e.g. L3+L2=50 or L3+L3=60). Do not support another robot's weight (G414). Can score fuel into hub while climbing if in alliance zone (G407)",
         strategy: 'strongest',
-        epaRankKeysOverride: ['endgame_points'],
+        epaRankKeysOverride: ['total_tower'],
       },
       DEFENSE_ROLE: {
         hint: 'Dedicated defender during opponent active hub shifts — block hub access, disrupt opponent fuel cycling over bumps/through trenches. PIN limit 3s then separate 72in (G418). A single robot blocking one area is legal; 2 robots blocking both bumps or both trenches is not (G419). Transition to climb before last 30s (G420 tower protection begins)',
@@ -248,7 +248,7 @@ const dutyTemplates: DutyTemplate[] = [
       TOWER_CLIMBER_1: {
         hint: 'Quick Level 1 climb only (bumpers off carpet, 10 pts) — do not waste time on higher levels. Continue scoring fuel until last ~10s, then grab rung. Prioritize fuel volume over tower points',
         strategy: 'weakest',
-        epaRankKeysOverride: ['teleop_points'],
+        epaRankKeysOverride: ['total_fuel'],
       },
       TOWER_CLIMBER_2: {
         hint: 'Skip climbing entirely — keep scoring fuel through end of match. The alliance trades Traversal RP for higher fuel totals toward Supercharged RP (≥360)',
@@ -293,12 +293,12 @@ const dutyTemplates: DutyTemplate[] = [
       TOWER_CLIMBER_1: {
         hint: 'Level 3 climb (bumpers above MID RUNG at 45in, 30 pts) — best climber takes highest level. Start climbing with ~20s left. Only grab rungs & uprights (G412). G420 protects climbers in last 30s',
         strategy: 'strongest',
-        epaRankKeysOverride: ['endgame_points'],
+        epaRankKeysOverride: ['total_tower'],
       },
       TOWER_CLIMBER_2: {
         hint: "Level 3 or Level 2 climb (20-30 pts) — 3 robots climbing guarantees Traversal RP (≥50 pts easily: e.g. L3+L2+L1=60). Do not support another robot's weight (G414: no tower points). Can climb from inside the tower",
         strategy: 'strongest',
-        epaRankKeysOverride: ['endgame_points'],
+        epaRankKeysOverride: ['total_tower'],
       },
       DEFENSE_ROLE: {
         hint: 'No defense — all 3 robots split time between fuel scoring and tower climbing. The weakest scorer should also climb (third climber fills slot not shown here)',
@@ -339,7 +339,7 @@ const dutyTemplates: DutyTemplate[] = [
       TOWER_CLIMBER_1: {
         hint: 'Primary scorer climbs Level 2+ (≥20 pts) near end of match. Start climbing with ~15s left. Defenders may not have reliable climbers — prioritize this robot reaching the tower',
         strategy: 'strongest',
-        epaRankKeysOverride: ['endgame_points'],
+        epaRankKeysOverride: ['total_tower'],
       },
       TOWER_CLIMBER_2: {
         hint: 'Defender attempts Level 1 climb (10 pts) if possible. If unreliable climber, skip and let primary scorer handle tower points. Traversal RP (≥50 pts) is stretch goal in this strategy',
@@ -359,38 +359,52 @@ const dutyTemplates: DutyTemplate[] = [
 
 const gameSpecificMetrics: GameMetricDefinition[] = [
   {
-    key: 'auto_fuel_count',
+    key: 'auto_fuel',
     label: 'Auto Fuel',
     description: 'Fuel scored in auto (counts toward Energized/Supercharged RP)',
     renderLocation: 'team_card',
     higherIsBetter: true,
   },
   {
-    key: 'teleop_fuel_count',
+    key: 'teleop_fuel',
     label: 'Teleop Fuel',
     description: 'Fuel scored in teleop active hub shifts',
     renderLocation: 'team_card',
     higherIsBetter: true,
   },
   {
-    key: 'total_fuel_count',
+    key: 'total_fuel',
     label: 'Total Fuel',
     description: 'Total fuel scored in active hub (Energized ≥100, Supercharged ≥360)',
     renderLocation: 'team_card',
     higherIsBetter: true,
   },
   {
-    key: 'hub_points',
-    label: 'Hub Points',
-    description: 'Points from fuel scored in active hub (1 pt each)',
+    key: 'total_tower',
+    label: 'Tower Pts',
+    description: 'Tower points (L1=10/15, L2=20, L3=30; Traversal RP ≥50)',
     renderLocation: 'team_card',
     higherIsBetter: true,
   },
   {
-    key: 'tower_climb_points',
-    label: 'Tower Climb',
-    description: 'Tower points (L1=10/15, L2=20, L3=30; Traversal RP ≥50)',
-    renderLocation: 'briefing',
+    key: 'energized_rp',
+    label: 'Energized RP',
+    description: 'EPA contribution toward Energized RP (≥100 fuel)',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'supercharged_rp',
+    label: 'Supercharged RP',
+    description: 'EPA contribution toward Supercharged RP (≥360 fuel)',
+    renderLocation: 'team_card',
+    higherIsBetter: true,
+  },
+  {
+    key: 'traversal_rp',
+    label: 'Traversal RP',
+    description: 'EPA contribution toward Traversal RP (≥50 tower pts)',
+    renderLocation: 'team_card',
     higherIsBetter: true,
   },
   {
@@ -422,12 +436,10 @@ const rebuilt2026: GameDefinition = {
       penalty_points: foulPoints,
       misc_points: miscPoints,
       gameSpecific: {
-        auto_fuel_count: num(raw['autoFuelCount']),
-        teleop_fuel_count: num(raw['teleopFuelCount']),
-        total_fuel_count: num(raw['autoFuelCount']) + num(raw['teleopFuelCount']),
-        hub_points:
-          num(raw['hubPoints']) || num(raw['autoHubPoints']) + num(raw['teleopHubPoints']),
-        tower_climb_points: num(raw['towerClimbPoints']) || num(raw['endgamePoints']),
+        auto_fuel: num(raw['autoFuelCount']),
+        teleop_fuel: num(raw['teleopFuelCount']),
+        total_fuel: num(raw['autoFuelCount']) + num(raw['teleopFuelCount']),
+        total_tower: num(raw['towerClimbPoints']) || num(raw['endgamePoints']),
         foul_count: num(raw['foulCount']),
       },
     };

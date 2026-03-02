@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../components/use-auth';
 import { getApiBase } from '../../lib/api-base';
 
@@ -33,6 +33,54 @@ export default function TeamPage() {
   // ─── Create Team ──────────────────────────────────────
   const [createNumber, setCreateNumber] = useState('');
   const [createName, setCreateName] = useState('');
+  const [nameLookupLoading, setNameLookupLoading] = useState(false);
+  const [nameWasAutoFilled, setNameWasAutoFilled] = useState(false);
+  const nameLookupRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const lookupTeamName = useCallback(async (num: string) => {
+    const parsed = parseInt(num, 10);
+    if (!parsed || parsed <= 0) return;
+    setNameLookupLoading(true);
+    try {
+      const res = await fetch(`${getApiBase()}/team/${parsed}/info`);
+      if (res.ok) {
+        const result = await res.json();
+        const nickname = result?.data?.nickname;
+        if (nickname) {
+          setCreateName(nickname);
+          setNameWasAutoFilled(true);
+        }
+      }
+    } catch {
+      // Lookup failed — leave name field editable
+    } finally {
+      setNameLookupLoading(false);
+    }
+  }, []);
+
+  function handleCreateNumberChange(value: string) {
+    setCreateNumber(value);
+    // Reset auto-filled name when number changes
+    if (nameWasAutoFilled) {
+      setCreateName('');
+      setNameWasAutoFilled(false);
+    }
+    // Debounce the lookup
+    if (nameLookupRef.current) clearTimeout(nameLookupRef.current);
+    const parsed = parseInt(value, 10);
+    if (parsed && parsed > 0) {
+      nameLookupRef.current = setTimeout(() => lookupTeamName(value), 500);
+    } else {
+      setNameLookupLoading(false);
+    }
+  }
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (nameLookupRef.current) clearTimeout(nameLookupRef.current);
+    };
+  }, []);
 
   async function handleCreateTeam() {
     setError(null);
@@ -244,8 +292,8 @@ export default function TeamPage() {
                   loadTeamDetail(t.teamId);
                 }}
                 className={`text-left p-4 rounded border transition-colors ${activeTeam?.teamId === t.teamId
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
                   }`}
               >
                 <div className="font-semibold">Team {t.teamNumber}</div>
@@ -409,16 +457,27 @@ export default function TeamPage() {
               type="number"
               placeholder="Team Number"
               value={createNumber}
-              onChange={(e) => setCreateNumber(e.target.value)}
+              onChange={(e) => handleCreateNumberChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm"
             />
-            <input
-              type="text"
-              placeholder="Team Name"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={nameLookupLoading ? 'Looking up team name...' : 'Team Name'}
+                value={createName}
+                onChange={(e) => {
+                  setCreateName(e.target.value);
+                  setNameWasAutoFilled(false);
+                }}
+                disabled={nameLookupLoading}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm disabled:opacity-50 disabled:cursor-wait"
+              />
+              {nameLookupLoading && (
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-primary-500 rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
             <button
               onClick={handleCreateTeam}
               disabled={!createNumber || !createName}

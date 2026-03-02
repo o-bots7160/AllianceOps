@@ -100,7 +100,7 @@ function downloadCSV(entries: PicklistEntry[]) {
 
 export default function PicklistPage() {
   const { eventKey, teamNumber, setEventKey } = useEventSetup();
-  const { activeTeam } = useAuth();
+  const { user, activeTeam } = useAuth();
   const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
   const canEdit = isOwnTeam;
   const teamId = isOwnTeam ? activeTeam?.teamId ?? null : null;
@@ -354,7 +354,7 @@ export default function PicklistPage() {
               : 'bg-gray-400 text-gray-200 cursor-not-allowed'
               } disabled:opacity-60`}
           >
-            {!canEdit ? (!activeTeam ? 'Join Team to Save' : 'Read Only') : saving ? 'Saving...' : 'Save Picklist'}
+            {!canEdit ? (!user ? 'Log In to Save' : !activeTeam ? 'Join Team to Save' : 'Read Only') : saving ? 'Saving...' : 'Save Picklist'}
           </button>
         </div>
       </div>

@@ -1,9 +1,4 @@
-import type {
-  TBAEvent,
-  TBAMatch,
-  TBATeam,
-  TBARanking,
-} from '../types/tba.js';
+import type { TBAEvent, TBAMatch, TBATeam, TBARanking } from '../types/tba.js';
 
 const TBA_BASE_URL = 'https://www.thebluealliance.com/api/v3';
 
@@ -51,17 +46,16 @@ export class TBAClient {
     return this.request<TBARanking>(`/event/${eventKey}/rankings`);
   }
 
-  async getTeamEventStatus(
-    teamKey: string,
-    eventKey: string,
-  ): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>(
-      `/team/${teamKey}/event/${eventKey}/status`,
-    );
+  async getTeamEventStatus(teamKey: string, eventKey: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/team/${teamKey}/event/${eventKey}/status`);
   }
 
   async getTeamEvents(teamKey: string, year: number): Promise<TBAEvent[]> {
     return this.request<TBAEvent[]>(`/team/${teamKey}/events/${year}`);
+  }
+
+  async getTeam(teamKey: string): Promise<TBATeam> {
+    return this.request<TBATeam>(`/team/${teamKey}`);
   }
 
   async getMatch(matchKey: string): Promise<TBAMatch> {
