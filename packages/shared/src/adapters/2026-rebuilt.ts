@@ -439,8 +439,7 @@ const rebuilt2026: GameDefinition = {
         auto_fuel: num(raw['autoFuelCount']),
         teleop_fuel: num(raw['teleopFuelCount']),
         total_fuel: num(raw['autoFuelCount']) + num(raw['teleopFuelCount']),
-        total_tower:
-          num(raw['towerClimbPoints']) || num(raw['endgamePoints']),
+        total_tower: num(raw['towerClimbPoints']) || num(raw['endgamePoints']),
         foul_count: num(raw['foulCount']),
       },
     };
