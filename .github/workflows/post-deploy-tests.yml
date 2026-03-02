@@ -189,17 +189,35 @@ jobs:
 
       - name: Capture FA Hostname
         id: capture-hostname
-        run: |
-          HOSTNAME=$(az functionapp show \
-            --name func-aops-test \
-            --resource-group rg-aops-test \
-            --query defaultHostName -o tsv)
-          echo "fa_hostname=$HOSTNAME" >> "$GITHUB_OUTPUT"
-          echo "Function App hostname: $HOSTNAME"
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            # Primary: get hostname from Bicep deployment outputs
+            HOSTNAME=$(az deployment group show \
+              --resource-group rg-aops-test \
+              --name test-${{ github.run_number }} \
+              --query properties.outputs.functionAppUrl.value -o tsv 2>/dev/null || true)
+
+            # Fallback: query the Function App directly
+            if [ -z "$HOSTNAME" ]; then
+              echo "::warning::Bicep output lookup failed, falling back to az functionapp show"
+              HOSTNAME=$(az functionapp show \
+                --name func-aops-test \
+                --resource-group rg-aops-test \
+                -o tsv --query defaultHostName 2>/dev/null || true)
+            fi
+
+            if [ -z "$HOSTNAME" ]; then
+              echo "::error::Failed to capture Function App hostname from any source"
+              exit 1
+            fi
+
+            echo "fa_hostname=$HOSTNAME" >> $GITHUB_OUTPUT
+            echo "Function App hostname: $HOSTNAME"
 
       - name: Warm Up Function App
         run: |
-          HOSTNAME=$(echo "${{ steps.capture-hostname.outputs.fa_hostname }}")
+          HOSTNAME="${{ steps.capture-hostname.outputs.fa_hostname }}"
           echo "Triggering cold start: https://$HOSTNAME/api/health"
           curl -sf --max-time 120 --retry 5 --retry-delay 10 \
             "https://$HOSTNAME/api/health" || echo "Warm-up ping returned non-200 (FA may still be starting)"
@@ -222,6 +240,14 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Validate API_BASE_URL
+        run: |
+          if [[ "$API_BASE_URL" == "https://" ]] || [[ -z "$API_BASE_URL" ]]; then
+            echo "::error::API_BASE_URL is invalid: '$API_BASE_URL' — fa_hostname output was likely empty"
+            exit 1
+          fi
+          echo "API_BASE_URL: $API_BASE_URL"
 
       - name: Run Integration Tests
         working-directory: tests
@@ -337,6 +363,7 @@ jobs:
           **Integration test failures:** $FAILURES (from JUnit XML)"
           fi
 
+          gh label create "automated-test" --color "d73a4a" --description "Automated test failure" --force 2>/dev/null || true
           gh issue create \
             --title "[Test] Post-deploy failures (run #${{ github.run_number }})" \
             --label "bug,automated-test" \
