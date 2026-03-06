@@ -19,6 +19,12 @@ export type {
   DutyTemplateSlot,
   GameMetricDefinition,
 } from './types/game-definition.js';
+export type {
+  AdminStats,
+  AdminUserListItem,
+  AdminUserListResponse,
+  AdminUserTeam,
+} from './types/admin.js';
 
 // Clients
 export { TBAClient } from './clients/tba.js';

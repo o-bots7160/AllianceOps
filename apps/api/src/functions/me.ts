@@ -12,16 +12,22 @@ app.http('getMe', {
     if (isAuthError(auth)) return auth;
 
     let user;
+    let isAdmin = false;
     try {
-      user = await prisma.user.findUnique({
-        where: { id: auth.id },
-        include: {
-          memberships: {
-            include: { team: true },
-            orderBy: { joinedAt: 'asc' },
+      [user, isAdmin] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: auth.id },
+          include: {
+            memberships: {
+              include: { team: true },
+              orderBy: { joinedAt: 'asc' },
+            },
           },
-        },
-      });
+        }),
+        prisma.adminUser
+          .findUnique({ where: { userId: auth.id } })
+          .then((r) => r !== null),
+      ]);
     } catch (err) {
       trackException(err instanceof Error ? err : new Error(String(err)), {
         operation: 'getMe.findUser',
@@ -41,6 +47,7 @@ app.http('getMe', {
             email: auth.email ?? null,
             displayName: auth.displayName ?? null,
             teams: [],
+            isAdmin,
           },
         },
       };
@@ -53,6 +60,7 @@ app.http('getMe', {
           id: user.id,
           email: user.email,
           displayName: user.displayName,
+          isAdmin,
           teams: user.memberships.map((m) => ({
             teamId: m.team.id,
             teamNumber: m.team.teamNumber,
