@@ -50,7 +50,7 @@ export { generateBriefing } from './strategy/briefing.js';
 export type { MatchBriefing, TeamBriefingData, WinCondition, Risk } from './strategy/briefing.js';
 export { analyzePath } from './strategy/path.js';
 export type { PathAnalysis, PathMatch } from './strategy/path.js';
-export { generatePicklist, exportPicklistCSV } from './strategy/picklist.js';
+export { generatePicklist } from './strategy/picklist.js';
 export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
 export { analyzeRankDiscrepancy, analyzeAllRankDiscrepancies } from './strategy/rank-analysis.js';
 export type { TeamRankAnalysis, RankDetermination } from './strategy/rank-analysis.js';

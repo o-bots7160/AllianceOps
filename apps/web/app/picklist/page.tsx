@@ -485,24 +485,6 @@ function TagFilterControl({
   );
 }
 
-function downloadCSV(entries: PicklistEntry[]) {
-  const header = 'Manual Rank,TBA Rank,EPA Rank,Team,Name,Score,EPA Total,Auto,Teleop,Endgame,Tags,Notes';
-  const rows = entries
-    .filter((e) => !e.excluded)
-    .map(
-      (e) =>
-        `${e.rank},${e.tbaRank ?? ''},${e.epaRank},${e.teamNumber},"${e.nickname}",${e.score.toFixed(3)},${e.epaTotal.toFixed(1)},${e.epaAuto.toFixed(1)},${e.epaTeleop.toFixed(1)},${e.epaEndgame.toFixed(1)},"${e.tags.join(';')}","${e.notes}"`,
-    );
-  const csv = [header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'picklist.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function TeamDetailModal({
   teamNumber,
   epaMap,
@@ -892,9 +874,8 @@ export default function PicklistPage() {
           you don&apos;t want to consider. Changes are shared with your team when you save.
         </p>
         <p>
-          Use <strong>Export CSV</strong> to download the picklist for sharing or printing. Search by team
-          number or name, and filter by tag. Click any table header to sort by that column. The
-          picklist auto-refreshes every 30 seconds to pick up changes from teammates.
+          Search by team number or name, and filter by tag. Click any table header to sort by that
+          column. The picklist auto-refreshes every 30 seconds to pick up changes from teammates.
         </p>
       </InfoBox>
 
@@ -944,12 +925,6 @@ export default function PicklistPage() {
               ))}
             </select>
           )}
-          <button
-            onClick={() => downloadCSV(entries)}
-            className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm whitespace-nowrap"
-          >
-            Export CSV
-          </button>
           <button
             onClick={handleSave}
             disabled={!canEdit || saving}
