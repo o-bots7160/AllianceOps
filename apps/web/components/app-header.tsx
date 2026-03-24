@@ -163,16 +163,18 @@ export function AppHeader() {
           <GlobalControls />
           <NavLinks vertical onNavigate={() => setMobileOpen(false)} />
           <hr className="border-gray-200 dark:border-gray-700" />
-          <div className="flex flex-col gap-2 text-sm">
+          <div className="flex flex-col gap-1 text-base">
             {user ? (
               <>
                 <Link
                   href="/team/"
                   onClick={() => setMobileOpen(false)}
                   className={
+                    `py-2 ${
                     pathname.startsWith('/team')
                       ? 'text-primary-600 dark:text-primary-400 font-semibold'
                       : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
+                    }`
                   }
                 >
                   Team
@@ -187,7 +189,7 @@ export function AppHeader() {
                       // Ignore storage access errors
                     }
                   }}
-                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                  className="py-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                 >
                   Log Out
                 </a>

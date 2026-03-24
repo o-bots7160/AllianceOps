@@ -120,7 +120,7 @@ export function GlobalControls() {
   );
 
   return (
-    <div className="flex items-center gap-2 text-sm min-w-0">
+    <div className="flex flex-wrap items-center gap-2 text-sm min-w-0">
       <div className="w-28 min-w-0">
         <TeamCombobox
           teamNumber={teamNumber}
@@ -142,7 +142,7 @@ export function GlobalControls() {
         />
       </div>
 
-      <div className="w-64 min-w-0">
+      <div className="w-full md:w-64 min-w-0">
         <Combobox
           value={eventKey}
           options={eventOptions}
