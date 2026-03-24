@@ -139,9 +139,43 @@ export async function requireTeamMember(
 
 /** Type guard: check if auth result is an error response. */
 export function isAuthError(
-  result: { user: AuthUser; role: TeamRole } | AuthUser | HttpResponseInit,
+  result:
+    | { user: AuthUser; role: TeamRole }
+    | { user: AuthUser; isAdmin: true }
+    | AuthUser
+    | HttpResponseInit,
 ): result is HttpResponseInit {
   return result !== null && typeof result === 'object' && 'status' in result && !('id' in result);
+}
+
+/**
+ * Require the user to be a global admin (in the AdminUser table).
+ * Returns 401 if not authenticated, 403 if not an admin.
+ */
+export async function requireAdmin(
+  request: HttpRequest,
+): Promise<{ user: AuthUser; isAdmin: true } | HttpResponseInit> {
+  const result = await requireUser(request);
+  if (isAuthError(result)) return result;
+
+  let adminRecord;
+  try {
+    adminRecord = await prisma.adminUser.findUnique({
+      where: { userId: result.id },
+    });
+  } catch (err) {
+    trackException(err instanceof Error ? err : new Error(String(err)), {
+      operation: 'requireAdmin.lookup',
+      userId: result.id,
+    });
+    return DB_UNAVAILABLE;
+  }
+
+  if (!adminRecord) {
+    return { status: 403, jsonBody: { error: 'Admin access required' } };
+  }
+
+  return { user: result, isAdmin: true };
 }
 
 /**

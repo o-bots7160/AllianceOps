@@ -61,10 +61,7 @@ export function generatePicklist(
     const epaTeleop = t.eventEpa?.teleop ?? t.seasonEpa?.teleop ?? 0;
     const epaEndgame = t.eventEpa?.endgame ?? t.seasonEpa?.endgame ?? 0;
 
-    const eventDelta =
-      t.eventEpa && t.seasonEpa
-        ? t.eventEpa.total - t.seasonEpa.total
-        : 0;
+    const eventDelta = t.eventEpa && t.seasonEpa ? t.eventEpa.total - t.seasonEpa.total : 0;
 
     const penaltyRisk = t.avgBreakdown?.penalty_points ?? 0;
 
@@ -102,16 +99,9 @@ export function generatePicklist(
   });
 
   scored.sort((a, b) => b.compositeScore - a.compositeScore);
-  scored.forEach((t, idx) => { t.rank = idx + 1; });
+  scored.forEach((t, idx) => {
+    t.rank = idx + 1;
+  });
 
   return scored;
-}
-
-export function exportPicklistCSV(teams: PicklistTeam[]): string {
-  const header = 'Rank,Team,Name,Score,EPA Total,EPA Auto,EPA Teleop,EPA Endgame,Event Delta,Penalty Risk';
-  const rows = teams.map(
-    (t) =>
-      `${t.rank},${t.teamNumber},"${t.nickname}",${t.compositeScore.toFixed(3)},${t.signals.epaTotal.toFixed(1)},${t.signals.epaAuto.toFixed(1)},${t.signals.epaTeleop.toFixed(1)},${t.signals.epaEndgame.toFixed(1)},${t.signals.eventDelta.toFixed(1)},${t.signals.penaltyRisk.toFixed(1)}`,
-  );
-  return [header, ...rows].join('\n');
 }

@@ -76,11 +76,22 @@ output serverFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output adminLogin string = adminLogin
 output databaseName string = database.name
 
+// Server parameter: allow-list PostgreSQL extensions (pgcrypto used by Prisma)
+resource azureExtensions 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: postgresServer
+  name: 'azure.extensions'
+  dependsOn: [firewallRule]
+  properties: {
+    value: 'PGCRYPTO'
+    source: 'user-override'
+  }
+}
+
 // Server parameter: enable logging of connections
 resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
   parent: postgresServer
   name: 'log_connections'
-  dependsOn: [firewallRule]
+  dependsOn: [azureExtensions]
   properties: {
     value: 'on'
     source: 'user-override'

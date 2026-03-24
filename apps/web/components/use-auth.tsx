@@ -15,6 +15,7 @@ interface AuthUserProfile {
   email: string | null;
   displayName: string | null;
   teams: TeamMembership[];
+  isAdmin?: boolean;
 }
 
 interface AuthContextValue {
@@ -22,6 +23,7 @@ interface AuthContextValue {
   loading: boolean;
   error: string | null;
   activeTeam: TeamMembership | null;
+  isAdmin: boolean;
   setActiveTeamId: (teamId: string) => void;
   refetch: () => Promise<void>;
 }
@@ -100,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     activeTeam,
+    isAdmin: user?.isAdmin === true,
     setActiveTeamId,
     refetch: fetchUser,
   };

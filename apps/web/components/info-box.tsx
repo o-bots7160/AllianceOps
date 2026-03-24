@@ -15,7 +15,7 @@ export function InfoBox({ heading, headingExtra, children, defaultOpen = false }
   return (
     <div>
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
           <button
             onClick={() => setOpen(!open)}
             className="text-2xl font-bold truncate text-left"

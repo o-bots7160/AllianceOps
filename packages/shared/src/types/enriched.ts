@@ -7,6 +7,8 @@ export interface EnrichedTeam extends TBATeam {
   epa: StatboticsEPA | null;
   eventRecord: StatboticsRecord | null;
   winrate: number | null;
+  tbaRank: number | null;
+  qualAverage: number | null;
 }
 
 /** TBA match enriched with Statbotics prediction data */

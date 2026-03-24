@@ -10,13 +10,15 @@ import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { TeamCard, type SectionExpandState } from '../../components/team-card';
 import { getApiBase } from '../../lib/api-base';
+import type { EnrichedTeam } from '../../lib/types';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
 import {
   getAdapter,
+  analyzeAllRankDiscrepancies,
   type DutySlotDefinition,
   type DutyTemplateSlot,
-  type GameMetricDefinition,
 } from '@allianceops/shared';
 
 interface TBAMatch {
@@ -31,29 +33,6 @@ interface TBAMatch {
   winning_alliance: string;
 }
 
-interface EnrichedTeam {
-  team_number: number;
-  nickname: string;
-  epa: {
-    total: number;
-    auto: number;
-    teleop: number;
-    endgame: number;
-    breakdown?: Record<string, number>;
-  } | null;
-  eventRecord: { wins: number; losses: number; ties: number } | null;
-  winrate: number | null;
-}
-
-function EpaBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
 const CATEGORY_COLORS: Record<string, string> = {
   auto: 'border-l-green-500',
   teleop: 'border-l-blue-500',
@@ -61,99 +40,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   defense: 'border-l-orange-500',
   discipline: 'border-l-red-500',
 };
-
-const METRIC_COLOR = 'bg-cyan-500';
-
-function TeamStrengthCard({
-  teamKey,
-  epaMap,
-  metrics,
-  record,
-}: {
-  teamKey: string;
-  epaMap: Map<number, EnrichedTeam>;
-  metrics: GameMetricDefinition[];
-  record?: { wins: number; losses: number; ties: number };
-}) {
-  const num = parseInt(teamKey.replace('frc', ''), 10);
-  const data = epaMap.get(num);
-  const maxEpa = 40;
-  const bd = data?.epa?.breakdown;
-  const displayRecord = record ?? data?.eventRecord;
-
-  return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="font-bold text-lg">{num}</span>
-        {data?.nickname && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
-            {data.nickname}
-          </span>
-        )}
-      </div>
-      {displayRecord && (
-        <div className="flex gap-3 text-xs">
-          <span className="text-green-600 dark:text-green-400 font-medium">
-            {displayRecord.wins}W
-          </span>
-          <span className="text-red-600 dark:text-red-400 font-medium">
-            {displayRecord.losses}L
-          </span>
-          {displayRecord.ties > 0 && (
-            <span className="text-gray-500 font-medium">{displayRecord.ties}T</span>
-          )}
-          {!record && data?.winrate != null && (
-            <span className="text-gray-500">({(data.winrate * 100).toFixed(0)}%)</span>
-          )}
-        </div>
-      )}
-      {data?.epa?.total != null ? (
-        <div className="space-y-1 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-20">Total</span>
-            <EpaBar value={data.epa.total} max={maxEpa} color="bg-primary-500" />
-            <span className="w-8 text-right">{data.epa.total.toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Auto</span>
-            <EpaBar value={data.epa.auto ?? 0} max={maxEpa / 2} color="bg-green-500" />
-            <span className="w-8 text-right">{(data.epa.auto ?? 0).toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Teleop</span>
-            <EpaBar value={data.epa.teleop ?? 0} max={maxEpa / 2} color="bg-blue-500" />
-            <span className="w-8 text-right">{(data.epa.teleop ?? 0).toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Endgame</span>
-            <EpaBar value={data.epa.endgame ?? 0} max={maxEpa / 3} color="bg-purple-500" />
-            <span className="w-8 text-right">{(data.epa.endgame ?? 0).toFixed(1)}</span>
-          </div>
-
-          {bd && metrics.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                <span className="font-medium text-gray-500 dark:text-gray-400">Game Breakdown</span>
-              </div>
-              {metrics.map(
-                (m) =>
-                  bd[m.key] != null && (
-                    <div key={m.key} className="flex items-center gap-2">
-                      <span className="w-20 truncate" title={m.description}>{m.label}</span>
-                      <EpaBar value={Math.abs(bd[m.key])} max={6} color={METRIC_COLOR} />
-                      <span className="w-8 text-right">{bd[m.key].toFixed(1)}</span>
-                    </div>
-                  ),
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400">No EPA data</p>
-      )}
-    </div>
-  );
-}
 
 /** Sum EPA breakdown values for the given keys. */
 function sumEpaKeys(
@@ -208,6 +94,37 @@ function buildTemplateAssignments(
     // Weakest: assign lowest overall EPA scorer
     if (strategy === 'weakest') {
       a[slot.key] = weakest;
+      continue;
+    }
+
+    // Endgame smart: compare scoring EPA vs tower EPA per team
+    if (strategy === 'endgame_smart') {
+      const towerKeys = cfg.epaRankKeysOverride ?? slot.epaRankKeys ?? ['total_tower'];
+      const scoringKeys = cfg.scoringKeysOverride ?? ['teleop_fuel', 'total_fuel'];
+      const LOW_EPA_THRESHOLD = 5;
+
+      // Pick the next unassigned team by total EPA (strongest first)
+      const sig = '_endgame_smart';
+      const idx = slotAssignIndex.get(sig) ?? 0;
+      const ranked = [...teamNums].sort(
+        (x, y) => (epaMap.get(y)?.epa?.total ?? 0) - (epaMap.get(x)?.epa?.total ?? 0),
+      );
+      const team = ranked[idx % ranked.length];
+      slotAssignIndex.set(sig, idx + 1);
+
+      const scoringEpa = sumEpaKeys(team, epaMap, scoringKeys);
+      const towerEpa = sumEpaKeys(team, epaMap, towerKeys);
+
+      if (scoringEpa > towerEpa) {
+        a[slot.key] = team;
+        n[slot.key] = `Continue scoring — fuel/teleop EPA (${scoringEpa.toFixed(1)}) exceeds tower EPA (${towerEpa.toFixed(1)}). Skip tower climb`;
+      } else if (towerEpa >= scoringEpa && towerEpa > LOW_EPA_THRESHOLD) {
+        a[slot.key] = team;
+        n[slot.key] = `Climb tower — tower EPA (${towerEpa.toFixed(1)}) is competitive. Target highest achievable level`;
+      } else {
+        a[slot.key] = null;
+        n[slot.key] = `Low scoring (${scoringEpa.toFixed(1)}) and tower (${towerEpa.toFixed(1)}) EPA — suggest defense`;
+      }
       continue;
     }
 
@@ -312,6 +229,43 @@ export default function PlannerPage() {
   }, [currentMatch]);
 
   const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
+
+  const epaRankMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!teams) return map;
+    const sorted = [...teams]
+      .filter((t) => t.epa?.total != null)
+      .sort((a, b) => (b.epa?.total ?? 0) - (a.epa?.total ?? 0));
+    sorted.forEach((t, i) => map.set(t.team_number, i + 1));
+    return map;
+  }, [teams]);
+
+  const rankAnalysisMap = useMemo(() => {
+    if (!teams || !matches) return new Map<string, ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V> ? V : never>();
+    const teamInputs = teams
+      .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
+      .map((t) => ({
+        teamKey: `frc${t.team_number}`,
+        tbaRank: t.tbaRank!,
+        epaRank: epaRankMap.get(t.team_number)!,
+      }));
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    const matchInputs = qualMatches.map((m) => ({
+      key: m.key,
+      matchNumber: m.match_number,
+      redTeams: m.alliances.red.team_keys,
+      blueTeams: m.alliances.blue.team_keys,
+      redScore: m.alliances.red.score,
+      blueScore: m.alliances.blue.score,
+      winningAlliance: m.winning_alliance,
+    }));
+    const epaRecord: Record<string, { total: number }> = {};
+    for (const t of teams) {
+      if (t.epa) epaRecord[`frc${t.team_number}`] = t.epa;
+    }
+    return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaRecord);
+  }, [teams, matches, epaRankMap]);
+
   const [assignments, setAssignments] = useState<Record<string, number | null>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [template, setTemplate] = useState<string>('');
@@ -319,6 +273,10 @@ export default function PlannerPage() {
   const [dirty, setDirty] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [sectionState, setSectionState] = useState<SectionExpandState>({ rank: true, epa: true, game: true });
+  const handleSectionToggle = useCallback((section: keyof SectionExpandState) => {
+    setSectionState((prev) => ({ ...prev, [section]: !prev[section] }));
+  }, []);
   const { confirmIfDirty } = useUnsavedGuard(dirty);
 
   // Load saved plan when match or team changes
@@ -572,12 +530,17 @@ export default function PlannerPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {allianceTeams.map((t) => (
-                <TeamStrengthCard
+                <TeamCard
                   key={t}
                   teamKey={t}
                   epaMap={epaMap}
                   metrics={cardMetrics}
+                  epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
+                  defaultExpanded
                   record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                  rankAnalysis={rankAnalysisMap.get(t)}
+                  sectionState={sectionState}
+                  onSectionToggle={handleSectionToggle}
                 />
               ))}
             </div>
@@ -630,8 +593,8 @@ export default function PlannerPage() {
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <textarea
+                      rows={3}
                       placeholder="Notes..."
                       value={notes[slot.key] || ''}
                       onChange={(e) => {
@@ -640,7 +603,7 @@ export default function PlannerPage() {
                         setSaved(false);
                       }}
                       disabled={!canEdit}
-                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 ))}

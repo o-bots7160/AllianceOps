@@ -38,6 +38,17 @@ model User {
   inviteCodes  InviteCode[]
   joinRequests JoinRequest[]
   reviews      JoinRequest[] @relation("ReviewedBy")
+  adminRole    AdminUser?
+}
+
+// ─── Admin ──────────────────────────────────────────────
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Team {

@@ -6,6 +6,9 @@ name: Post-Deploy Tests
 on:
   workflow_call:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy-test-env:
     name: Deploy Test Environment
