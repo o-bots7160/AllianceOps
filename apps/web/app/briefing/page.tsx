@@ -28,6 +28,7 @@ interface EnrichedTeam {
   epa: { total: number; auto: number; teleop: number; endgame: number } | null;
   eventRecord: { wins: number; losses: number; ties: number } | null;
   winrate: number | null;
+  tbaRank: number | null;
 }
 
 function teamNum(key: string): string {
@@ -47,10 +48,12 @@ function TeamCard({
   teamKey,
   epaMap,
   record,
+  epaRank,
 }: {
   teamKey: string;
   epaMap: Map<number, EnrichedTeam>;
   record?: { wins: number; losses: number; ties: number };
+  epaRank?: number | null;
 }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
@@ -61,11 +64,15 @@ function TeamCard({
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
       <div className="flex justify-between items-center">
         <span className="font-bold text-lg">{teamNum(teamKey)}</span>
-        {displayRecord && (
-          <span className="text-xs text-gray-500">
-            {displayRecord.wins}W-{displayRecord.losses}L
-          </span>
-        )}
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          {data?.tbaRank != null && <span>Rank #{data.tbaRank}</span>}
+          {epaRank != null && <span>EPA #{epaRank}</span>}
+          {displayRecord && (
+            <span>
+              {displayRecord.wins}W-{displayRecord.losses}L
+            </span>
+          )}
+        </div>
       </div>
       {data?.epa?.total != null ? (
         <div className="space-y-1 text-xs">
@@ -145,6 +152,17 @@ export default function BriefingPage() {
   }, [currentMatch]);
 
   const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
+
+  // Compute EPA rank for all event teams (1-based, sorted by epa.total descending)
+  const epaRankMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!teams) return map;
+    const sorted = [...teams]
+      .filter((t) => t.epa?.total != null)
+      .sort((a, b) => (b.epa?.total ?? 0) - (a.epa?.total ?? 0));
+    sorted.forEach((t, i) => map.set(t.team_number, i + 1));
+    return map;
+  }, [teams]);
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
@@ -231,6 +249,7 @@ export default function BriefingPage() {
                 key={t}
                 teamKey={t}
                 epaMap={epaMap}
+                epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
               />
             ))}
@@ -246,6 +265,7 @@ export default function BriefingPage() {
                 key={t}
                 teamKey={t}
                 epaMap={epaMap}
+                epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
               />
             ))}

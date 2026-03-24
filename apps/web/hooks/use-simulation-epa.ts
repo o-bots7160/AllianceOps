@@ -30,6 +30,7 @@ interface EnrichedTeam {
   } | null;
   eventRecord: { wins: number; losses: number; ties: number } | null;
   winrate: number | null;
+  tbaRank: number | null;
 }
 
 /**
