@@ -9,6 +9,7 @@ Accepted
 AllianceOps has a team-scoped role system (COACH > MENTOR > STUDENT) for access control within FRC teams. However, there is no concept of a global "super user" who can view system-wide data such as all registered users, teams, and usage stats. As the platform grows, operators need visibility into the system without being tied to any specific team.
 
 Key requirements:
+
 - Admin access must be independent of team membership
 - Admin assignment should not be possible from the self-service UI (team page)
 - The system needs a simple, auditable way to grant/revoke admin access
@@ -35,17 +36,21 @@ Create a **separate `AdminUser` table** rather than adding an `ADMIN` value to t
 ## Alternatives Considered
 
 ### Add `ADMIN` to `TeamRole` enum
+
 Rejected because admin is not a team-scoped concept. An admin is a platform-level role, and mixing it into the team role hierarchy would create confusion (which team would the admin belong to?) and require changes to all team-role-checking middleware.
 
 ### Add an `isAdmin` boolean column to `User`
+
 Simpler but less auditable — no `createdAt` timestamp for when admin was granted, and schema changes to the `User` table have wider blast radius. A separate table is cleaner and follows the principle of least surprise.
 
 ### Build an admin management UI
+
 Deferred intentionally. Direct database management is sufficient for the small number of admins expected, and avoids the security surface area of an admin self-service UI. Can be added later if needed.
 
 ## Consequences
 
 ### Positive
+
 - Clean separation between team roles and platform admin
 - No changes to existing team role logic or middleware
 - Auditable via `createdAt` timestamp on `AdminUser` records
@@ -53,6 +58,7 @@ Deferred intentionally. Direct database management is sufficient for the small n
 - `isAdmin` flag on `/me` avoids extra API roundtrips
 
 ### Negative
+
 - Admin management requires database access (intentional trade-off)
 - No UI for admin management (by design, can be added later)
 - Additional DB query on `/me` endpoint (mitigated by `Promise.all` parallelism)

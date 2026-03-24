@@ -1,4 +1,4 @@
-# ADR 029: Rank Discrepancy Analysis
+# ADR 030: Rank Discrepancy Analysis
 
 ## Status
 
