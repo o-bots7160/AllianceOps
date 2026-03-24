@@ -39,10 +39,13 @@ export interface DutyTemplateSlot {
    * - 'weakest': assign weakest overall scorer
    * - 'skip': leave unassigned (e.g. risky endgame in safe mode)
    * - 'all': team-wide directive, no specific team (e.g. foul avoidance)
+   * - 'endgame_smart': compare scoring EPA vs tower EPA to decide climb/score/defense
    */
-  strategy?: 'strongest' | 'weakest' | 'skip' | 'all';
+  strategy?: 'strongest' | 'weakest' | 'skip' | 'all' | 'endgame_smart';
   /** Override the slot's default epaRankKeys for this template */
   epaRankKeysOverride?: string[];
+  /** EPA keys representing "continue scoring" for endgame_smart comparison */
+  scoringKeysOverride?: string[];
 }
 
 /** Named duty template */

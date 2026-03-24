@@ -96,6 +96,37 @@ function buildTemplateAssignments(
       continue;
     }
 
+    // Endgame smart: compare scoring EPA vs tower EPA per team
+    if (strategy === 'endgame_smart') {
+      const towerKeys = cfg.epaRankKeysOverride ?? slot.epaRankKeys ?? ['total_tower'];
+      const scoringKeys = cfg.scoringKeysOverride ?? ['teleop_fuel', 'total_fuel'];
+      const LOW_EPA_THRESHOLD = 5;
+
+      // Pick the next unassigned team by total EPA (strongest first)
+      const sig = '_endgame_smart';
+      const idx = slotAssignIndex.get(sig) ?? 0;
+      const ranked = [...teamNums].sort(
+        (x, y) => (epaMap.get(y)?.epa?.total ?? 0) - (epaMap.get(x)?.epa?.total ?? 0),
+      );
+      const team = ranked[idx % ranked.length];
+      slotAssignIndex.set(sig, idx + 1);
+
+      const scoringEpa = sumEpaKeys(team, epaMap, scoringKeys);
+      const towerEpa = sumEpaKeys(team, epaMap, towerKeys);
+
+      if (scoringEpa > towerEpa) {
+        a[slot.key] = team;
+        n[slot.key] = `Continue scoring — fuel/teleop EPA (${scoringEpa.toFixed(1)}) exceeds tower EPA (${towerEpa.toFixed(1)}). Skip tower climb`;
+      } else if (towerEpa >= scoringEpa && towerEpa > LOW_EPA_THRESHOLD) {
+        a[slot.key] = team;
+        n[slot.key] = `Climb tower — tower EPA (${towerEpa.toFixed(1)}) is competitive. Target highest achievable level`;
+      } else {
+        a[slot.key] = null;
+        n[slot.key] = `Low scoring (${scoringEpa.toFixed(1)}) and tower (${towerEpa.toFixed(1)}) EPA — suggest defense`;
+      }
+      continue;
+    }
+
     // Defense/discipline defaults (when no explicit strategy)
     if (slot.category === 'defense' && !cfg.strategy) {
       a[slot.key] = null;
@@ -528,8 +559,8 @@ export default function PlannerPage() {
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <textarea
+                      rows={3}
                       placeholder="Notes..."
                       value={notes[slot.key] || ''}
                       onChange={(e) => {
@@ -538,7 +569,7 @@ export default function PlannerPage() {
                         setSaved(false);
                       }}
                       disabled={!canEdit}
-                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 ))}

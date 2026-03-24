@@ -58,16 +58,26 @@ const dutySlots: DutySlotDefinition[] = [
     epaRankKeys: ['teleop_points'],
   },
   {
-    key: 'TOWER_CLIMBER_1',
-    label: 'Tower Climber 1',
-    description: 'Primary tower climber — target highest achievable level for Traversal RP',
+    key: 'ENDGAME_1',
+    label: 'Endgame 1',
+    description:
+      'Robot 1 endgame action — climb tower, continue scoring, or play defense based on EPA',
     category: 'endgame',
     epaRankKeys: ['total_tower'],
   },
   {
-    key: 'TOWER_CLIMBER_2',
-    label: 'Tower Climber 2',
-    description: 'Secondary tower climber — need ≥50 tower pts total for Traversal RP',
+    key: 'ENDGAME_2',
+    label: 'Endgame 2',
+    description:
+      'Robot 2 endgame action — climb tower, continue scoring, or play defense based on EPA',
+    category: 'endgame',
+    epaRankKeys: ['total_tower'],
+  },
+  {
+    key: 'ENDGAME_3',
+    label: 'Endgame 3',
+    description:
+      'Robot 3 endgame action — climb tower, continue scoring, or play defense based on EPA',
     category: 'endgame',
     epaRankKeys: ['total_tower'],
   },
@@ -111,13 +121,23 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Second best scorer — coordinate with human player at outpost for fuel supply via chute. Score only during active hub shifts',
         strategy: 'strongest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Most reliable climber — aim for Level 2 minimum (bumpers above LOW RUNG, 20 pts). Traverse bumps/trenches back to tower before end game (last 30s)',
-        strategy: 'strongest',
+      ENDGAME_1: {
+        hint: 'If tower EPA is strong, climb Level 2+ (20+ pts). If teleop/fuel EPA exceeds tower, continue scoring fuel through endgame. Low EPA in both — consider defense',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
-      TOWER_CLIMBER_2: {
-        hint: 'Level 1 climb (10 pts) — get off carpet, contact rung/upright. If unreliable climber, keep scoring fuel until end game instead. Need ≥50 tower pts total for Traversal RP',
-        strategy: 'weakest',
+      ENDGAME_2: {
+        hint: 'If tower EPA is strong, climb Level 1 minimum (10 pts) for Traversal RP. If fuel EPA is higher, keep scoring. Low EPA — consider defense',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
+      },
+      ENDGAME_3: {
+        hint: 'If tower EPA is strong, climb for Traversal RP (≥50 tower pts total). If fuel EPA is higher, keep scoring. Low EPA — consider defense',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
       DEFENSE_ROLE: {
         hint: 'No defense — all 3 robots focus on fuel scoring and climbing',
@@ -155,13 +175,23 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Support scorer — fill scoring gaps during active shifts. Use neutral zone fuel and depot. Must score from alliance zone only (G407)',
         strategy: 'strongest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Best climber — aim for Level 3 (bumpers above MID RUNG at 45in, 30 pts) or Level 2 (above LOW RUNG at 27in, 20 pts). Start climbing with ~15s left in end game. Can only grab rungs & uprights (G412)',
-        strategy: 'strongest',
+      ENDGAME_1: {
+        hint: 'If tower EPA is strong, aim for Level 3 (30 pts) or Level 2 (20 pts). If teleop/fuel EPA exceeds tower, keep scoring fuel. Low EPA — play defense instead',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
-      TOWER_CLIMBER_2: {
-        hint: "Second climber — need combined ≥50 tower pts for Traversal RP. Level 2 (20 pts) or Level 1 (10 pts). Do not support another robot's weight while climbing (G414: no tower points)",
-        strategy: 'strongest',
+      ENDGAME_2: {
+        hint: 'If tower EPA is strong, climb for Traversal RP (≥50 tower pts total). If fuel EPA is higher, keep scoring. Low EPA — play defense or stay out of the way',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
+      },
+      ENDGAME_3: {
+        hint: 'If tower EPA is strong, climb Level 1+ for Traversal RP. If fuel EPA is higher, continue scoring. Low EPA — transition to defense',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
       DEFENSE_ROLE: {
         hint: 'Weakest scorer plays light defense during opponent active hub shifts — block hub access or disrupt fuel collection. Observe PIN limit (G418: 3s max, 72in separation to reset). Do not collude with partner to block both bumps or both trenches (G419: MAJOR FOUL per 3s). Transition to tower climb before last 30s',
@@ -199,15 +229,23 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Aggressive hub scoring — use depot and human player chute feeds. Hub recycles fuel through exits into neutral zone — collect and re-score. Must stay in alliance zone to score (G407)',
         strategy: 'strongest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Level 3 tower climb (bumpers above MID RUNG at 45in, 30 pts) — can climb from inside the tower. Only grab rungs & uprights (G412: MAJOR FOUL + YELLOW CARD for other field elements). G420 protects climbers in last 30s',
-        strategy: 'strongest',
+      ENDGAME_1: {
+        hint: 'If tower EPA is strong, push for Level 3 (30 pts). If teleop/fuel EPA exceeds tower, maximize fuel scoring through endgame. Low EPA — play aggressive defense instead',
+        strategy: 'endgame_smart',
         epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
-      TOWER_CLIMBER_2: {
-        hint: "Level 3 or Level 2 tower climb — need combined ≥50 tower pts for Traversal RP (e.g. L3+L2=50 or L3+L3=60). Do not support another robot's weight (G414). Can score fuel into hub while climbing if in alliance zone (G407)",
-        strategy: 'strongest',
+      ENDGAME_2: {
+        hint: 'If tower EPA is strong, climb Level 3 or Level 2 for Traversal RP (≥50 tower pts). If fuel EPA is higher, keep scoring toward Supercharged RP. Low EPA — play defense',
+        strategy: 'endgame_smart',
         epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
+      },
+      ENDGAME_3: {
+        hint: 'If tower EPA is strong, climb for Traversal RP. If fuel EPA is higher, continue scoring. Low EPA — transition to defense',
+        strategy: 'endgame_smart',
+        epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
       DEFENSE_ROLE: {
         hint: 'Dedicated defender during opponent active hub shifts — block hub access, disrupt opponent fuel cycling over bumps/through trenches. PIN limit 3s then separate 72in (G418). A single robot blocking one area is legal; 2 robots blocking both bumps or both trenches is not (G419). Transition to climb before last 30s (G420 tower protection begins)',
@@ -245,14 +283,20 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Second fuel machine — coordinate with human player throwing from outpost. Hub recycles fuel through exits into neutral zone — collect and re-score continuously. Must score from alliance zone only (G407)',
         strategy: 'strongest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Quick Level 1 climb only (bumpers off carpet, 10 pts) — do not waste time on higher levels. Continue scoring fuel until last ~10s, then grab rung. Prioritize fuel volume over tower points',
-        strategy: 'weakest',
+      ENDGAME_1: {
+        hint: 'Continue scoring fuel through endgame — skip tower climb. Prioritize fuel volume toward Supercharged RP (≥360)',
+        strategy: 'strongest',
         epaRankKeysOverride: ['total_fuel'],
       },
-      TOWER_CLIMBER_2: {
-        hint: 'Skip climbing entirely — keep scoring fuel through end of match. The alliance trades Traversal RP for higher fuel totals toward Supercharged RP (≥360)',
-        strategy: 'skip',
+      ENDGAME_2: {
+        hint: 'Continue scoring fuel through endgame — skip tower climb. Every fuel scored counts toward Supercharged RP',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['total_fuel'],
+      },
+      ENDGAME_3: {
+        hint: 'Quick Level 1 climb (10 pts) only if time allows in last ~10s. Otherwise keep scoring fuel. Traversal RP is sacrificed for fuel volume',
+        strategy: 'weakest',
+        epaRankKeysOverride: ['total_fuel'],
       },
       DEFENSE_ROLE: {
         hint: 'No defense — all 3 robots focus exclusively on fuel scoring throughout the match',
@@ -290,13 +334,18 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Support fuel scorer — focus on reaching ≥100 fuel total for Energized RP. Coordinate with human player at chute. Transition to tower early to allow time for Level 3 attempt',
         strategy: 'strongest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Level 3 climb (bumpers above MID RUNG at 45in, 30 pts) — best climber takes highest level. Start climbing with ~20s left. Only grab rungs & uprights (G412). G420 protects climbers in last 30s',
+      ENDGAME_1: {
+        hint: 'Level 3 climb (30 pts) — best climber takes highest level. Start climbing with ~20s left. Only grab rungs & uprights (G412). G420 protects climbers in last 30s',
         strategy: 'strongest',
         epaRankKeysOverride: ['total_tower'],
       },
-      TOWER_CLIMBER_2: {
-        hint: "Level 3 or Level 2 climb (20-30 pts) — 3 robots climbing guarantees Traversal RP (≥50 pts easily: e.g. L3+L2+L1=60). Do not support another robot's weight (G414: no tower points). Can climb from inside the tower",
+      ENDGAME_2: {
+        hint: 'Level 3 or Level 2 climb (20-30 pts) — 3 robots climbing guarantees Traversal RP (≥50 pts easily: e.g. L3+L2+L1=60). Can climb from inside the tower',
+        strategy: 'strongest',
+        epaRankKeysOverride: ['total_tower'],
+      },
+      ENDGAME_3: {
+        hint: "Level 2 or Level 1 climb (10-20 pts) — third climber for guaranteed Traversal RP. Do not support another robot's weight (G414: no tower points)",
         strategy: 'strongest',
         epaRankKeysOverride: ['total_tower'],
       },
@@ -336,13 +385,18 @@ const dutyTemplates: DutyTemplate[] = [
         hint: 'Flex role — score fuel during your own active shifts, then switch to disrupting opponents during their active shifts. Collect neutral zone fuel to deny it to opponents when possible',
         strategy: 'weakest',
       },
-      TOWER_CLIMBER_1: {
-        hint: 'Primary scorer climbs Level 2+ (≥20 pts) near end of match. Start climbing with ~15s left. Defenders may not have reliable climbers — prioritize this robot reaching the tower',
-        strategy: 'strongest',
+      ENDGAME_1: {
+        hint: 'Primary scorer climbs Level 2+ (≥20 pts) near end of match. Start climbing with ~15s left. Prioritize this robot reaching the tower',
+        strategy: 'endgame_smart',
         epaRankKeysOverride: ['total_tower'],
+        scoringKeysOverride: ['teleop_fuel', 'total_fuel'],
       },
-      TOWER_CLIMBER_2: {
-        hint: 'Defender attempts Level 1 climb (10 pts) if possible. If unreliable climber, skip and let primary scorer handle tower points. Traversal RP (≥50 pts) is stretch goal in this strategy',
+      ENDGAME_2: {
+        hint: 'Defender — skip climb, continue disrupting opponents through endgame. Traversal RP is a stretch goal in this strategy',
+        strategy: 'weakest',
+      },
+      ENDGAME_3: {
+        hint: 'Second defender — skip climb, play defense through endgame. Only attempt Level 1 (10 pts) if match is secure',
         strategy: 'weakest',
       },
       DEFENSE_ROLE: {

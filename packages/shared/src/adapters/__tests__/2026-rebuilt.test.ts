@@ -116,8 +116,8 @@ describe('2026 REBUILT adapter', () => {
   describe('dutySlots', () => {
     const slots = adapter.dutySlots;
 
-    it('defines 9 duty slots', () => {
-      expect(slots).toHaveLength(9);
+    it('defines 10 duty slots', () => {
+      expect(slots).toHaveLength(10);
     });
 
     it('has unique slot keys', () => {
@@ -134,10 +134,10 @@ describe('2026 REBUILT adapter', () => {
       expect(categories).toContain('discipline');
     });
 
-    it('tower climber slots use total_tower epaRankKeys', () => {
-      const climbers = slots.filter((s) => s.key.startsWith('TOWER_CLIMBER'));
-      expect(climbers).toHaveLength(2);
-      for (const c of climbers) {
+    it('endgame slots use total_tower epaRankKeys', () => {
+      const endgameSlots = slots.filter((s) => s.key.startsWith('ENDGAME'));
+      expect(endgameSlots).toHaveLength(3);
+      for (const c of endgameSlots) {
         expect(c.epaRankKeys).toEqual(['total_tower']);
       }
     });
