@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getApiBase } from '../lib/api-base';
 import { scaleEpaToStart } from '../lib/simulation-filters';
+import type { EnrichedTeam } from '../lib/types';
 
 interface TeamSiteEvent {
   eventKey: string;
@@ -16,21 +17,6 @@ interface TeamSiteEvent {
   startEpa: number;
   preElimEpa: number;
   record: { wins: number; losses: number; ties: number };
-}
-
-interface EnrichedTeam {
-  team_number: number;
-  nickname: string;
-  epa: {
-    total: number;
-    auto: number;
-    teleop: number;
-    endgame: number;
-    breakdown?: Record<string, number>;
-  } | null;
-  eventRecord: { wins: number; losses: number; ties: number } | null;
-  winrate: number | null;
-  tbaRank: number | null;
 }
 
 /**

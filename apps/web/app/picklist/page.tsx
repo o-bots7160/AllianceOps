@@ -8,13 +8,9 @@ import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 import { getApiBase } from '../../lib/api-base';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
+import type { EnrichedTeam as BaseEnrichedTeam } from '../../lib/types';
 
-interface EnrichedTeam {
-  team_number: number;
-  nickname?: string;
-  epa: { total: number; auto: number; teleop: number; endgame: number } | null;
-  eventRecord: { wins: number; losses: number; ties: number } | null;
-  tbaRank: number | null;
+interface EnrichedTeam extends BaseEnrichedTeam {
   qualAverage: number | null;
 }
 

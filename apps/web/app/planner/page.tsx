@@ -10,13 +10,14 @@ import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { TeamCard } from '../../components/team-card';
 import { getApiBase } from '../../lib/api-base';
+import type { EnrichedTeam } from '../../lib/types';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
 import {
   getAdapter,
   type DutySlotDefinition,
   type DutyTemplateSlot,
-  type GameMetricDefinition,
 } from '@allianceops/shared';
 
 interface TBAMatch {
@@ -31,29 +32,6 @@ interface TBAMatch {
   winning_alliance: string;
 }
 
-interface EnrichedTeam {
-  team_number: number;
-  nickname: string;
-  epa: {
-    total: number;
-    auto: number;
-    teleop: number;
-    endgame: number;
-    breakdown?: Record<string, number>;
-  } | null;
-  eventRecord: { wins: number; losses: number; ties: number } | null;
-  winrate: number | null;
-}
-
-function EpaBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
 const CATEGORY_COLORS: Record<string, string> = {
   auto: 'border-l-green-500',
   teleop: 'border-l-blue-500',
@@ -61,99 +39,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   defense: 'border-l-orange-500',
   discipline: 'border-l-red-500',
 };
-
-const METRIC_COLOR = 'bg-cyan-500';
-
-function TeamStrengthCard({
-  teamKey,
-  epaMap,
-  metrics,
-  record,
-}: {
-  teamKey: string;
-  epaMap: Map<number, EnrichedTeam>;
-  metrics: GameMetricDefinition[];
-  record?: { wins: number; losses: number; ties: number };
-}) {
-  const num = parseInt(teamKey.replace('frc', ''), 10);
-  const data = epaMap.get(num);
-  const maxEpa = 40;
-  const bd = data?.epa?.breakdown;
-  const displayRecord = record ?? data?.eventRecord;
-
-  return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="font-bold text-lg">{num}</span>
-        {data?.nickname && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
-            {data.nickname}
-          </span>
-        )}
-      </div>
-      {displayRecord && (
-        <div className="flex gap-3 text-xs">
-          <span className="text-green-600 dark:text-green-400 font-medium">
-            {displayRecord.wins}W
-          </span>
-          <span className="text-red-600 dark:text-red-400 font-medium">
-            {displayRecord.losses}L
-          </span>
-          {displayRecord.ties > 0 && (
-            <span className="text-gray-500 font-medium">{displayRecord.ties}T</span>
-          )}
-          {!record && data?.winrate != null && (
-            <span className="text-gray-500">({(data.winrate * 100).toFixed(0)}%)</span>
-          )}
-        </div>
-      )}
-      {data?.epa?.total != null ? (
-        <div className="space-y-1 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-20">Total</span>
-            <EpaBar value={data.epa.total} max={maxEpa} color="bg-primary-500" />
-            <span className="w-8 text-right">{data.epa.total.toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Auto</span>
-            <EpaBar value={data.epa.auto ?? 0} max={maxEpa / 2} color="bg-green-500" />
-            <span className="w-8 text-right">{(data.epa.auto ?? 0).toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Teleop</span>
-            <EpaBar value={data.epa.teleop ?? 0} max={maxEpa / 2} color="bg-blue-500" />
-            <span className="w-8 text-right">{(data.epa.teleop ?? 0).toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-20">Endgame</span>
-            <EpaBar value={data.epa.endgame ?? 0} max={maxEpa / 3} color="bg-purple-500" />
-            <span className="w-8 text-right">{(data.epa.endgame ?? 0).toFixed(1)}</span>
-          </div>
-
-          {bd && metrics.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                <span className="font-medium text-gray-500 dark:text-gray-400">Game Breakdown</span>
-              </div>
-              {metrics.map(
-                (m) =>
-                  bd[m.key] != null && (
-                    <div key={m.key} className="flex items-center gap-2">
-                      <span className="w-20 truncate" title={m.description}>{m.label}</span>
-                      <EpaBar value={Math.abs(bd[m.key])} max={6} color={METRIC_COLOR} />
-                      <span className="w-8 text-right">{bd[m.key].toFixed(1)}</span>
-                    </div>
-                  ),
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400">No EPA data</p>
-      )}
-    </div>
-  );
-}
 
 /** Sum EPA breakdown values for the given keys. */
 function sumEpaKeys(
@@ -312,6 +197,17 @@ export default function PlannerPage() {
   }, [currentMatch]);
 
   const epaMap = useSimulationEpa(teams, eventKey, year, activeCursor, matchTeamNumbers);
+
+  const epaRankMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!teams) return map;
+    const sorted = [...teams]
+      .filter((t) => t.epa?.total != null)
+      .sort((a, b) => (b.epa?.total ?? 0) - (a.epa?.total ?? 0));
+    sorted.forEach((t, i) => map.set(t.team_number, i + 1));
+    return map;
+  }, [teams]);
+
   const [assignments, setAssignments] = useState<Record<string, number | null>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [template, setTemplate] = useState<string>('');
@@ -572,11 +468,13 @@ export default function PlannerPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {allianceTeams.map((t) => (
-                <TeamStrengthCard
+                <TeamCard
                   key={t}
                   teamKey={t}
                   epaMap={epaMap}
                   metrics={cardMetrics}
+                  epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
+                  defaultExpanded
                   record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
                 />
               ))}
