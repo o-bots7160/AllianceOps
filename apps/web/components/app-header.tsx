@@ -52,8 +52,8 @@ function UserMenu({ displayLabel }: { displayLabel: string }) {
             href="/team/"
             onClick={close}
             className={`block px-4 py-2 text-sm ${teamActive
-                ? 'text-primary-600 dark:text-primary-400 font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              ? 'text-primary-600 dark:text-primary-400 font-semibold'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
           >
             Team
@@ -170,8 +170,7 @@ export function AppHeader() {
                   href="/team/"
                   onClick={() => setMobileOpen(false)}
                   className={
-                    `py-2 ${
-                    pathname.startsWith('/team')
+                    `py-2 ${pathname.startsWith('/team')
                       ? 'text-primary-600 dark:text-primary-400 font-semibold'
                       : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
                     }`

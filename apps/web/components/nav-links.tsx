@@ -33,9 +33,9 @@ export function NavLinks({ vertical, onNavigate }: { vertical?: boolean; onNavig
             className={
               vertical
                 ? `py-2 ${isActive
-                    ? 'text-primary-600 dark:text-primary-400 font-semibold'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
-                  }`
+                  ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
+                }`
                 : isActive
                   ? 'text-primary-600 dark:text-primary-400 font-semibold'
                   : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
