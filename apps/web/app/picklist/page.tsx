@@ -6,8 +6,12 @@ import { useAuth } from '../../components/use-auth';
 import { useApi } from '../../components/use-api';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { TeamCard } from '../../components/team-card';
+import { DETERMINATION_LABELS } from '../../components/team-card';
 import { getApiBase } from '../../lib/api-base';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
+import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
+import type { TeamRankAnalysis, GameMetricDefinition } from '@allianceops/shared';
 import type { EnrichedTeam as BaseEnrichedTeam } from '../../lib/types';
 
 interface EnrichedTeam extends BaseEnrichedTeam {
@@ -37,6 +41,18 @@ interface SavedPicklistEntry {
   tags: string[] | string;
   notes: string | null;
   excluded: boolean;
+}
+
+interface TBAMatch {
+  key: string;
+  comp_level: string;
+  set_number: number;
+  match_number: number;
+  alliances: {
+    red: { team_keys: string[]; score: number };
+    blue: { team_keys: string[]; score: number };
+  };
+  winning_alliance: string;
 }
 
 const POLL_INTERVAL_MS = 30_000;
@@ -91,8 +107,8 @@ function defaultDirectionForKey(key: SortKey): SortDirection {
     case 'manualRank':
     case 'team':
     case 'tbaRank':
-      return 'asc';
     case 'epaRank':
+      return 'asc';
     case 'epaTotal':
     case 'epaAuto':
     case 'epaTeleop':
@@ -487,8 +503,76 @@ function downloadCSV(entries: PicklistEntry[]) {
   URL.revokeObjectURL(url);
 }
 
+function TeamDetailModal({
+  teamNumber,
+  epaMap,
+  epaRankMap,
+  rankAnalysisMap,
+  teamRecords,
+  cardMetrics,
+  onClose,
+}: {
+  teamNumber: number;
+  epaMap: Map<number, EnrichedTeam>;
+  epaRankMap: Map<number, number>;
+  rankAnalysisMap: Map<string, TeamRankAnalysis>;
+  teamRecords: Map<number, { wins: number; losses: number; ties: number }>;
+  cardMetrics: GameMetricDefinition[];
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  const teamKey = `frc${teamNumber}`;
+  const team = epaMap.get(teamNumber);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5 relative"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 rounded-full p-1 border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        {team ? (
+          <TeamCard
+            teamKey={teamKey}
+            epaMap={epaMap}
+            epaRank={epaRankMap.get(teamNumber)}
+            metrics={cardMetrics}
+            record={teamRecords.get(teamNumber)}
+            rankAnalysis={rankAnalysisMap.get(teamKey)}
+            defaultExpanded
+          />
+        ) : (
+          <p className="text-sm text-gray-500">No data available for team {teamNumber}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PicklistPage() {
-  const { eventKey, teamNumber, setEventKey } = useEventSetup();
+  const { eventKey, teamNumber, year, setEventKey } = useEventSetup();
   const { user, activeTeam } = useAuth();
   const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
   const canEdit = isOwnTeam;
@@ -496,6 +580,87 @@ export default function PicklistPage() {
   const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
+  const { data: matches } = useApi<TBAMatch[]>(
+    eventKey ? `event/${eventKey}/matches` : null,
+  );
+
+  // Build epaMap (teamNumber → EnrichedTeam) for TeamCard
+  const epaMap = useMemo(() => {
+    const map = new Map<number, EnrichedTeam>();
+    if (!teams) return map;
+    for (const t of teams) map.set(t.team_number, t);
+    return map;
+  }, [teams]);
+
+  // EPA rank for all event teams (1-based, sorted by epa.total descending)
+  const epaRankMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!teams) return map;
+    const sorted = [...teams]
+      .filter((t) => t.epa?.total != null)
+      .sort((a, b) => (b.epa?.total ?? 0) - (a.epa?.total ?? 0));
+    sorted.forEach((t, i) => map.set(t.team_number, i + 1));
+    return map;
+  }, [teams]);
+
+  // Rank analysis for all teams
+  const rankAnalysisMap = useMemo(() => {
+    if (!teams || !matches)
+      return new Map<string, TeamRankAnalysis>();
+    const teamInputs = teams
+      .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
+      .map((t) => ({
+        teamKey: `frc${t.team_number}`,
+        tbaRank: t.tbaRank!,
+        epaRank: epaRankMap.get(t.team_number)!,
+      }));
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    const matchInputs = qualMatches.map((m) => ({
+      key: m.key,
+      matchNumber: m.match_number,
+      redTeams: m.alliances.red.team_keys,
+      blueTeams: m.alliances.blue.team_keys,
+      redScore: m.alliances.red.score,
+      blueScore: m.alliances.blue.score,
+      winningAlliance: m.winning_alliance,
+    }));
+    const epaInputMap: Record<string, { total: number }> = {};
+    for (const t of teams) {
+      if (t.epa) epaInputMap[`frc${t.team_number}`] = t.epa;
+    }
+    return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaInputMap);
+  }, [teams, matches, epaRankMap]);
+
+  // Game adapter metrics for TeamCard
+  let adapter: ReturnType<typeof getAdapter> | null = null;
+  try {
+    adapter = getAdapter(year);
+  } catch {
+    // No adapter registered for this year
+  }
+  const cardMetrics = (adapter?.gameSpecificMetrics ?? []).filter(
+    (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
+  );
+
+  // Compute team records from matches
+  const teamRecords = useMemo(() => {
+    const records = new Map<number, { wins: number; losses: number; ties: number }>();
+    if (!matches) return records;
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    for (const m of qualMatches) {
+      for (const teamKey of [...m.alliances.red.team_keys, ...m.alliances.blue.team_keys]) {
+        const num = parseInt(teamKey.replace('frc', ''), 10);
+        if (!records.has(num)) records.set(num, { wins: 0, losses: 0, ties: 0 });
+        const rec = records.get(num)!;
+        const isRed = m.alliances.red.team_keys.includes(teamKey);
+        if (m.winning_alliance === 'red' && isRed) rec.wins++;
+        else if (m.winning_alliance === 'blue' && !isRed) rec.wins++;
+        else if (m.winning_alliance === '') rec.ties++;
+        else if (m.alliances.red.score >= 0) rec.losses++;
+      }
+    }
+    return records;
+  }, [matches]);
 
   const [search, setSearch] = useState('');
   const [tagFilters, setTagFilters] = useState<string[]>([]);
@@ -508,6 +673,7 @@ export default function PicklistPage() {
   const [sortState, setSortState] = useState<SortState>({ key: 'tbaRank', direction: 'asc' });
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [modalTeam, setModalTeam] = useState<number | null>(null);
   useUnsavedGuard(dirty);
 
   // Track base entries (from EPA data) for merging
@@ -823,13 +989,13 @@ export default function PicklistPage() {
       <div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+            <tr className="border-b border-gray-200 dark:border-gray-700 text-center">
               <th className="py-2 px-2 w-16" aria-sort={ariaSortFor('excluded')}>
                 <button type="button" onClick={() => onSort('excluded')} className="font-semibold">
                   Excl{sortLabelFor('excluded')}
                 </button>
               </th>
-              <th className="py-2 px-2 w-20" aria-sort={ariaSortFor('manualRank')}>
+              <th className="py-2 px-2 w-20 text-center" aria-sort={ariaSortFor('manualRank')}>
                 <button type="button" onClick={() => onSort('manualRank')} className="font-semibold">
                   Manual#{sortLabelFor('manualRank')}
                 </button>
@@ -839,32 +1005,35 @@ export default function PicklistPage() {
                   Team{sortLabelFor('team')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('tbaRank')}>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('tbaRank')}>
                 <button type="button" onClick={() => onSort('tbaRank')} className="font-semibold">
                   TBA Rank{sortLabelFor('tbaRank')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('epaRank')}>
+              <th className="py-2 px-2">
+                <span className="font-semibold">Analysis</span>
+              </th>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaRank')}>
                 <button type="button" onClick={() => onSort('epaRank')} className="font-semibold">
                   EPA Rank{sortLabelFor('epaRank')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('epaTotal')}>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaTotal')}>
                 <button type="button" onClick={() => onSort('epaTotal')} className="font-semibold">
                   EPA Total{sortLabelFor('epaTotal')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('epaAuto')}>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaAuto')}>
                 <button type="button" onClick={() => onSort('epaAuto')} className="font-semibold">
                   Auto{sortLabelFor('epaAuto')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('epaTeleop')}>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaTeleop')}>
                 <button type="button" onClick={() => onSort('epaTeleop')} className="font-semibold">
                   Teleop{sortLabelFor('epaTeleop')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('epaEndgame')}>
+              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaEndgame')}>
                 <button type="button" onClick={() => onSort('epaEndgame')} className="font-semibold">
                   Endgame{sortLabelFor('epaEndgame')}
                 </button>
@@ -884,6 +1053,7 @@ export default function PicklistPage() {
           <tbody>
             {filtered.map((entry) => {
               const isMyTeam = entry.teamNumber === teamNumber;
+              const analysis = rankAnalysisMap.get(`frc${entry.teamNumber}`);
               return (
                 <tr
                   key={entry.teamNumber}
@@ -908,7 +1078,7 @@ export default function PicklistPage() {
                       />
                     </label>
                   </td>
-                  <td className="py-2 px-2 font-mono text-gray-500">
+                  <td className="py-2 px-2 font-mono text-gray-500 text-center">
                     {canEdit ? (
                       <input
                         type="number"
@@ -933,15 +1103,38 @@ export default function PicklistPage() {
                     )}
                   </td>
                   <td className="py-2 px-2">
-                    <span className="font-bold">{entry.teamNumber}</span>
+                    <button
+                      type="button"
+                      onClick={() => setModalTeam(entry.teamNumber)}
+                      className="font-bold hover:text-primary-600 dark:hover:text-primary-400 hover:underline"
+                    >
+                      {entry.teamNumber}
+                    </button>
                     <span className="ml-2 text-gray-500 text-xs">{entry.nickname}</span>
                   </td>
-                  <td className="py-2 px-2 font-mono">{entry.tbaRank ?? '-'}</td>
-                  <td className="py-2 px-2 font-mono">{entry.epaRank}</td>
-                  <td className="py-2 px-2 font-mono">{entry.epaTotal.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-green-600">{entry.epaAuto.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-center">{entry.tbaRank ?? '-'}</td>
+                  <td className="py-2 px-2 text-center">
+                    {analysis && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTeam(entry.teamNumber)}
+                        className={`text-[10px] font-semibold leading-tight cursor-pointer hover:underline ${analysis.determination === 'accurate'
+                          ? 'text-green-600 dark:text-green-400'
+                          : analysis.determination === 'carried' || analysis.determination === 'easy_schedule' || analysis.determination === 'favorable'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-blue-600 dark:text-blue-400'
+                          }`}
+                        title={analysis.explanation}
+                      >
+                        {DETERMINATION_LABELS[analysis.determination]?.label ?? analysis.determination}
+                      </button>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 font-mono text-center">{entry.epaRank}</td>
+                  <td className="py-2 px-2 font-mono text-center">{entry.epaTotal.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-center text-green-600">{entry.epaAuto.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-center text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-center text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
                   <td className="py-2 px-2">
                     <TagDropdown
                       tags={entry.tags}
@@ -982,6 +1175,19 @@ export default function PicklistPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Team Detail Modal */}
+      {modalTeam !== null && (
+        <TeamDetailModal
+          teamNumber={modalTeam}
+          epaMap={epaMap}
+          epaRankMap={epaRankMap}
+          rankAnalysisMap={rankAnalysisMap}
+          teamRecords={teamRecords}
+          cardMetrics={cardMetrics}
+          onClose={() => setModalTeam(null)}
+        />
+      )}
     </div>
   );
 }
