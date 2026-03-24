@@ -52,6 +52,8 @@ export { analyzePath } from './strategy/path.js';
 export type { PathAnalysis, PathMatch } from './strategy/path.js';
 export { generatePicklist, exportPicklistCSV } from './strategy/picklist.js';
 export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
+export { analyzeRankDiscrepancy, analyzeAllRankDiscrepancies } from './strategy/rank-analysis.js';
+export type { TeamRankAnalysis, RankDetermination } from './strategy/rank-analysis.js';
 
 // Auth
 export type { AuthUser, UserRole, AuthProvider, SWAAuthProviderOptions } from './auth/index.js';

@@ -16,6 +16,7 @@ import type { EnrichedTeam } from '../../lib/types';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
 import {
   getAdapter,
+  analyzeAllRankDiscrepancies,
   type DutySlotDefinition,
   type DutyTemplateSlot,
 } from '@allianceops/shared';
@@ -238,6 +239,32 @@ export default function PlannerPage() {
     sorted.forEach((t, i) => map.set(t.team_number, i + 1));
     return map;
   }, [teams]);
+
+  const rankAnalysisMap = useMemo(() => {
+    if (!teams || !matches) return new Map<string, ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V> ? V : never>();
+    const teamInputs = teams
+      .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
+      .map((t) => ({
+        teamKey: `frc${t.team_number}`,
+        tbaRank: t.tbaRank!,
+        epaRank: epaRankMap.get(t.team_number)!,
+      }));
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    const matchInputs = qualMatches.map((m) => ({
+      key: m.key,
+      matchNumber: m.match_number,
+      redTeams: m.alliances.red.team_keys,
+      blueTeams: m.alliances.blue.team_keys,
+      redScore: m.alliances.red.score,
+      blueScore: m.alliances.blue.score,
+      winningAlliance: m.winning_alliance,
+    }));
+    const epaRecord: Record<string, { total: number }> = {};
+    for (const t of teams) {
+      if (t.epa) epaRecord[`frc${t.team_number}`] = t.epa;
+    }
+    return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaRecord);
+  }, [teams, matches, epaRankMap]);
 
   const [assignments, setAssignments] = useState<Record<string, number | null>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -507,6 +534,7 @@ export default function PlannerPage() {
                   epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                   defaultExpanded
                   record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                  rankAnalysis={rankAnalysisMap.get(t)}
                 />
               ))}
             </div>

@@ -10,7 +10,7 @@ import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
 import { TeamCard } from '../../components/team-card';
-import { getAdapter } from '@allianceops/shared';
+import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
 import type { EnrichedTeam } from '../../lib/types';
 
 interface TBAMatch {
@@ -89,6 +89,32 @@ export default function BriefingPage() {
     sorted.forEach((t, i) => map.set(t.team_number, i + 1));
     return map;
   }, [teams]);
+
+  const rankAnalysisMap = useMemo(() => {
+    if (!teams || !matches) return new Map<string, ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V> ? V : never>();
+    const teamInputs = teams
+      .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
+      .map((t) => ({
+        teamKey: `frc${t.team_number}`,
+        tbaRank: t.tbaRank!,
+        epaRank: epaRankMap.get(t.team_number)!,
+      }));
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    const matchInputs = qualMatches.map((m) => ({
+      key: m.key,
+      matchNumber: m.match_number,
+      redTeams: m.alliances.red.team_keys,
+      blueTeams: m.alliances.blue.team_keys,
+      redScore: m.alliances.red.score,
+      blueScore: m.alliances.blue.score,
+      winningAlliance: m.winning_alliance,
+    }));
+    const epaInputMap: Record<string, { total: number }> = {};
+    for (const t of teams) {
+      if (t.epa) epaInputMap[`frc${t.team_number}`] = t.epa;
+    }
+    return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaInputMap);
+  }, [teams, matches, epaRankMap]);
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
@@ -178,6 +204,7 @@ export default function BriefingPage() {
                 metrics={cardMetrics}
                 epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                rankAnalysis={rankAnalysisMap.get(t)}
               />
             ))}
           </div>
@@ -195,6 +222,7 @@ export default function BriefingPage() {
                 metrics={cardMetrics}
                 epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                rankAnalysis={rankAnalysisMap.get(t)}
               />
             ))}
           </div>
