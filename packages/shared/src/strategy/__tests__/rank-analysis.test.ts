@@ -28,7 +28,13 @@ function makeMatch(
 describe('analyzeRankDiscrepancy', () => {
   it('returns accurate for small delta (±3)', () => {
     const team = { teamKey: 'frc100', tbaRank: 5, epaRank: 7 };
-    const match = makeMatch('qm1', 1, ['frc100', 'frc200', 'frc300'], ['frc400', 'frc500', 'frc600'], 'red');
+    const match = makeMatch(
+      'qm1',
+      1,
+      ['frc100', 'frc200', 'frc300'],
+      ['frc400', 'frc500', 'frc600'],
+      'red',
+    );
     const epaMap = {
       frc100: makeEpa(10),
       frc200: makeEpa(10),
@@ -194,7 +200,13 @@ describe('analyzeRankDiscrepancy', () => {
 
   it('handles missing EPA data by using field average', () => {
     const team = { teamKey: 'frc100', tbaRank: 3, epaRank: 15 };
-    const match = makeMatch('qm1', 1, ['frc100', 'frc200', 'frc300'], ['frc400', 'frc500', 'frc600'], 'red');
+    const match = makeMatch(
+      'qm1',
+      1,
+      ['frc100', 'frc200', 'frc300'],
+      ['frc400', 'frc500', 'frc600'],
+      'red',
+    );
     // No EPA data for any team
     const result = analyzeRankDiscrepancy(team, [match], {}, FIELD_AVG);
     expect(result.partnerStrength).toBe(1);
@@ -205,7 +217,13 @@ describe('analyzeRankDiscrepancy', () => {
 
   it('excludes self from partner EPA calculation', () => {
     const team = { teamKey: 'frc100', tbaRank: 5, epaRank: 5 };
-    const match = makeMatch('qm1', 1, ['frc100', 'frc200', 'frc300'], ['frc400', 'frc500', 'frc600'], 'red');
+    const match = makeMatch(
+      'qm1',
+      1,
+      ['frc100', 'frc200', 'frc300'],
+      ['frc400', 'frc500', 'frc600'],
+      'red',
+    );
     const epaMap = {
       frc100: makeEpa(20), // high EPA — should NOT inflate partnerStrength
       frc200: makeEpa(10),
@@ -227,7 +245,13 @@ describe('analyzeAllRankDiscrepancies', () => {
       { teamKey: 'frc100', tbaRank: 5, epaRank: 5 },
       { teamKey: 'frc200', tbaRank: 1, epaRank: 10 },
     ];
-    const match = makeMatch('qm1', 1, ['frc100', 'frc200', 'frc300'], ['frc400', 'frc500', 'frc600'], 'red');
+    const match = makeMatch(
+      'qm1',
+      1,
+      ['frc100', 'frc200', 'frc300'],
+      ['frc400', 'frc500', 'frc600'],
+      'red',
+    );
     const epaMap = {
       frc100: makeEpa(10),
       frc200: makeEpa(10),
@@ -245,7 +269,13 @@ describe('analyzeAllRankDiscrepancies', () => {
 
   it('computes field average from provided EPA map', () => {
     const teams = [{ teamKey: 'frc100', tbaRank: 1, epaRank: 15 }];
-    const match = makeMatch('qm1', 1, ['frc100', 'frc200', 'frc300'], ['frc400', 'frc500', 'frc600'], 'red');
+    const match = makeMatch(
+      'qm1',
+      1,
+      ['frc100', 'frc200', 'frc300'],
+      ['frc400', 'frc500', 'frc600'],
+      'red',
+    );
     const epaMap = {
       frc100: makeEpa(5),
       frc200: makeEpa(20),

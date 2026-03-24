@@ -68,8 +68,7 @@ export function analyzeRankDiscrepancy(
     const partners = allies.filter((t) => t !== team.teamKey);
     const partnerAvg =
       partners.length > 0
-        ? partners.reduce((sum, t) => sum + (epaMap[t]?.total ?? fieldAvgEpa), 0) /
-          partners.length
+        ? partners.reduce((sum, t) => sum + (epaMap[t]?.total ?? fieldAvgEpa), 0) / partners.length
         : fieldAvgEpa;
 
     const oppAvg =

@@ -11,7 +11,7 @@ In FRC competitions, a team's TBA qualification rank (based on Ranking Points �
 - **Team 9541 example**: TBA Rank #7, EPA Rank #15 — strong alliance partners carried their ranking via "strength of schedule"
 - **Team 4004 example**: TBA Rank #21, EPA Rank #12 — performing well but held back by weaker pairings
 
-No existing open-source FRC tool computes this per-team partner/opponent strength analysis. Understanding *why* a rank diverges is essential for making informed alliance picks.
+No existing open-source FRC tool computes this per-team partner/opponent strength analysis. Understanding _why_ a rank diverges is essential for making informed alliance picks.
 
 ## Decision
 
@@ -24,6 +24,7 @@ Add a **Rank Discrepancy Analysis** feature consisting of:
 ### Algorithm
 
 For each team at an event:
+
 - Compute `partnerStrength = avgPartnerEpa / fieldAvgEpa` (excluding self, across all qual matches)
 - Compute `opponentStrength = avgOpponentEpa / fieldAvgEpa`
 - Track win-loss split between strong-partner and weak-partner matches
@@ -39,6 +40,7 @@ For each team at an event:
 ### Client-Side Architecture
 
 The analysis runs in a `useMemo` in the Briefing and Planner pages, using the same teams and matches data already fetched by `useApi`. This was chosen over an API endpoint because:
+
 - The computation is trivial (~360 iterations for 30 teams × 12 matches)
 - Both parent pages already have the required data loaded
 - Simulation cursor-awareness comes free — cursor-filtered matches flow in, analysis reflects point-in-time state
