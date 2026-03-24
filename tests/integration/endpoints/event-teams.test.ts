@@ -6,6 +6,8 @@ interface EnrichedTeam {
   team_number: number;
   nickname: string;
   epa?: unknown;
+  tbaRank: number | null;
+  qualAverage: number | null;
 }
 
 interface Envelope<T> {
@@ -26,6 +28,8 @@ describe('GET /api/event/{eventKey}/teams', () => {
     const team = res.body.data[0];
     expect(team).toHaveProperty('team_number');
     expect(team).toHaveProperty('nickname');
+    expect(team).toHaveProperty('tbaRank');
+    expect(team).toHaveProperty('qualAverage');
   });
 
   it('includes team 7160 at the expected event', async () => {

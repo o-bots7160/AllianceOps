@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { TBATeam, TBAMatch, StatboticsTeamEvent, StatboticsMatch } from '@allianceops/shared';
+import type {
+  TBATeam,
+  TBAMatch,
+  StatboticsTeamEvent,
+  StatboticsMatch,
+  TBARankingEntry,
+} from '@allianceops/shared';
 import { mergeTeams, mergeMatches } from '../merge.js';
 
 const makeTBATeam = (num: number): TBATeam => ({
@@ -27,8 +33,18 @@ const makeTBAMatch = (num: number): TBAMatch => ({
   set_number: 1,
   match_number: num,
   alliances: {
-    red: { team_keys: ['frc100', 'frc200', 'frc300'], score: 50, surrogate_team_keys: [], dq_team_keys: [] },
-    blue: { team_keys: ['frc400', 'frc500', 'frc600'], score: 45, surrogate_team_keys: [], dq_team_keys: [] },
+    red: {
+      team_keys: ['frc100', 'frc200', 'frc300'],
+      score: 50,
+      surrogate_team_keys: [],
+      dq_team_keys: [],
+    },
+    blue: {
+      team_keys: ['frc400', 'frc500', 'frc600'],
+      score: 45,
+      surrogate_team_keys: [],
+      dq_team_keys: [],
+    },
   },
   winning_alliance: 'red',
   event_key: '2025test',
@@ -44,6 +60,17 @@ const makeStatboticsMatch = (num: number): StatboticsMatch => ({
   result: { winner: 'red', red_score: 50, blue_score: 45 },
 });
 
+const makeRankingEntry = (num: number, rank: number): TBARankingEntry => ({
+  rank,
+  team_key: `frc${num}`,
+  record: { wins: 4, losses: 1, ties: 0 },
+  qual_average: 125,
+  matches_played: 5,
+  dq: 0,
+  sort_orders: [8, 125],
+  extra_stats: [],
+});
+
 describe('mergeTeams', () => {
   it('merges TBA teams with Statbotics EPA data', () => {
     const tbaTeams = [makeTBATeam(100), makeTBATeam(200)];
@@ -56,6 +83,8 @@ describe('mergeTeams', () => {
     expect(result[0].epa).toEqual({ total: 30, auto: 10, teleop: 15, endgame: 5, unitless: 0.8 });
     expect(result[0].eventRecord).toEqual({ wins: 5, losses: 2, ties: 0 });
     expect(result[0].winrate).toBe(0.71);
+    expect(result[0].tbaRank).toBeNull();
+    expect(result[0].qualAverage).toBeNull();
     expect(result[0].nickname).toBe('Team 100');
   });
 
@@ -70,6 +99,37 @@ describe('mergeTeams', () => {
     expect(result[0].epa).toBeNull();
     expect(result[0].eventRecord).toBeNull();
     expect(result[0].winrate).toBeNull();
+    expect(result[0].tbaRank).toBeNull();
+    expect(result[0].qualAverage).toBeNull();
+  });
+
+  it('merges Blue Alliance rankings by team key', () => {
+    const tbaTeams = [makeTBATeam(100), makeTBATeam(200)];
+    const rankings = [makeRankingEntry(200, 1), makeRankingEntry(100, 2)];
+
+    const result = mergeTeams(tbaTeams, [], rankings);
+
+    expect(result[0].team_number).toBe(100);
+    expect(result[0].tbaRank).toBe(2);
+    expect(result[0].qualAverage).toBe(125);
+    expect(result[1].team_number).toBe(200);
+    expect(result[1].tbaRank).toBe(1);
+    expect(result[1].qualAverage).toBe(125);
+  });
+
+  it('ignores malformed ranking team keys', () => {
+    const tbaTeams = [makeTBATeam(100)];
+    const rankings: TBARankingEntry[] = [
+      {
+        ...makeRankingEntry(100, 1),
+        team_key: 'badkey',
+      },
+    ];
+
+    const result = mergeTeams(tbaTeams, [], rankings);
+
+    expect(result[0].tbaRank).toBeNull();
+    expect(result[0].qualAverage).toBeNull();
   });
 
   it('handles empty inputs', () => {

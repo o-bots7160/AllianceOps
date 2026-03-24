@@ -19,7 +19,7 @@ export function NavLinks({ vertical, onNavigate }: { vertical?: boolean; onNavig
     <nav
       className={
         vertical
-          ? 'flex flex-col gap-2 text-sm'
+          ? 'flex flex-col gap-1 text-base'
           : 'flex gap-4 text-sm shrink-0'
       }
     >
@@ -31,9 +31,14 @@ export function NavLinks({ vertical, onNavigate }: { vertical?: boolean; onNavig
             href={href}
             onClick={onNavigate}
             className={
-              isActive
-                ? 'text-primary-600 dark:text-primary-400 font-semibold'
-                : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
+              vertical
+                ? `py-2 ${isActive
+                  ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
+                }`
+                : isActive
+                  ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-primary-600'
             }
           >
             {label}
