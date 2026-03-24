@@ -93,7 +93,11 @@ app.http('getEventMatches', {
 
       return { status: 200, jsonBody: result };
     } catch (err) {
-      trackUpstreamError('tba', `eventMatches:${eventKey}`, (err as { status?: number })?.status ?? 0);
+      trackUpstreamError(
+        'tba',
+        `eventMatches:${eventKey}`,
+        (err as { status?: number })?.status ?? 0,
+      );
       return {
         status: 200,
         jsonBody: {
@@ -117,7 +121,7 @@ app.http('getEventTeams', {
 
     try {
       const result = await cached(`teams:${eventKey}`, 'SEMI_STATIC', async () => {
-        const [tbaTeams, statboticsTeams] = await Promise.all([
+        const [tbaTeams, statboticsTeams, tbaRankings] = await Promise.all([
           getTBAClient().getEventTeams(eventKey),
           getStatboticsClient()
             .getEventTeams(eventKey)
@@ -125,13 +129,24 @@ app.http('getEventTeams', {
               trackUpstreamError('statbotics', `eventTeams:${eventKey}`, err?.status ?? 0);
               return [];
             }),
+          getTBAClient()
+            .getEventRankings(eventKey)
+            .then((res) => res.rankings)
+            .catch((err) => {
+              trackUpstreamError('tba', `eventRankings:${eventKey}`, err?.status ?? 0);
+              return [];
+            }),
         ]);
-        return mergeTeams(tbaTeams, statboticsTeams);
+        return mergeTeams(tbaTeams, statboticsTeams, tbaRankings);
       });
 
       return { status: 200, jsonBody: result };
     } catch (err) {
-      trackUpstreamError('tba', `eventTeams:${eventKey}`, (err as { status?: number })?.status ?? 0);
+      trackUpstreamError(
+        'tba',
+        `eventTeams:${eventKey}`,
+        (err as { status?: number })?.status ?? 0,
+      );
       return {
         status: 200,
         jsonBody: {

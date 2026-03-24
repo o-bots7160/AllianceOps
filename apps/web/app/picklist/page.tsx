@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type KeyboardEvent } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useAuth } from '../../components/use-auth';
 import { useApi } from '../../components/use-api';
@@ -14,6 +14,8 @@ interface EnrichedTeam {
   nickname?: string;
   epa: { total: number; auto: number; teleop: number; endgame: number } | null;
   eventRecord: { wins: number; losses: number; ties: number } | null;
+  tbaRank: number | null;
+  qualAverage: number | null;
 }
 
 interface PicklistEntry {
@@ -24,6 +26,9 @@ interface PicklistEntry {
   epaAuto: number;
   epaTeleop: number;
   epaEndgame: number;
+  epaRank: number;
+  tbaRank: number | null;
+  qualAverage: number | null;
   rank: number;
   excluded: boolean;
   tags: string[];
@@ -40,6 +45,25 @@ interface SavedPicklistEntry {
 
 const POLL_INTERVAL_MS = 30_000;
 
+type SortDirection = 'asc' | 'desc';
+type SortKey =
+  | 'manualRank'
+  | 'team'
+  | 'tbaRank'
+  | 'epaRank'
+  | 'epaTotal'
+  | 'epaAuto'
+  | 'epaTeleop'
+  | 'epaEndgame'
+  | 'tags'
+  | 'notes'
+  | 'excluded';
+
+interface SortState {
+  key: SortKey;
+  direction: SortDirection;
+}
+
 function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
   if (!teams.length) return [];
 
@@ -54,13 +78,96 @@ function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
       epaAuto: t.epa?.auto ?? 0,
       epaTeleop: t.epa?.teleop ?? 0,
       epaEndgame: t.epa?.endgame ?? 0,
+      epaRank: 0,
+      tbaRank: t.tbaRank,
+      qualAverage: t.qualAverage,
       rank: 0,
       excluded: false,
       tags: [] as string[],
       notes: '',
     }))
-    .sort((a, b) => b.score - a.score)
-    .map((t, i) => ({ ...t, rank: i + 1 }));
+    .sort((a, b) => b.score - a.score || a.teamNumber - b.teamNumber)
+    .map((t, i) => ({ ...t, rank: i + 1, epaRank: i + 1 }));
+}
+
+function defaultDirectionForKey(key: SortKey): SortDirection {
+  switch (key) {
+    case 'manualRank':
+    case 'team':
+    case 'tbaRank':
+      return 'asc';
+    case 'epaRank':
+    case 'epaTotal':
+    case 'epaAuto':
+    case 'epaTeleop':
+    case 'epaEndgame':
+      return 'desc';
+    case 'tags':
+    case 'notes':
+    case 'excluded':
+      return 'asc';
+    default:
+      return 'asc';
+  }
+}
+
+function compareNullableNumber(a: number | null, b: number | null, direction: SortDirection): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return direction === 'asc' ? a - b : b - a;
+}
+
+function compareEntries(a: PicklistEntry, b: PicklistEntry, sortState: SortState): number {
+  const direction = sortState.direction;
+  const textFactor = direction === 'asc' ? 1 : -1;
+
+  switch (sortState.key) {
+    case 'manualRank': {
+      const cmp = direction === 'asc' ? a.rank - b.rank : b.rank - a.rank;
+      if (cmp !== 0) return cmp;
+      return a.teamNumber - b.teamNumber;
+    }
+    case 'team':
+      return direction === 'asc' ? a.teamNumber - b.teamNumber : b.teamNumber - a.teamNumber;
+    case 'tbaRank': {
+      const cmp = compareNullableNumber(a.tbaRank, b.tbaRank, direction);
+      if (cmp !== 0) return cmp;
+      return a.epaRank - b.epaRank;
+    }
+    case 'epaRank': {
+      const cmp = direction === 'asc' ? a.epaRank - b.epaRank : b.epaRank - a.epaRank;
+      if (cmp !== 0) return cmp;
+      return a.teamNumber - b.teamNumber;
+    }
+    case 'epaTotal':
+      return direction === 'asc' ? a.epaTotal - b.epaTotal : b.epaTotal - a.epaTotal;
+    case 'epaAuto':
+      return direction === 'asc' ? a.epaAuto - b.epaAuto : b.epaAuto - a.epaAuto;
+    case 'epaTeleop':
+      return direction === 'asc' ? a.epaTeleop - b.epaTeleop : b.epaTeleop - a.epaTeleop;
+    case 'epaEndgame':
+      return direction === 'asc' ? a.epaEndgame - b.epaEndgame : b.epaEndgame - a.epaEndgame;
+    case 'tags': {
+      const cmp = a.tags.join(';').localeCompare(b.tags.join(';'));
+      if (cmp !== 0) return cmp * textFactor;
+      return a.teamNumber - b.teamNumber;
+    }
+    case 'notes': {
+      const cmp = a.notes.localeCompare(b.notes);
+      if (cmp !== 0) return cmp * textFactor;
+      return a.teamNumber - b.teamNumber;
+    }
+    case 'excluded': {
+      const aValue = a.excluded ? 1 : 0;
+      const bValue = b.excluded ? 1 : 0;
+      const cmp = direction === 'asc' ? aValue - bValue : bValue - aValue;
+      if (cmp !== 0) return cmp;
+      return a.teamNumber - b.teamNumber;
+    }
+    default:
+      return a.teamNumber - b.teamNumber;
+  }
 }
 
 /** Merge saved annotations onto EPA-generated entries. */
@@ -80,13 +187,299 @@ function mergePicklist(
   return merged;
 }
 
+type RankByOption = 'tbaRank' | 'epaTotal' | 'epaAuto' | 'epaTeleop' | 'epaEndgame';
+
+const RANK_BY_OPTIONS: { value: RankByOption; label: string }[] = [
+  { value: 'tbaRank', label: 'TBA Rank' },
+  { value: 'epaTotal', label: 'EPA Total' },
+  { value: 'epaAuto', label: 'EPA Auto' },
+  { value: 'epaTeleop', label: 'EPA Teleop' },
+  { value: 'epaEndgame', label: 'EPA Endgame' },
+];
+
+function rankEntries(entries: PicklistEntry[], by: RankByOption): PicklistEntry[] {
+  const getValue = (e: PicklistEntry): number | null => {
+    switch (by) {
+      case 'tbaRank': return e.tbaRank;
+      case 'epaTotal': return e.epaTotal;
+      case 'epaAuto': return e.epaAuto;
+      case 'epaTeleop': return e.epaTeleop;
+      case 'epaEndgame': return e.epaEndgame;
+    }
+  };
+
+  // For TBA rank lower is better (asc); for EPA metrics higher is better (desc)
+  const ascending = by === 'tbaRank';
+
+  const sorted = [...entries].sort((a, b) => {
+    const va = getValue(a);
+    const vb = getValue(b);
+    if (va === null && vb === null) return a.teamNumber - b.teamNumber;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    const cmp = ascending ? va - vb : vb - va;
+    return cmp !== 0 ? cmp : a.teamNumber - b.teamNumber;
+  });
+
+  return sorted.map((e, i) => ({ ...e, rank: i + 1 }));
+}
+
+const SUGGESTED_TAGS = [
+  'Fast Cycle',
+  'Fragile Bot',
+  'Good Defense',
+  'High Scorer',
+  'Penalty Risk',
+  'Reliable Auton',
+  'Reliable Bot',
+  'Strong Endgame',
+];
+
+/** Inline multi-select tag dropdown for a single picklist row. */
+function TagDropdown({
+  tags,
+  allTags,
+  disabled,
+  onChange,
+}: {
+  tags: string[];
+  allTags: string[];
+  disabled: boolean;
+  onChange: (tags: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = (tag: string) => {
+    if (tags.includes(tag)) {
+      onChange(tags.filter((t) => t !== tag));
+    } else {
+      onChange([...tags, tag]);
+    }
+  };
+
+  const addNew = () => {
+    const trimmed = newTag.trim();
+    if (!trimmed) return;
+    if (!tags.includes(trimmed)) {
+      onChange([...tags, trimmed]);
+    }
+    setNewTag('');
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addNew();
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex flex-wrap items-center gap-1 min-w-[6rem] min-h-[1.75rem] rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed text-left"
+      >
+        {tags.length === 0 && <span className="text-gray-400">+ tags</span>}
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 text-[10px] leading-tight"
+          >
+            {tag}
+          </span>
+        ))}
+      </button>
+      {open && !disabled && (
+        <div className="absolute z-50 mt-1 w-44 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 text-xs max-h-48 overflow-y-auto">
+          {allTags.map((tag) => (
+            <label
+              key={tag}
+              className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+            >
+              <input
+                type="checkbox"
+                checked={tags.includes(tag)}
+                onChange={() => toggle(tag)}
+                className="h-4 w-4 accent-primary-600"
+              />
+              {tag}
+            </label>
+          ))}
+          {(() => {
+            const suggestions = SUGGESTED_TAGS.filter((s) => !allTags.includes(s) && !tags.includes(s));
+            if (suggestions.length === 0) return null;
+            return (
+              <>
+                {allTags.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 mt-1" />
+                )}
+                <div className="px-2 pt-1.5 pb-0.5">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-400">Suggestions</span>
+                </div>
+                <div className="flex flex-wrap gap-1 px-2 pb-1">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onChange([...tags, s])}
+                      className="rounded-full border border-gray-300 dark:border-gray-600 px-2 py-0.5 text-[10px] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+          <div className="border-t border-gray-200 dark:border-gray-700 px-2 pt-1.5 pb-1 mt-1">
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="New tag…"
+                className="flex-1 min-w-0 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1.5 py-1 text-xs"
+              />
+              <button
+                type="button"
+                onClick={addNew}
+                disabled={!newTag.trim()}
+                className="px-1.5 py-1 rounded bg-primary-600 text-white text-xs disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Multi-select tag filter for the toolbar. */
+function TagFilterControl({
+  allTags,
+  selected,
+  onChange,
+}: {
+  allTags: string[];
+  selected: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = (tag: string) => {
+    if (selected.includes(tag)) {
+      onChange(selected.filter((t) => t !== tag));
+    } else {
+      onChange([...selected, tag]);
+    }
+  };
+
+  if (allTags.length === 0) return null;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex flex-wrap items-center gap-1 min-w-[8rem] h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-left"
+      >
+        {selected.length === 0 && <span className="text-gray-400">Filter by tags</span>}
+        {selected.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 px-2 py-0.5 text-xs leading-tight"
+          >
+            {tag}
+            <span
+              role="button"
+              tabIndex={0}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggle(tag);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggle(tag);
+                }
+              }}
+              className="cursor-pointer hover:text-primary-900 dark:hover:text-primary-100"
+            >
+              &times;
+            </span>
+          </span>
+        ))}
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 text-sm max-h-48 overflow-y-auto">
+          {allTags.map((tag) => (
+            <label
+              key={tag}
+              className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(tag)}
+                onChange={() => toggle(tag)}
+                className="h-4 w-4 accent-primary-600"
+              />
+              {tag}
+            </label>
+          ))}
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-200 dark:border-gray-700"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function downloadCSV(entries: PicklistEntry[]) {
-  const header = 'Rank,Team,Name,Score,EPA Total,Auto,Teleop,Endgame,Tags,Notes';
+  const header = 'Manual Rank,TBA Rank,EPA Rank,Team,Name,Score,EPA Total,Auto,Teleop,Endgame,Tags,Notes';
   const rows = entries
     .filter((e) => !e.excluded)
     .map(
       (e) =>
-        `${e.rank},${e.teamNumber},"${e.nickname}",${e.score.toFixed(3)},${e.epaTotal.toFixed(1)},${e.epaAuto.toFixed(1)},${e.epaTeleop.toFixed(1)},${e.epaEndgame.toFixed(1)},"${e.tags.join(';')}","${e.notes}"`,
+        `${e.rank},${e.tbaRank ?? ''},${e.epaRank},${e.teamNumber},"${e.nickname}",${e.score.toFixed(3)},${e.epaTotal.toFixed(1)},${e.epaAuto.toFixed(1)},${e.epaTeleop.toFixed(1)},${e.epaEndgame.toFixed(1)},"${e.tags.join(';')}","${e.notes}"`,
     );
   const csv = [header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -109,12 +502,14 @@ export default function PicklistPage() {
   );
 
   const [search, setSearch] = useState('');
-  const [tagFilter, setTagFilter] = useState('');
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [hideExcluded, setHideExcluded] = useState(false);
   const [entries, setEntries] = useState<PicklistEntry[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [sortState, setSortState] = useState<SortState>({ key: 'tbaRank', direction: 'asc' });
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   useUnsavedGuard(dirty);
@@ -148,6 +543,7 @@ export default function PicklistPage() {
     setInitialized(false);
     setDirty(false);
     setSaved(false);
+    setSortState({ key: 'tbaRank', direction: 'asc' });
     setLastUpdated(null);
     setLoadError(null);
   }, [eventKey, dirty, setEventKey]);
@@ -266,16 +662,50 @@ export default function PicklistPage() {
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     entries.forEach((e) => e.tags.forEach((t) => tags.add(t)));
-    return Array.from(tags);
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
-  const filtered = entries.filter((e) => {
-    if (search && !String(e.teamNumber).includes(search) && !e.nickname.toLowerCase().includes(search.toLowerCase())) {
-      return false;
-    }
-    if (tagFilter && !e.tags.includes(tagFilter)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const filteredEntries = entries.filter((e) => {
+      if (hideExcluded && e.excluded) return false;
+      if (
+        search &&
+        !String(e.teamNumber).includes(search) &&
+        !e.nickname.toLowerCase().includes(search.toLowerCase())
+      ) {
+        return false;
+      }
+      if (tagFilters.length > 0 && !tagFilters.some((t) => e.tags.includes(t))) return false;
+      return true;
+    });
+
+    return [...filteredEntries].sort((a, b) => compareEntries(a, b, sortState));
+  }, [entries, search, tagFilters, sortState, hideExcluded]);
+
+  const onSort = useCallback((key: SortKey) => {
+    setSortState((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: defaultDirectionForKey(key) };
+    });
+  }, []);
+
+  const ariaSortFor = useCallback(
+    (key: SortKey): 'none' | 'ascending' | 'descending' => {
+      if (sortState.key !== key) return 'none';
+      return sortState.direction === 'asc' ? 'ascending' : 'descending';
+    },
+    [sortState],
+  );
+
+  const sortLabelFor = useCallback(
+    (key: SortKey): string => {
+      if (sortState.key !== key) return '';
+      return sortState.direction === 'asc' ? ' (asc)' : ' (desc)';
+    },
+    [sortState],
+  );
 
   if (!eventKey) {
     return <p className="text-gray-500">Select an event on the Event page first.</p>;
@@ -290,8 +720,9 @@ export default function PicklistPage() {
       <InfoBox heading="Picklist">
         <p>
           <strong>Picklist</strong> ranks all teams at the event by a composite score based on Statbotics
-          EPA ratings — auto, teleop, and endgame. Use this during alliance selection to identify the
-          strongest available partners.
+          EPA ratings — auto, teleop, and endgame — with Blue Alliance event ranking included for
+          side-by-side comparison. Use this during alliance selection to identify the strongest
+          available partners.
         </p>
         <p>
           <strong>Tags</strong> let you categorize teams (e.g., &quot;strong auto&quot;, &quot;good
@@ -300,8 +731,8 @@ export default function PicklistPage() {
         </p>
         <p>
           Use <strong>Export CSV</strong> to download the picklist for sharing or printing. Search by team
-          number or name, and filter by tag. The picklist auto-refreshes every 30 seconds to pick up
-          changes from teammates.
+          number or name, and filter by tag. Click any table header to sort by that column. The
+          picklist auto-refreshes every 30 seconds to pick up changes from teammates.
         </p>
       </InfoBox>
 
@@ -327,19 +758,30 @@ export default function PicklistPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="min-w-[12rem] flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
         />
-        {allTags.length > 0 && (
-          <select
-            value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)}
-            className="min-w-[8rem] h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
-          >
-            <option value="">All tags</option>
-            {allTags.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        )}
+        <TagFilterControl allTags={allTags} selected={tagFilters} onChange={setTagFilters} />
         <div className="flex items-center gap-3 ml-auto shrink-0">
+          {canEdit && (
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const value = e.target.value as RankByOption;
+                if (!value) return;
+                if (!window.confirm(`Overwrite manual ranks with ${RANK_BY_OPTIONS.find((o) => o.value === value)?.label}?`)) {
+                  e.target.value = '';
+                  return;
+                }
+                updateEntries((prev) => rankEntries(prev, value));
+                setSortState({ key: 'manualRank', direction: 'asc' });
+                e.target.value = '';
+              }}
+              className="h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+            >
+              <option value="">Rank by…</option>
+              {RANK_BY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => downloadCSV(entries)}
             className="px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm whitespace-nowrap"
@@ -371,94 +813,176 @@ export default function PicklistPage() {
             Last saved {new Date(lastUpdated).toLocaleTimeString()}
           </span>
         )}
+        <label className="flex items-center gap-2 ml-auto px-2 py-1 rounded-md text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800">
+          <input
+            type="checkbox"
+            checked={hideExcluded}
+            onChange={(e) => setHideExcluded(e.target.checked)}
+            className="h-5 w-5 cursor-pointer accent-primary-600"
+          />
+          Hide excluded
+        </label>
       </div>
 
-      <div className="overflow-x-auto">
+      <div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-              <th className="py-2 px-2 w-12">#</th>
-              <th className="py-2 px-2">Team</th>
-              <th className="py-2 px-2">Score</th>
-              <th className="py-2 px-2">Auto</th>
-              <th className="py-2 px-2">Teleop</th>
-              <th className="py-2 px-2">Endgame</th>
-              <th className="py-2 px-2">Tags</th>
-              <th className="py-2 px-2">Notes</th>
-              <th className="py-2 px-2 w-16">Excl</th>
+              <th className="py-2 px-2 w-16" aria-sort={ariaSortFor('excluded')}>
+                <button type="button" onClick={() => onSort('excluded')} className="font-semibold">
+                  Excl{sortLabelFor('excluded')}
+                </button>
+              </th>
+              <th className="py-2 px-2 w-20" aria-sort={ariaSortFor('manualRank')}>
+                <button type="button" onClick={() => onSort('manualRank')} className="font-semibold">
+                  Manual#{sortLabelFor('manualRank')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('team')}>
+                <button type="button" onClick={() => onSort('team')} className="font-semibold">
+                  Team{sortLabelFor('team')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('tbaRank')}>
+                <button type="button" onClick={() => onSort('tbaRank')} className="font-semibold">
+                  TBA Rank{sortLabelFor('tbaRank')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('epaRank')}>
+                <button type="button" onClick={() => onSort('epaRank')} className="font-semibold">
+                  EPA Rank{sortLabelFor('epaRank')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('epaTotal')}>
+                <button type="button" onClick={() => onSort('epaTotal')} className="font-semibold">
+                  EPA Total{sortLabelFor('epaTotal')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('epaAuto')}>
+                <button type="button" onClick={() => onSort('epaAuto')} className="font-semibold">
+                  Auto{sortLabelFor('epaAuto')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('epaTeleop')}>
+                <button type="button" onClick={() => onSort('epaTeleop')} className="font-semibold">
+                  Teleop{sortLabelFor('epaTeleop')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('epaEndgame')}>
+                <button type="button" onClick={() => onSort('epaEndgame')} className="font-semibold">
+                  Endgame{sortLabelFor('epaEndgame')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('tags')}>
+                <button type="button" onClick={() => onSort('tags')} className="font-semibold">
+                  Tags{sortLabelFor('tags')}
+                </button>
+              </th>
+              <th className="py-2 px-2" aria-sort={ariaSortFor('notes')}>
+                <button type="button" onClick={() => onSort('notes')} className="font-semibold">
+                  Notes{sortLabelFor('notes')}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((entry) => (
-              <tr
-                key={entry.teamNumber}
-                className={`border-b border-gray-100 dark:border-gray-800 ${entry.excluded ? 'opacity-40 line-through' : ''
-                  }`}
-              >
-                <td className="py-2 px-2 font-mono text-gray-500">{entry.rank}</td>
-                <td className="py-2 px-2">
-                  <span className="font-bold">{entry.teamNumber}</span>
-                  <span className="ml-2 text-gray-500 text-xs">{entry.nickname}</span>
-                </td>
-                <td className="py-2 px-2 font-mono">{entry.epaTotal.toFixed(1)}</td>
-                <td className="py-2 px-2 font-mono text-green-600">{entry.epaAuto.toFixed(1)}</td>
-                <td className="py-2 px-2 font-mono text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
-                <td className="py-2 px-2 font-mono text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
-                <td className="py-2 px-2">
-                  <input
-                    type="text"
-                    placeholder="tag1;tag2"
-                    value={entry.tags.join(';')}
-                    onChange={(e) =>
-                      updateEntries((prev) =>
-                        prev.map((p) =>
-                          p.teamNumber === entry.teamNumber
-                            ? { ...p, tags: e.target.value.split(';').filter(Boolean) }
-                            : p,
-                        ),
-                      )
-                    }
-                    disabled={!canEdit}
-                    className="w-24 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </td>
-                <td className="py-2 px-2">
-                  <input
-                    type="text"
-                    placeholder="Notes..."
-                    value={entry.notes}
-                    onChange={(e) =>
-                      updateEntries((prev) =>
-                        prev.map((p) =>
-                          p.teamNumber === entry.teamNumber
-                            ? { ...p, notes: e.target.value }
-                            : p,
-                        ),
-                      )
-                    }
-                    disabled={!canEdit}
-                    className="w-32 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </td>
-                <td className="py-2 px-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={entry.excluded}
-                    disabled={!canEdit}
-                    onChange={() =>
-                      updateEntries((prev) =>
-                        prev.map((p) =>
-                          p.teamNumber === entry.teamNumber
-                            ? { ...p, excluded: !p.excluded }
-                            : p,
-                        ),
-                      )
-                    }
-                    className="disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </td>
-              </tr>
-            ))}
+            {filtered.map((entry) => {
+              const isMyTeam = entry.teamNumber === teamNumber;
+              return (
+                <tr
+                  key={entry.teamNumber}
+                  className={`border-b border-gray-100 dark:border-gray-800 ${entry.excluded ? 'opacity-40 line-through' : ''} ${isMyTeam ? 'bg-primary-50 dark:bg-primary-900/30 ring-1 ring-inset ring-primary-300 dark:ring-primary-700' : ''}`}
+                >
+                  <td className="py-2 px-2 text-center">
+                    <label className="inline-flex items-center justify-center w-8 h-8 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={entry.excluded}
+                        disabled={!canEdit}
+                        onChange={() =>
+                          updateEntries((prev) =>
+                            prev.map((p) =>
+                              p.teamNumber === entry.teamNumber
+                                ? { ...p, excluded: !p.excluded }
+                                : p,
+                            ),
+                          )
+                        }
+                        className="h-5 w-5 cursor-pointer accent-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                  </td>
+                  <td className="py-2 px-2 font-mono text-gray-500">
+                    {canEdit ? (
+                      <input
+                        type="number"
+                        min={1}
+                        value={entry.rank}
+                        onChange={(e) => {
+                          const parsed = Number.parseInt(e.target.value, 10);
+                          if (Number.isNaN(parsed) || parsed < 1) return;
+                          setSortState({ key: 'manualRank', direction: 'asc' });
+                          updateEntries((prev) =>
+                            prev.map((p) =>
+                              p.teamNumber === entry.teamNumber
+                                ? { ...p, rank: parsed }
+                                : p,
+                            ),
+                          );
+                        }}
+                        className="w-14 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs"
+                      />
+                    ) : (
+                      entry.rank
+                    )}
+                  </td>
+                  <td className="py-2 px-2">
+                    <span className="font-bold">{entry.teamNumber}</span>
+                    <span className="ml-2 text-gray-500 text-xs">{entry.nickname}</span>
+                  </td>
+                  <td className="py-2 px-2 font-mono">{entry.tbaRank ?? '-'}</td>
+                  <td className="py-2 px-2 font-mono">{entry.epaRank}</td>
+                  <td className="py-2 px-2 font-mono">{entry.epaTotal.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-green-600">{entry.epaAuto.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
+                  <td className="py-2 px-2 font-mono text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
+                  <td className="py-2 px-2">
+                    <TagDropdown
+                      tags={entry.tags}
+                      allTags={allTags}
+                      disabled={!canEdit}
+                      onChange={(newTags) =>
+                        updateEntries((prev) =>
+                          prev.map((p) =>
+                            p.teamNumber === entry.teamNumber
+                              ? { ...p, tags: newTags }
+                              : p,
+                          ),
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="py-2 px-2">
+                    <input
+                      type="text"
+                      placeholder="Notes..."
+                      value={entry.notes}
+                      onChange={(e) =>
+                        updateEntries((prev) =>
+                          prev.map((p) =>
+                            p.teamNumber === entry.teamNumber
+                              ? { ...p, notes: e.target.value }
+                              : p,
+                          ),
+                        )
+                      }
+                      disabled={!canEdit}
+                      className="w-32 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

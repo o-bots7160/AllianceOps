@@ -1,5 +1,12 @@
 // Types
-export type { TBAEvent, TBAMatch, TBATeam, TBARanking, TBAScoreBreakdown } from './types/tba.js';
+export type {
+  TBAEvent,
+  TBAMatch,
+  TBATeam,
+  TBARanking,
+  TBARankingEntry,
+  TBAScoreBreakdown,
+} from './types/tba.js';
 export type {
   StatboticsTeamYear,
   StatboticsTeamEvent,
