@@ -10,7 +10,7 @@ import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
-import { TeamCard } from '../../components/team-card';
+import { TeamCard, type SectionExpandState } from '../../components/team-card';
 import { getApiBase } from '../../lib/api-base';
 import type { EnrichedTeam } from '../../lib/types';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
@@ -273,6 +273,10 @@ export default function PlannerPage() {
   const [dirty, setDirty] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [sectionState, setSectionState] = useState<SectionExpandState>({ rank: true, epa: true, game: true });
+  const handleSectionToggle = useCallback((section: keyof SectionExpandState) => {
+    setSectionState((prev) => ({ ...prev, [section]: !prev[section] }));
+  }, []);
   const { confirmIfDirty } = useUnsavedGuard(dirty);
 
   // Load saved plan when match or team changes
@@ -535,6 +539,8 @@ export default function PlannerPage() {
                   defaultExpanded
                   record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
                   rankAnalysis={rankAnalysisMap.get(t)}
+                  sectionState={sectionState}
+                  onSectionToggle={handleSectionToggle}
                 />
               ))}
             </div>

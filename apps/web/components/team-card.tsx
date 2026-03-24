@@ -57,6 +57,12 @@ export function StrengthBar({ value, label }: { value: number; label: string }) 
     );
 }
 
+export interface SectionExpandState {
+    rank: boolean;
+    epa: boolean;
+    game: boolean;
+}
+
 export function TeamCard({
     teamKey,
     epaMap,
@@ -65,6 +71,8 @@ export function TeamCard({
     metrics,
     defaultExpanded = false,
     rankAnalysis,
+    sectionState,
+    onSectionToggle,
 }: {
     teamKey: string;
     epaMap: Map<number, EnrichedTeam>;
@@ -73,6 +81,8 @@ export function TeamCard({
     metrics?: GameMetricDefinition[];
     defaultExpanded?: boolean;
     rankAnalysis?: TeamRankAnalysis | null;
+    sectionState?: SectionExpandState;
+    onSectionToggle?: (section: keyof SectionExpandState) => void;
 }) {
     const num = parseInt(teamKey.replace('frc', ''), 10);
     const data = epaMap.get(num);
@@ -80,9 +90,19 @@ export function TeamCard({
     const bd = data?.epa?.breakdown;
     const displayRecord = record ?? data?.eventRecord;
     const hasBreakdown = bd && metrics && metrics.length > 0 && metrics.some((m) => bd[m.key] != null);
-    const [expanded, setExpanded] = useState(defaultExpanded);
-    const [rankExpanded, setRankExpanded] = useState(defaultExpanded);
-    const [epaExpanded, setEpaExpanded] = useState(true);
+
+    // Support both controlled (sectionState/onSectionToggle) and uncontrolled modes
+    const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
+    const [localRankExpanded, setLocalRankExpanded] = useState(defaultExpanded);
+    const [localEpaExpanded, setLocalEpaExpanded] = useState(true);
+
+    const expanded = sectionState ? sectionState.game : localExpanded;
+    const rankExpanded = sectionState ? sectionState.rank : localRankExpanded;
+    const epaExpanded = sectionState ? sectionState.epa : localEpaExpanded;
+
+    const toggleExpanded = () => onSectionToggle ? onSectionToggle('game') : setLocalExpanded((v) => !v);
+    const toggleRankExpanded = () => onSectionToggle ? onSectionToggle('rank') : setLocalRankExpanded((v) => !v);
+    const toggleEpaExpanded = () => onSectionToggle ? onSectionToggle('epa') : setLocalEpaExpanded((v) => !v);
 
     return (
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-5">
@@ -101,7 +121,7 @@ export function TeamCard({
                 <div className="text-xs">
                     <button
                         type="button"
-                        onClick={() => setRankExpanded((v) => !v)}
+                        onClick={toggleRankExpanded}
                         className="flex items-center gap-1 w-full text-left"
                     >
                         <svg
@@ -211,7 +231,7 @@ export function TeamCard({
                     <div className="text-xs">
                         <button
                             type="button"
-                            onClick={() => setEpaExpanded((v) => !v)}
+                            onClick={toggleEpaExpanded}
                             className="flex items-center gap-1 w-full text-left"
                         >
                             <svg
@@ -256,7 +276,7 @@ export function TeamCard({
                         <div className="text-xs">
                             <button
                                 type="button"
-                                onClick={() => setExpanded((v) => !v)}
+                                onClick={toggleExpanded}
                                 className="flex items-center gap-1 w-full text-left"
                             >
                                 <svg
