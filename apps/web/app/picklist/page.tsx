@@ -317,7 +317,7 @@ function TagDropdown({
         ))}
       </button>
       {open && !disabled && (
-        <div className="absolute z-50 mt-1 w-44 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 text-xs max-h-48 overflow-y-auto">
+        <div className="absolute right-0 lg:right-auto lg:left-0 z-50 mt-1 w-44 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 text-xs max-h-48 overflow-y-auto">
           {allTags.map((tag) => (
             <label
               key={tag}
@@ -902,7 +902,7 @@ export default function PicklistPage() {
           className="min-w-[12rem] flex-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
         />
         <TagFilterControl allTags={allTags} selected={tagFilters} onChange={setTagFilters} />
-        <div className="flex items-center gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-3 lg:ml-auto shrink-0">
           {canEdit && (
             <select
               defaultValue=""
@@ -970,7 +970,7 @@ export default function PicklistPage() {
                   Excl{sortLabelFor('excluded')}
                 </button>
               </th>
-              <th className="py-2 px-2 w-20 text-center" aria-sort={ariaSortFor('manualRank')}>
+              <th className="hidden lg:table-cell py-2 px-2 w-20 text-center" aria-sort={ariaSortFor('manualRank')}>
                 <button type="button" onClick={() => onSort('manualRank')} className="font-semibold">
                   Manual#{sortLabelFor('manualRank')}
                 </button>
@@ -985,7 +985,7 @@ export default function PicklistPage() {
                   TBA Rank{sortLabelFor('tbaRank')}
                 </button>
               </th>
-              <th className="py-2 px-2">
+              <th className="hidden lg:table-cell py-2 px-2">
                 <span className="font-semibold">Analysis</span>
               </th>
               <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaRank')}>
@@ -993,22 +993,22 @@ export default function PicklistPage() {
                   EPA Rank{sortLabelFor('epaRank')}
                 </button>
               </th>
-              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaTotal')}>
+              <th className="hidden lg:table-cell py-2 px-2 text-center" aria-sort={ariaSortFor('epaTotal')}>
                 <button type="button" onClick={() => onSort('epaTotal')} className="font-semibold">
                   EPA Total{sortLabelFor('epaTotal')}
                 </button>
               </th>
-              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaAuto')}>
+              <th className="hidden lg:table-cell py-2 px-2 text-center" aria-sort={ariaSortFor('epaAuto')}>
                 <button type="button" onClick={() => onSort('epaAuto')} className="font-semibold">
                   Auto{sortLabelFor('epaAuto')}
                 </button>
               </th>
-              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaTeleop')}>
+              <th className="hidden lg:table-cell py-2 px-2 text-center" aria-sort={ariaSortFor('epaTeleop')}>
                 <button type="button" onClick={() => onSort('epaTeleop')} className="font-semibold">
                   Teleop{sortLabelFor('epaTeleop')}
                 </button>
               </th>
-              <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaEndgame')}>
+              <th className="hidden lg:table-cell py-2 px-2 text-center" aria-sort={ariaSortFor('epaEndgame')}>
                 <button type="button" onClick={() => onSort('epaEndgame')} className="font-semibold">
                   Endgame{sortLabelFor('epaEndgame')}
                 </button>
@@ -1018,7 +1018,7 @@ export default function PicklistPage() {
                   Tags{sortLabelFor('tags')}
                 </button>
               </th>
-              <th className="py-2 px-2" aria-sort={ariaSortFor('notes')}>
+              <th className="hidden lg:table-cell py-2 px-2" aria-sort={ariaSortFor('notes')}>
                 <button type="button" onClick={() => onSort('notes')} className="font-semibold">
                   Notes{sortLabelFor('notes')}
                 </button>
@@ -1053,7 +1053,7 @@ export default function PicklistPage() {
                       />
                     </label>
                   </td>
-                  <td className="py-2 px-2 font-mono text-gray-500 text-center">
+                  <td className="hidden lg:table-cell py-2 px-2 font-mono text-gray-500 text-center">
                     {canEdit ? (
                       <input
                         type="number"
@@ -1085,10 +1085,10 @@ export default function PicklistPage() {
                     >
                       {entry.teamNumber}
                     </button>
-                    <span className="ml-2 text-gray-500 text-xs">{entry.nickname}</span>
+                    <span className="hidden lg:inline ml-2 text-gray-500 text-xs">{entry.nickname}</span>
                   </td>
                   <td className="py-2 px-2 font-mono text-center">{entry.tbaRank ?? '-'}</td>
-                  <td className="py-2 px-2 text-center">
+                  <td className="hidden lg:table-cell py-2 px-2 text-center">
                     {analysis && (
                       <button
                         type="button"
@@ -1106,10 +1106,10 @@ export default function PicklistPage() {
                     )}
                   </td>
                   <td className="py-2 px-2 font-mono text-center">{entry.epaRank}</td>
-                  <td className="py-2 px-2 font-mono text-center">{entry.epaTotal.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-center text-green-600">{entry.epaAuto.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-center text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
-                  <td className="py-2 px-2 font-mono text-center text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
+                  <td className="hidden lg:table-cell py-2 px-2 font-mono text-center">{entry.epaTotal.toFixed(1)}</td>
+                  <td className="hidden lg:table-cell py-2 px-2 font-mono text-center text-green-600">{entry.epaAuto.toFixed(1)}</td>
+                  <td className="hidden lg:table-cell py-2 px-2 font-mono text-center text-blue-600">{entry.epaTeleop.toFixed(1)}</td>
+                  <td className="hidden lg:table-cell py-2 px-2 font-mono text-center text-purple-600">{entry.epaEndgame.toFixed(1)}</td>
                   <td className="py-2 px-2">
                     <TagDropdown
                       tags={entry.tags}
@@ -1126,7 +1126,7 @@ export default function PicklistPage() {
                       }
                     />
                   </td>
-                  <td className="py-2 px-2">
+                  <td className="hidden lg:table-cell py-2 px-2">
                     <input
                       type="text"
                       placeholder="Notes..."
