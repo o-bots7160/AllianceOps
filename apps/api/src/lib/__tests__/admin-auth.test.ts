@@ -40,7 +40,7 @@ function makeRequest(headers: Record<string, string> = {}): HttpRequest {
       },
       get: (key: string) => headerMap.get(key) ?? null,
     },
-    url: 'http://localhost:7071/api/admin/stats',
+    url: 'http://localhost:7071/api/site-admin/stats',
   } as unknown as HttpRequest;
 }
 

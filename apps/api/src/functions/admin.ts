@@ -6,7 +6,7 @@ import { trackException } from '../lib/telemetry.js';
 app.http('getAdminStats', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'admin/stats',
+  route: 'site-admin/stats',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
     const auth = await requireAdmin(request);
     if (isAuthError(auth)) return auth;
@@ -45,7 +45,7 @@ app.http('getAdminStats', {
 app.http('getAdminUsers', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'admin/users',
+  route: 'site-admin/users',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
     const auth = await requireAdmin(request);
     if (isAuthError(auth)) return auth;

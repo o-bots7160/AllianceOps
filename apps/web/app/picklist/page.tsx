@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useAuth } from '../../components/use-auth';
 import { useApi } from '../../components/use-api';
@@ -515,9 +516,9 @@ function TeamDetailModal({
   const teamKey = `frc${teamNumber}`;
   const team = epaMap.get(teamNumber);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => {
         if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) onClose();
       }}
@@ -549,7 +550,8 @@ function TeamDetailModal({
           <p className="text-sm text-gray-500">No data available for team {teamNumber}</p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

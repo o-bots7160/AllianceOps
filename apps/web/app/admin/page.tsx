@@ -24,7 +24,7 @@ export default function AdminPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBase()}/admin/stats`, { redirect: 'manual' });
+      const res = await fetch(`${getApiBase()}/site-admin/stats`, { redirect: 'manual' });
       if (!res.ok) return;
       const result = await res.json();
       setStats(result.data);
@@ -45,7 +45,7 @@ export default function AdminPage() {
       });
       if (search) params.set('search', search);
 
-      const res = await fetch(`${getApiBase()}/admin/users?${params}`, { redirect: 'manual' });
+      const res = await fetch(`${getApiBase()}/site-admin/users?${params}`, { redirect: 'manual' });
       if (res.type === 'opaqueredirect' || res.status === 302) {
         setError('Authentication required');
         return;
