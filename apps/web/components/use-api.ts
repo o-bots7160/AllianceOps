@@ -59,9 +59,13 @@ async function fetchWithRetry<T>(url: string): Promise<ApiResponse<T>> {
       return await fetchOnce<T>(url);
     } catch (err) {
       lastError = err;
-      const isRetryable = err instanceof ApiError && err.retryable;
-      if (!isRetryable || attempt === MAX_RETRIES) break;
-      const delay = err.retryAfter ?? DEFAULT_BACKOFF_MS * 2 ** attempt;
+      const isApiRetryable = err instanceof ApiError && err.retryable;
+      const isNetworkError = err instanceof TypeError;
+      if ((!isApiRetryable && !isNetworkError) || attempt === MAX_RETRIES) break;
+      const delay =
+        err instanceof ApiError
+          ? (err.retryAfter ?? DEFAULT_BACKOFF_MS * 2 ** attempt)
+          : DEFAULT_BACKOFF_MS * 2 ** attempt;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -76,9 +80,11 @@ function fetchShared<T>(path: string): Promise<ApiResponse<T>> {
 
   const promise = fetchWithRetry<T>(url);
 
-  // Store the promise and clean up when it settles
+  // Store the promise and clean up when it settles.
+  // The .catch() suppresses unhandled-rejection warnings on the
+  // derivative promise — callers handle errors on `promise` itself.
   inflight.set(path, promise as Promise<ApiResponse<unknown>>);
-  promise.finally(() => inflight.delete(path));
+  promise.finally(() => inflight.delete(path)).catch(() => {});
 
   return promise;
 }
