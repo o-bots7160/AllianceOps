@@ -148,6 +148,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Run Database Migrations
+        id: db-migrate
         run: |
           RUNNER_IP=$(curl -s https://api.ipify.org)
           az postgres flexible-server firewall-rule create \
@@ -161,8 +162,35 @@ jobs:
             --vault-name kv-aops-${{ inputs.env_suffix }} \
             --name DatabaseUrl \
             --query value -o tsv)
+          echo "::add-mask::$DATABASE_URL"
+          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
           cd apps/api
           npx --yes prisma@^6 migrate deploy
+
+      - name: Rollback Failed Migrations
+        if: failure() && steps.db-migrate.outcome == 'failure'
+        run: |
+          echo "::warning::Migration failed — marking failed migrations as rolled back"
+          cd apps/api
+
+          # Extract failed migration names from prisma migrate status output
+          FAILED=$(npx --yes prisma@^6 migrate status 2>&1 \
+            | grep -oP '(?<=Failed\s{1,10})\d+\S+' || true)
+
+          if [ -n "$FAILED" ]; then
+            for migration in $FAILED; do
+              echo "Rolling back: $migration"
+              npx --yes prisma@^6 migrate resolve --rolled-back "$migration" || true
+            done
+          else
+            echo "Could not detect failed migration name — attempting psql fallback"
+            psql "$DATABASE_URL" -c "
+              UPDATE \"_prisma_migrations\"
+              SET \"rolled_back_at\" = NOW()
+              WHERE \"finished_at\" IS NULL
+                AND \"rolled_back_at\" IS NULL;
+            " || echo "::warning::psql fallback also failed — manual intervention required"
+          fi
 
       - name: Cleanup Postgres Firewall Rule
         if: always()
