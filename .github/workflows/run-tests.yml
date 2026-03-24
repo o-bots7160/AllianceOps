@@ -1,0 +1,31 @@
+# Manually trigger integration + load tests against an ephemeral Azure environment.
+# Run from the GitHub Actions UI when ready to validate before merging a PR.
+#
+# Builds the project, deploys to a test environment, runs integration + load tests,
+# then tears down the environment.
+name: Run Tests
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: run-tests
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  test:
+    needs: build
+    uses: ./.github/workflows/post-deploy-tests.yml
+    secrets: inherit

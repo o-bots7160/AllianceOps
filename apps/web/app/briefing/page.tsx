@@ -30,10 +30,16 @@ export default function BriefingPage() {
   const { activeCursor } = useSimulation();
   const myTeamKey = `frc${teamNumber}`;
 
-  const adapter = getAdapter(year);
-  const cardMetrics = (adapter?.gameSpecificMetrics ?? []).filter(
-    (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
-  );
+  let adapter: ReturnType<typeof getAdapter> | null = null;
+  try {
+    adapter = getAdapter(year);
+  } catch {
+    // No adapter registered for this year
+  }
+  const cardMetrics =
+    (adapter?.gameSpecificMetrics ?? []).filter(
+      (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
+    );
 
   const { data: rawMatches, loading: matchesLoading } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,

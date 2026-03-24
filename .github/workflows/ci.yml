@@ -17,6 +17,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
   check:
     name: Lint, Typecheck, Test
     runs-on: ubuntu-latest

@@ -29,7 +29,7 @@ Create a **separate `AdminUser` table** rather than adding an `ADMIN` value to t
 
 4. **`/me` endpoint augmented** — Returns `isAdmin: boolean` so the web app can conditionally show admin UI without extra API calls.
 
-5. **Admin API endpoints** — `GET /admin/stats` and `GET /admin/users` (paginated, searchable, sortable) protected by `requireAdmin()`.
+5. **Admin API endpoints** — `GET /site-admin/stats` and `GET /site-admin/users` (paginated, searchable, sortable) protected by `requireAdmin()`.
 
 6. **Admin link** — Appears in the user dropdown menu (not the main nav bar), visible only when `isAdmin` is true.
 

@@ -61,8 +61,11 @@ app.http('getAdminUsers', {
     const sortDir =
       (url.searchParams.get('sortDir') ?? 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
 
-    const allowedSortFields = ['createdAt', 'email', 'displayName'];
-    const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const allowedSortFields = ['createdAt', 'email', 'displayName'] as const;
+    type SortField = (typeof allowedSortFields)[number];
+    const orderField: SortField = allowedSortFields.includes(sortBy as SortField)
+      ? (sortBy as SortField)
+      : 'createdAt';
 
     try {
       const where = search

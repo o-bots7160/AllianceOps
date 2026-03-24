@@ -421,10 +421,19 @@ function TagFilterControl({
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
+      <div
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={0}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex flex-wrap items-center gap-1 min-w-[8rem] h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-left"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setOpen((prev) => !prev);
+          }
+        }}
+        className="flex flex-wrap items-center gap-1 min-w-[8rem] h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-left cursor-pointer"
       >
         {selected.length === 0 && <span className="text-gray-400">Filter by tags</span>}
         {selected.map((tag) => (
@@ -433,28 +442,20 @@ function TagFilterControl({
             className="inline-flex items-center gap-1 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 px-2 py-0.5 text-xs leading-tight"
           >
             {tag}
-            <span
-              role="button"
-              tabIndex={0}
-              onMouseDown={(e) => {
-                e.preventDefault();
+            <button
+              type="button"
+              onClick={(e) => {
                 e.stopPropagation();
                 toggle(tag);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggle(tag);
-                }
-              }}
               className="cursor-pointer hover:text-primary-900 dark:hover:text-primary-100"
+              aria-label={`Remove ${tag} filter`}
             >
               &times;
-            </span>
+            </button>
           </span>
         ))}
-      </button>
+      </div>
       {open && (
         <div className="absolute z-50 mt-1 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 text-sm max-h-48 overflow-y-auto">
           {allTags.map((tag) => (
