@@ -9,7 +9,7 @@ import {
   requiredParam,
   isParamError,
 } from '../lib/validation.js';
-import { signalROutput } from './signalr.js';
+import { broadcastSignalR } from './signalr.js';
 
 app.http('getMatchPlan', {
   methods: ['GET'],
@@ -55,8 +55,8 @@ app.http('upsertMatchPlan', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan',
-  extraOutputs: [signalROutput],
-  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+  extraOutputs: [],
+  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
     const teamId = requiredParam(request, 'teamId');
     if (isParamError(teamId)) return teamId;
     const eventKey = requiredParam(request, 'eventKey');
@@ -105,7 +105,8 @@ app.http('upsertMatchPlan', {
         },
       });
 
-      context.extraOutputs.set(signalROutput, [
+      // Fire-and-forget — broadcast never blocks the save response
+      void broadcastSignalR([
         {
           target: 'matchplan-updated',
           groupName: `matchplan:${teamId}:${eventKey}:${matchKey}`,

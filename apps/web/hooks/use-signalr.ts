@@ -27,31 +27,15 @@ interface SignalRConnection {
  * - Degrades gracefully if SignalR is unavailable (returns disconnected state)
  * - Disconnects when the browser tab is hidden (saves free-tier connections)
  */
-// HubConnection type from @microsoft/signalr — we use a loose type here
-// because the package is dynamically imported at runtime.
-interface HubConnectionLike {
-  start(): Promise<void>;
-  stop(): Promise<void>;
-  on(methodName: string, callback: (...args: unknown[]) => void): void;
-  off(methodName: string, callback: (...args: unknown[]) => void): void;
-  invoke(methodName: string, ...args: unknown[]): Promise<unknown>;
-  onreconnecting(callback: (error?: Error) => void): void;
-  onreconnected(callback: (connectionId?: string) => void): void;
-  onclose(callback: (error?: Error) => void): void;
-  state: string;
-}
-
 export function useSignalR(): SignalRConnection {
   const [state, setState] = useState<ConnectionState>('disconnected');
-  const connectionRef = useRef<HubConnectionLike | null>(null);
+  const connectionRef = useRef<import('@microsoft/signalr').HubConnection | null>(null);
   const mountedRef = useRef(true);
 
   const connect = useCallback(async () => {
     // Dynamically import to avoid SSR issues and keep bundle size small when unused
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let signalR: any;
+    let signalR: typeof import('@microsoft/signalr');
     try {
-      // @ts-expect-error -- types are unavailable until the package is installed in the devcontainer
       signalR = await import('@microsoft/signalr');
     } catch {
       return; // @microsoft/signalr not installed — degrade gracefully

@@ -9,7 +9,7 @@ import {
   requiredParam,
   isParamError,
 } from '../lib/validation.js';
-import { signalROutput } from './signalr.js';
+import { broadcastSignalR } from './signalr.js';
 
 const DEFAULT_PICKLIST_NAME = 'default';
 
@@ -66,8 +66,8 @@ app.http('upsertPicklist', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/picklist',
-  extraOutputs: [signalROutput],
-  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+  extraOutputs: [],
+  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
     const teamId = requiredParam(request, 'teamId');
     if (isParamError(teamId)) return teamId;
     const eventKey = requiredParam(request, 'eventKey');
@@ -125,7 +125,8 @@ app.http('upsertPicklist', {
         },
       });
 
-      context.extraOutputs.set(signalROutput, [
+      // Fire-and-forget — broadcast never blocks the save response
+      void broadcastSignalR([
         {
           target: 'picklist-updated',
           groupName: `picklist:${teamId}:${eventKey}`,
