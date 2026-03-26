@@ -2,15 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { getApiBase } from '../lib/api-base';
+import { usePersistentState } from '../hooks/use-persistent-state';
 
-interface TeamMembership {
+export interface TeamMembership {
   teamId: string;
   teamNumber: number;
   name: string;
   role: 'COACH' | 'MENTOR' | 'STUDENT';
 }
 
-interface AuthUserProfile {
+export interface AuthUserProfile {
   id: string;
   email: string | null;
   displayName: string | null;
@@ -36,7 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTeamId, setActiveTeamIdState] = useState<string | null>(null);
+  const [activeTeamId, setActiveTeamIdPersisted, activeTeamHydrated] =
+    usePersistentState<string | null>(ACTIVE_TEAM_KEY, null);
 
   const fetchUser = useCallback(async () => {
     setLoading(true);
@@ -67,15 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(profile);
-
-      // Restore active team from localStorage, or default to first team
-      const storedTeamId = localStorage.getItem(ACTIVE_TEAM_KEY);
-      const teams: TeamMembership[] = result.data.teams ?? [];
-      if (storedTeamId && teams.some((t: TeamMembership) => t.teamId === storedTeamId)) {
-        setActiveTeamIdState(storedTeamId);
-      } else if (teams.length > 0) {
-        setActiveTeamIdState(teams[0].teamId);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -87,12 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, [fetchUser]);
 
+  // Validate persisted team ID against the user's actual teams
+  useEffect(() => {
+    if (!user || !activeTeamHydrated) return;
+    const teams = user.teams;
+    if (activeTeamId && teams.some((t) => t.teamId === activeTeamId)) return;
+    if (teams.length > 0) {
+      setActiveTeamIdPersisted(teams[0].teamId);
+    }
+  }, [user, activeTeamHydrated, activeTeamId, setActiveTeamIdPersisted]);
+
   const setActiveTeamId = useCallback(
     (teamId: string) => {
-      setActiveTeamIdState(teamId);
-      localStorage.setItem(ACTIVE_TEAM_KEY, teamId);
+      setActiveTeamIdPersisted(teamId);
     },
-    [],
+    [setActiveTeamIdPersisted],
   );
 
   const activeTeam = user?.teams.find((t) => t.teamId === activeTeamId) ?? null;

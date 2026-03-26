@@ -1,16 +1,9 @@
 import type {
-  GameDefinition,
-  GenericBreakdown,
   DutySlotDefinition,
   DutyTemplate,
   GameMetricDefinition,
 } from '../types/game-definition.js';
-import type { TBAScoreBreakdown } from '../types/tba.js';
-import { registerAdapter } from './registry.js';
-
-function num(val: unknown): number {
-  return typeof val === 'number' ? val : 0;
-}
+import { createAdapter, num } from './create-adapter.js';
 
 const dutySlots: DutySlotDefinition[] = [
   {
@@ -238,11 +231,11 @@ const gameSpecificMetrics: GameMetricDefinition[] = [
   },
 ];
 
-const stronghold2016: GameDefinition = {
+export default createAdapter({
   year: 2016,
   gameName: 'FIRST Stronghold',
 
-  mapScoreBreakdown(raw: TBAScoreBreakdown): GenericBreakdown {
+  mapScoreBreakdown(raw) {
     const autoPoints = num(raw['autoPoints']);
     const teleopCrossingPoints = num(raw['teleopCrossingPoints']);
     const teleopBoulderPoints = num(raw['teleopBoulderPoints']);
@@ -279,8 +272,4 @@ const stronghold2016: GameDefinition = {
   dutySlots,
   dutyTemplates,
   gameSpecificMetrics,
-};
-
-registerAdapter(stronghold2016);
-
-export default stronghold2016;
+});

@@ -2,7 +2,7 @@
  * Simulation data seeder.
  *
  * Fetches full event data from TBA for the given event and stores it locally.
- * Usage: TBA_API_KEY=... tsx packages/shared/src/simulation/seed.ts
+ * Usage: TBA_API_KEY=... tsx scripts/seed-simulation.ts
  *
  * This is a placeholder script. In a full implementation, it would:
  * 1. Fetch all matches, teams, rankings from TBA for the preset event
@@ -10,7 +10,7 @@
  * 3. Create ranking snapshots at each match boundary for cursor replay
  */
 
-import { TBAClient } from '../clients/tba.js';
+import { TBAClient } from '@allianceops/shared';
 
 async function main() {
   const apiKey = process.env.TBA_API_KEY;

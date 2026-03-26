@@ -23,7 +23,8 @@
         "ms-azuretools.vscode-bicep",
         "Prisma.prisma",
         "GitHub.copilot",
-        "GitHub.copilot-chat"
+        "GitHub.copilot-chat",
+        "cweijan.vscode-postgresql-client2"
       ],
       "settings": {
         "editor.defaultFormatter": "esbenp.prettier-vscode",

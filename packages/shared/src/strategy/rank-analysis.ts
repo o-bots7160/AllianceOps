@@ -1,3 +1,5 @@
+import { computeAllianceStrength, computeFieldAvgEpa } from './analysis-utils.js';
+
 export type RankDetermination =
   | 'accurate'
   | 'carried'
@@ -66,16 +68,9 @@ export function analyzeRankDiscrepancy(
     const opponents = isRed ? match.blueTeams : match.redTeams;
 
     const partners = allies.filter((t) => t !== team.teamKey);
-    const partnerAvg =
-      partners.length > 0
-        ? partners.reduce((sum, t) => sum + (epaMap[t]?.total ?? fieldAvgEpa), 0) / partners.length
-        : fieldAvgEpa;
+    const partnerAvg = computeAllianceStrength(partners, epaMap, fieldAvgEpa);
 
-    const oppAvg =
-      opponents.length > 0
-        ? opponents.reduce((sum, t) => sum + (epaMap[t]?.total ?? fieldAvgEpa), 0) /
-          opponents.length
-        : fieldAvgEpa;
+    const oppAvg = computeAllianceStrength(opponents, epaMap, fieldAvgEpa);
 
     partnerEpas.push(partnerAvg);
     opponentEpas.push(oppAvg);
@@ -221,9 +216,7 @@ export function analyzeAllRankDiscrepancies(
   matches: MatchInput[],
   epaMap: TeamEpaMap,
 ): Map<string, TeamRankAnalysis> {
-  const totalEpa = Object.values(epaMap).reduce((sum, e) => sum + e.total, 0);
-  const teamCount = Object.keys(epaMap).length;
-  const fieldAvgEpa = teamCount > 0 ? totalEpa / teamCount : 1;
+  const fieldAvgEpa = computeFieldAvgEpa(epaMap);
 
   const result = new Map<string, TeamRankAnalysis>();
   for (const team of teams) {

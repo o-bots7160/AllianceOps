@@ -37,19 +37,16 @@ export type {
 export { TBAClient } from './clients/tba.js';
 export { StatboticsClient } from './clients/statbotics.js';
 
-// Adapters (side-effect imports register each adapter)
-import './adapters/2016-stronghold.js';
-import './adapters/2017-steamworks.js';
-import './adapters/2018-power-up.js';
-import './adapters/2019-deep-space.js';
-import './adapters/2020-infinite-recharge.js';
-import './adapters/2021-infinite-recharge.js';
-import './adapters/2022-rapid-react.js';
-import './adapters/2023-charged-up.js';
-import './adapters/2024-crescendo.js';
-import './adapters/2025-reefscape.js';
-import './adapters/2026-rebuilt.js';
-export { getAdapter, registerAdapter, getAvailableYears } from './adapters/registry.js';
+// Adapters — single init import registers all game-definition adapters
+import './adapters/init.js';
+export {
+  getAdapter,
+  registerAdapter,
+  getAvailableYears,
+  initAdapters,
+} from './adapters/registry.js';
+export { createAdapter, num } from './adapters/create-adapter.js';
+export type { CreateAdapterConfig } from './adapters/create-adapter.js';
 
 // Strategy
 export { generateBriefing } from './strategy/briefing.js';
@@ -60,6 +57,10 @@ export { generatePicklist } from './strategy/picklist.js';
 export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
 export { analyzeRankDiscrepancy, analyzeAllRankDiscrepancies } from './strategy/rank-analysis.js';
 export type { TeamRankAnalysis, RankDetermination } from './strategy/rank-analysis.js';
+export {
+  computeAllianceStrength,
+  computeFieldAvgEpa,
+} from './strategy/analysis-utils.js';
 
 // Auth
 export type { AuthUser, UserRole, AuthProvider, SWAAuthProviderOptions } from './auth/index.js';

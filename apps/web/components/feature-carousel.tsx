@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 
@@ -52,11 +53,13 @@ export function FeatureCarousel({ features }: { features: Feature[] }) {
                             {/* Slide container — 16:9 aspect ratio */}
                             <div className="relative aspect-[16/9] overflow-hidden bg-gray-900">
                                 {/* Screenshot image — top-aligned, full width, bottom crops */}
-                                <img
+                                <Image
                                     src={feature.image}
                                     alt={`${feature.title} screenshot`}
                                     className="w-full h-full object-cover object-top"
-                                    loading="lazy"
+                                    width={896}
+                                    height={504}
+                                    priority={selectedIndex === 0}
                                 />
 
                                 {/* Gradient overlay + text at bottom */}

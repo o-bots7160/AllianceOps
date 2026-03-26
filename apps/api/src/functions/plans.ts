@@ -4,7 +4,6 @@ import { requireTeamMember, isAuthError } from '../lib/auth.js';
 import { trackException } from '../lib/telemetry.js';
 import {
   UpsertMatchPlanSchema,
-  ApplyTemplateSchema,
   parseBody,
   isValidationError,
   requiredParam,
@@ -114,38 +113,5 @@ app.http('upsertMatchPlan', {
       });
       return { status: 503, jsonBody: { error: 'Failed to save match plan. Please try again.' } };
     }
-  },
-});
-
-app.http('applyTemplate', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan/from-template',
-  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const teamId = requiredParam(request, 'teamId');
-    if (isParamError(teamId)) return teamId;
-    const eventKey = requiredParam(request, 'eventKey');
-    if (isParamError(eventKey)) return eventKey;
-    const matchKey = requiredParam(request, 'matchKey');
-    if (isParamError(matchKey)) return matchKey;
-
-    const auth = await requireTeamMember(request, teamId);
-    if (isAuthError(auth)) return auth;
-
-    const body = await parseBody(request, ApplyTemplateSchema);
-    if (isValidationError(body)) return body;
-
-    // TODO: Implement actual template application logic (creates duties from template)
-    return {
-      status: 200,
-      jsonBody: {
-        data: {
-          templateName: body.templateName,
-          eventKey,
-          matchKey,
-          message: `Template '${body.templateName}' applied. Assign teams in the duty planner.`,
-        },
-      },
-    };
   },
 });
