@@ -5,6 +5,7 @@ import { InfoBox } from '@/components/info-box';
 import { PageGuard } from '@/components/page-guard';
 import { StatusBanner } from '@/components/status-banner';
 import { SaveStatusBar } from '@/components/save-status-bar';
+import { SaveComboButton } from '@/components/save-combo-button';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { usePicklistData } from '@/hooks/use-picklist-data';
@@ -48,6 +49,9 @@ export default function PicklistPage() {
     rankAnalysisMap,
     teamRecords,
     cardMetrics,
+    lastUpdatedBy,
+    autosaveEnabled,
+    toggleAutosave,
   } = usePicklistData();
 
   const [modalTeam, setModalTeam] = useState<number | null>(null);
@@ -139,25 +143,16 @@ export default function PicklistPage() {
                 ))}
               </select>
             )}
-            <button
-              onClick={handleSave}
-              disabled={!canEdit || saving}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap ${
-                canEdit
-                  ? 'bg-primary-600 text-white hover:bg-primary-700'
-                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              } disabled:opacity-60`}
-            >
-              {!canEdit
-                ? !user
-                  ? 'Log In to Save'
-                  : !activeTeam
-                    ? 'Join Team to Save'
-                    : 'Read Only'
-                : saving
-                  ? 'Saving...'
-                  : 'Save Picklist'}
-            </button>
+            <SaveComboButton
+              canEdit={canEdit}
+              hasUser={!!user}
+              hasTeam={!!activeTeam}
+              saving={saving}
+              autosaveEnabled={autosaveEnabled}
+              onToggleAutosave={toggleAutosave}
+              onSave={handleSave}
+              label="Save Picklist"
+            />
           </div>
         </div>
 
@@ -186,6 +181,12 @@ export default function PicklistPage() {
           />
         )}
       </div>
+
+      {lastUpdatedBy && (
+        <div className="fixed bottom-14 right-4 z-20 rounded-lg bg-blue-100 dark:bg-blue-900 px-4 py-2 text-sm text-blue-800 dark:text-blue-200 shadow-lg animate-fade-in">
+          Updated by {lastUpdatedBy}
+        </div>
+      )}
 
       <SaveStatusBar
         status={saveStatus}

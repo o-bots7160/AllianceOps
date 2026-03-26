@@ -9,6 +9,7 @@ import {
   requiredParam,
   isParamError,
 } from '../lib/validation.js';
+import { signalROutput } from './signalr.js';
 
 const DEFAULT_PICKLIST_NAME = 'default';
 
@@ -65,7 +66,8 @@ app.http('upsertPicklist', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/picklist',
-  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+  extraOutputs: [signalROutput],
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const teamId = requiredParam(request, 'teamId');
     if (isParamError(teamId)) return teamId;
     const eventKey = requiredParam(request, 'eventKey');
@@ -122,6 +124,21 @@ app.http('upsertPicklist', {
           },
         },
       });
+
+      context.extraOutputs.set(signalROutput, [
+        {
+          target: 'picklist-updated',
+          groupName: `picklist:${teamId}:${eventKey}`,
+          arguments: [
+            {
+              type: 'picklist-updated',
+              eventKey,
+              updatedBy: auth.user.displayName ?? auth.user.id,
+              updatedAt: picklist.updatedAt.toISOString(),
+            },
+          ],
+        },
+      ]);
 
       return {
         status: 200,

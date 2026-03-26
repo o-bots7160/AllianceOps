@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useEventSetup } from '@/components/use-event-setup';
 import { useAuth } from '@/components/use-auth';
 import { useApi } from '@/components/use-api';
+import { useSignalR } from '@/hooks/use-signalr';
+import { useAutosave } from '@/hooks/use-autosave';
 import { getApiBase } from '@/lib/api-base';
 import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
 import type { TeamRankAnalysis, GameMetricDefinition } from '@allianceops/shared';
@@ -332,6 +334,40 @@ export function usePicklistData() {
     });
   }, []);
 
+  // --- SignalR: listen for teammate picklist updates ---
+  const signalR = useSignalR();
+  const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (signalR.state !== 'connected') return;
+
+    const handler = (...args: unknown[]) => {
+      const msg = args[0] as { type?: string; updatedBy?: string; updatedAt?: string } | undefined;
+      if (msg?.type !== 'picklist-updated') return;
+      // Reload if we don't have unsaved local changes
+      if (!dirty) {
+        loadPicklist();
+      }
+      if (msg.updatedBy) {
+        setLastUpdatedBy(msg.updatedBy);
+        setTimeout(() => setLastUpdatedBy(null), 5000);
+      }
+    };
+
+    signalR.on('picklist-updated', handler);
+    return () => signalR.off('picklist-updated', handler);
+  }, [signalR, dirty, loadPicklist]);
+
+  // --- Autosave ---
+  const { autosaveEnabled, toggleAutosave } = useAutosave({
+    saveFn: handleSave,
+    dirty,
+    saving,
+    canEdit,
+    debounceMs: 2000,
+    storageKey: 'picklist',
+  });
+
   return {
     // Context values
     eventKey,
@@ -383,5 +419,13 @@ export function usePicklistData() {
     rankAnalysisMap,
     teamRecords,
     cardMetrics,
+
+    // SignalR
+    signalRState: signalR.state,
+    lastUpdatedBy,
+
+    // Autosave
+    autosaveEnabled,
+    toggleAutosave,
   };
 }

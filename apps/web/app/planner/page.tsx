@@ -242,7 +242,27 @@ export default function PlannerPage() {
           user={user}
           activeTeam={activeTeam}
           onSave={plan.save}
+          autosaveEnabled={plan.autosaveEnabled}
+          onToggleAutosave={plan.toggleAutosave}
         />
+
+        {plan.lastUpdatedBy && (
+          <StatusBanner variant="info">
+            Plan updated by {plan.lastUpdatedBy}
+          </StatusBanner>
+        )}
+
+        {plan.remoteUpdateAvailable && (
+          <StatusBanner variant="warning">
+            <span>A teammate updated this plan.</span>{' '}
+            <button
+              onClick={plan.applyRemoteUpdate}
+              className="underline font-medium hover:text-blue-600"
+            >
+              Reload latest
+            </button>
+          </StatusBanner>
+        )}
 
         {activeCursor !== null && (
           <StatusBanner variant="warning">

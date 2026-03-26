@@ -22,6 +22,10 @@ param databaseUrl string = ''
 @secure()
 param postgresAdminPassword string = ''
 
+@description('Azure SignalR Service connection string')
+@secure()
+param signalRConnectionString string = ''
+
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
@@ -76,6 +80,14 @@ resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' =
   name: 'PostgresAdminPassword'
   properties: {
     value: postgresAdminPassword
+  }
+}
+
+resource secretSignalRConnectionString 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(signalRConnectionString)) {
+  parent: keyVault
+  name: 'SignalRConnectionString'
+  properties: {
+    value: signalRConnectionString
   }
 }
 

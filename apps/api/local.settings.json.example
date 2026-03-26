@@ -5,7 +5,8 @@
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "TBA_API_KEY": "",
     "STATBOTICS_BASE_URL": "https://api.statbotics.io/v3",
-    "DATABASE_URL": "postgresql://allianceops:allianceops@postgres:5432/allianceops"
+    "DATABASE_URL": "postgresql://allianceops:allianceops@postgres:5432/allianceops",
+    "AzureSignalRConnectionString": "Endpoint=http://signalr-emulator:8888;AccessKey=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH=;Version=1.0;"
   },
   "Host": {
     "CORS": "http://localhost:3000",

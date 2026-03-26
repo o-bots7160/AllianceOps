@@ -9,6 +9,7 @@ import {
   requiredParam,
   isParamError,
 } from '../lib/validation.js';
+import { signalROutput } from './signalr.js';
 
 app.http('getMatchPlan', {
   methods: ['GET'],
@@ -54,7 +55,8 @@ app.http('upsertMatchPlan', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'teams/{teamId}/event/{eventKey}/match/{matchKey}/plan',
-  handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
+  extraOutputs: [signalROutput],
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const teamId = requiredParam(request, 'teamId');
     if (isParamError(teamId)) return teamId;
     const eventKey = requiredParam(request, 'eventKey');
@@ -102,6 +104,22 @@ app.http('upsertMatchPlan', {
           },
         },
       });
+
+      context.extraOutputs.set(signalROutput, [
+        {
+          target: 'matchplan-updated',
+          groupName: `matchplan:${teamId}:${eventKey}:${matchKey}`,
+          arguments: [
+            {
+              type: 'matchplan-updated',
+              eventKey,
+              matchKey,
+              updatedBy: auth.user.displayName ?? auth.user.id,
+              updatedAt: plan.updatedAt.toISOString(),
+            },
+          ],
+        },
+      ]);
 
       return { status: 200, jsonBody: { data: plan } };
     } catch (err) {

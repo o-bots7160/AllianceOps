@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { matchLabel } from '../../lib/match-utils';
+import { SaveComboButton } from '../save-combo-button';
 import type { DutyTemplate } from '@allianceops/shared';
 import type { SaveStatus } from '../../hooks/use-match-plan';
 
@@ -30,6 +31,8 @@ export interface MatchSelectorProps {
   user: unknown;
   activeTeam: { teamId: string; teamNumber: number } | null;
   onSave: () => void;
+  autosaveEnabled: boolean;
+  onToggleAutosave: () => void;
 }
 
 export function MatchSelector({
@@ -45,6 +48,8 @@ export function MatchSelector({
   user,
   activeTeam,
   onSave,
+  autosaveEnabled,
+  onToggleAutosave,
 }: MatchSelectorProps) {
   const currentIdx = useMemo(() => {
     const key = selectedMatch || currentMatchKey;
@@ -115,25 +120,16 @@ export function MatchSelector({
       )}
 
       <div className="flex items-center gap-3 sm:ml-auto shrink-0">
-        <button
-          onClick={onSave}
-          disabled={!canEdit || saveStatus === 'saving'}
-          className={`h-[38px] px-4 rounded-md text-sm font-medium whitespace-nowrap ${
-            canEdit
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-          }`}
-        >
-          {saveStatus === 'saving'
-            ? 'Saving…'
-            : canEdit
-              ? 'Save Plan'
-              : !user
-                ? 'Log In to Save'
-                : !activeTeam
-                  ? 'Join Team to Save'
-                  : 'Read Only'}
-        </button>
+        <SaveComboButton
+          canEdit={canEdit}
+          hasUser={!!user}
+          hasTeam={!!activeTeam}
+          saving={saveStatus === 'saving'}
+          autosaveEnabled={autosaveEnabled}
+          onToggleAutosave={onToggleAutosave}
+          onSave={onSave}
+          label="Save Plan"
+        />
       </div>
     </div>
   );

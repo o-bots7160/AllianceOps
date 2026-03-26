@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getApiBase } from '../lib/api-base';
+import { useSignalR } from './use-signalr';
+import { useAutosave } from './use-autosave';
 import type { EnrichedTeam } from '../lib/types';
 import type {
   DutySlotDefinition,
@@ -35,6 +37,12 @@ export interface UseMatchPlanReturn {
   applyTemplate: (name: string) => void;
   save: () => Promise<void>;
   resetPlan: () => void;
+  signalRState: string;
+  lastUpdatedBy: string | null;
+  autosaveEnabled: boolean;
+  toggleAutosave: () => void;
+  remoteUpdateAvailable: boolean;
+  applyRemoteUpdate: () => void;
 }
 
 /** Sum EPA breakdown values for the given keys. */
@@ -259,7 +267,6 @@ export function useMatchPlan({
       setDirty(true);
       setSaveStatus('dirty');
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [teamNumsKey, epaMap, dutySlots, dutyTemplates],
   );
 
@@ -305,6 +312,82 @@ export function useMatchPlan({
     setSaveError(undefined);
   }, []);
 
+  // --- SignalR: listen for teammate match plan updates ---
+  const signalR = useSignalR();
+  const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
+  const [remoteUpdateAvailable, setRemoteUpdateAvailable] = useState(false);
+
+  const reloadPlan = useCallback(() => {
+    if (!matchKey || !teamId || !eventKey || !isOwnTeam) return;
+    const API_BASE = getApiBase();
+    fetch(`${API_BASE}/teams/${teamId}/event/${eventKey}/match/${matchKey}/plan`, {
+      credentials: 'same-origin',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json?.data) return;
+        const plan = json.data;
+        if (plan.duties && plan.duties.length > 0) {
+          const loadedAssignments: Record<string, number | null> = {};
+          const loadedNotes: Record<string, string> = {};
+          for (const d of plan.duties) {
+            loadedAssignments[d.slotKey] = d.teamNumber;
+            loadedNotes[d.slotKey] = d.notes ?? '';
+          }
+          setAssignments(loadedAssignments);
+          setNotes(loadedNotes);
+          setDirty(false);
+          setSaveStatus('clean');
+          setLastSavedAt(plan.updatedAt ? new Date(plan.updatedAt) : undefined);
+        }
+        setRemoteUpdateAvailable(false);
+      })
+      .catch(() => {});
+  }, [matchKey, teamId, eventKey, isOwnTeam]);
+
+  useEffect(() => {
+    if (signalR.state !== 'connected') return;
+
+    const handler = (...args: unknown[]) => {
+      const msg = args[0] as {
+        type?: string;
+        matchKey?: string;
+        updatedBy?: string;
+      } | undefined;
+      if (msg?.type !== 'matchplan-updated') return;
+      if (msg.matchKey !== matchKey) return;
+
+      if (msg.updatedBy) {
+        setLastUpdatedBy(msg.updatedBy);
+        setTimeout(() => setLastUpdatedBy(null), 5000);
+      }
+
+      // Auto-reload if no unsaved changes; otherwise notify user
+      if (!dirty) {
+        reloadPlan();
+      } else {
+        setRemoteUpdateAvailable(true);
+      }
+    };
+
+    signalR.on('matchplan-updated', handler);
+    return () => signalR.off('matchplan-updated', handler);
+  }, [signalR, dirty, matchKey, reloadPlan]);
+
+  const applyRemoteUpdate = useCallback(() => {
+    reloadPlan();
+  }, [reloadPlan]);
+
+  // --- Autosave ---
+  const { autosaveEnabled, toggleAutosave } = useAutosave({
+    saveFn: save,
+    dirty,
+    saving: saveStatus === 'saving',
+    canEdit,
+    debounceMs: 3000,
+    storageKey: 'planner',
+  });
+
   return {
     assignments,
     notes,
@@ -319,5 +402,11 @@ export function useMatchPlan({
     applyTemplate,
     save,
     resetPlan,
+    signalRState: signalR.state,
+    lastUpdatedBy,
+    autosaveEnabled,
+    toggleAutosave,
+    remoteUpdateAvailable,
+    applyRemoteUpdate,
   };
 }
