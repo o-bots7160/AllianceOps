@@ -129,11 +129,11 @@ app.http('upsertPicklist', {
       void broadcastSignalR([
         {
           target: 'picklist-updated',
-          groupName: `picklist:${teamId}:${eventKey}`,
           arguments: [
             {
               type: 'picklist-updated',
               eventKey,
+              userId: auth.user.id,
               updatedBy: auth.user.displayName ?? auth.user.id,
               updatedAt: picklist.updatedAt.toISOString(),
             },

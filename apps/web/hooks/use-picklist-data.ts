@@ -334,8 +334,18 @@ export function usePicklistData() {
     if (signalR.state !== 'connected') return;
 
     const handler = (...args: unknown[]) => {
-      const msg = args[0] as { type?: string; updatedBy?: string; updatedAt?: string } | undefined;
+      const msg = args[0] as
+        | {
+            type?: string;
+            eventKey?: string;
+            userId?: string;
+            updatedBy?: string;
+            updatedAt?: string;
+          }
+        | undefined;
       if (msg?.type !== 'picklist-updated') return;
+      if (msg.eventKey && msg.eventKey !== eventKey) return;
+      if (user && msg.userId === user.id) return; // Ignore own save echo
       // Reload if we don't have unsaved local changes
       if (!dirty) {
         loadPicklist();
@@ -348,7 +358,7 @@ export function usePicklistData() {
 
     signalR.on('picklist-updated', handler);
     return () => signalR.off('picklist-updated', handler);
-  }, [signalR, dirty, loadPicklist]);
+  }, [signalR, dirty, loadPicklist, eventKey, user]);
 
   // --- Autosave ---
   const { autosaveEnabled, toggleAutosave } = useAutosave({

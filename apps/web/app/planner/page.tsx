@@ -108,8 +108,8 @@ export default function PlannerPage() {
       return new Map<
         string,
         ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V>
-          ? V
-          : never
+        ? V
+        : never
       >();
     const teamInputs = teams
       .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
@@ -147,6 +147,7 @@ export default function PlannerPage() {
     matchKey: currentMatch?.key,
     teamId: activeTeam?.teamId,
     eventKey: eventKey ?? '',
+    userId: user?.id,
     isOwnTeam,
     canEdit,
     teamNumbers,
@@ -189,11 +190,10 @@ export default function PlannerPage() {
             <div className="flex items-center gap-3">
               {currentMatch && (
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    isRed
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
                       ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                       : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                  }`}
+                    }`}
                 >
                   {isRed ? 'Red' : 'Blue'} Alliance
                 </span>

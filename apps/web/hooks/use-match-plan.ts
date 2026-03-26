@@ -11,6 +11,7 @@ export interface UseMatchPlanOptions {
   matchKey: string | undefined;
   teamId: string | undefined;
   eventKey: string;
+  userId: string | undefined;
   isOwnTeam: boolean;
   canEdit: boolean;
   teamNumbers: number[];
@@ -160,6 +161,7 @@ export function useMatchPlan({
   matchKey,
   teamId,
   eventKey,
+  userId,
   isOwnTeam,
   canEdit,
   teamNumbers,
@@ -340,11 +342,13 @@ export function useMatchPlan({
         | {
             type?: string;
             matchKey?: string;
+            userId?: string;
             updatedBy?: string;
           }
         | undefined;
       if (msg?.type !== 'matchplan-updated') return;
       if (msg.matchKey !== matchKey) return;
+      if (userId && msg.userId === userId) return; // Ignore own save echo
 
       if (msg.updatedBy) {
         setLastUpdatedBy(msg.updatedBy);
@@ -361,7 +365,7 @@ export function useMatchPlan({
 
     signalR.on('matchplan-updated', handler);
     return () => signalR.off('matchplan-updated', handler);
-  }, [signalR, dirty, matchKey, reloadPlan]);
+  }, [signalR, dirty, matchKey, userId, reloadPlan]);
 
   const applyRemoteUpdate = useCallback(() => {
     reloadPlan();

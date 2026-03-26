@@ -109,12 +109,12 @@ app.http('upsertMatchPlan', {
       void broadcastSignalR([
         {
           target: 'matchplan-updated',
-          groupName: `matchplan:${teamId}:${eventKey}:${matchKey}`,
           arguments: [
             {
               type: 'matchplan-updated',
               eventKey,
               matchKey,
+              userId: auth.user.id,
               updatedBy: auth.user.displayName ?? auth.user.id,
               updatedAt: plan.updatedAt.toISOString(),
             },
