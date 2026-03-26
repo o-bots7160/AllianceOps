@@ -42,7 +42,7 @@ services:
       - azurite-data:/data
 
   signalr-emulator:
-    image: klabbet/signalr-emulator
+    build: docker/signalr-emulator
     restart: unless-stopped
     ports:
       - '8888:8888'

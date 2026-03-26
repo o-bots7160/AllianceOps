@@ -61,7 +61,7 @@ Pair SignalR with an optional autosave feature — a combo/split Save button wit
 
 ### Local Development
 
-The Docker-based Azure SignalR Local Emulator (`klabbet/signalr-emulator`) is added to `docker-compose.yml`, running alongside PostgreSQL and Azurite. The emulator supports the serverless negotiate flow and WebSocket connections locally. If the emulator isn't running, the app degrades gracefully.
+The Docker-based Azure SignalR Local Emulator (built from `docker/signalr-emulator/Dockerfile` using the .NET SDK) is added to `docker-compose.yml`, running alongside PostgreSQL and Azurite. The custom Dockerfile ensures cross-platform support (amd64 + arm64). The emulator supports the serverless negotiate flow and WebSocket connections locally. If the emulator isn't running, the app degrades gracefully.
 
 ## Alternatives Considered
 

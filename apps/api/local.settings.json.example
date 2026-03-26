@@ -9,7 +9,7 @@
     "AzureSignalRConnectionString": "Endpoint=http://signalr-emulator:8888;AccessKey=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH=;Version=1.0;"
   },
   "Host": {
-    "CORS": "http://localhost:3000",
+    "CORS": "http://localhost:4280,http://localhost:3000",
     "CORSCredentials": true
   }
 }
