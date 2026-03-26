@@ -9,6 +9,9 @@ RUN dotnet tool install --global Microsoft.Azure.SignalR.Emulator
 
 ENV PATH="/root/.dotnet/tools:${PATH}"
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8888
 
-CMD ["asrs-emulator", "start", "--ip", "0.0.0.0", "--port", "8888"]
+CMD ["/entrypoint.sh"]

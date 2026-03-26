@@ -26,8 +26,12 @@ interface SignalRConnection {
  * - Auto-reconnects with exponential backoff
  * - Degrades gracefully if SignalR is unavailable (returns disconnected state)
  * - Disconnects when the browser tab is hidden (saves free-tier connections)
+ *
+ * @param enabled - Pass `true` only when the user is authenticated.
+ *   The negotiate endpoint requires auth, so connecting before sign-in
+ *   produces 401 errors.
  */
-export function useSignalR(): SignalRConnection {
+export function useSignalR(enabled = false): SignalRConnection {
   const [state, setState] = useState<ConnectionState>('disconnected');
   const connectionRef = useRef<import('@microsoft/signalr').HubConnection | null>(null);
   const mountedRef = useRef(true);
@@ -55,9 +59,10 @@ export function useSignalR(): SignalRConnection {
       const API_BASE = getApiBase();
       const connection = new signalR.HubConnectionBuilder()
         .withUrl(`${API_BASE}/signalr`, {
-          // The negotiate endpoint returns the SignalR Service URL and token.
-          // The SignalR client handles calling negotiate automatically when
-          // the URL points to our API endpoint.
+          // Explicitly include credentials so the SWA auth cookie is sent
+          // with the negotiate POST. The SignalR client defaults to
+          // credentials: 'same-origin' which can fail under SWA CLI's proxy.
+          withCredentials: true,
         })
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .configureLogging(signalR.LogLevel.Warning)
@@ -84,20 +89,24 @@ export function useSignalR(): SignalRConnection {
     }
   }, []);
 
-  // Connect on mount, disconnect on unmount
+  // Connect on mount (if enabled), disconnect on unmount or when disabled
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+    if (enabled) {
+      connect();
+    }
 
     return () => {
       mountedRef.current = false;
       connectionRef.current?.stop().catch(() => {});
       connectionRef.current = null;
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   // Disconnect when tab is hidden to save free-tier connections
   useEffect(() => {
+    if (!enabled) return;
+
     const handleVisibility = () => {
       if (document.hidden) {
         connectionRef.current?.stop().catch(() => {});
@@ -109,7 +118,7 @@ export function useSignalR(): SignalRConnection {
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [connect]);
+  }, [connect, enabled]);
 
   const on = useCallback((event: string, callback: (...args: unknown[]) => void) => {
     connectionRef.current?.on(event, callback);

@@ -13,6 +13,7 @@
     "ghcr.io/devcontainers/features/copilot-cli:latest": {}
   },
   "postCreateCommand": "sudo corepack enable && corepack install && pnpm install && sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && pnpm db:migrate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
+  "postStartCommand": "if [ -f /signalr-shared/connection-string ]; then CS=$(cat /signalr-shared/connection-string); node -e \"const fs=require('fs');const p='apps/api/local.settings.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.Values.AzureSignalRConnectionString=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\\n');\" \"$CS\" && echo \"SignalR connection string synced: $CS\"; fi",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -65,6 +66,7 @@
     4280,
     7071,
     5432,
+    8888,
     10000,
     10001,
     10002
@@ -84,6 +86,10 @@
     },
     "5432": {
       "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "8888": {
+      "label": "SignalR Emulator",
       "onAutoForward": "silent"
     },
     "10000": {

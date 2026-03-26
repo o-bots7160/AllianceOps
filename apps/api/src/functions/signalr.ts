@@ -18,8 +18,14 @@ const signalRInput = input.generic({
  * In production the endpoint is a public Azure URL — no rewrite needed.
  */
 function rewriteConnectionInfo(info: Record<string, unknown>): Record<string, unknown> {
-  if (typeof info.url === 'string' && info.url.includes('signalr-emulator')) {
-    return { ...info, url: info.url.replace('signalr-emulator', 'localhost') };
+  if (typeof info.url === 'string') {
+    // Rewrite Docker-internal or bind-all hostnames so the browser can reach the emulator.
+    const rewritten = info.url
+      .replace('signalr-emulator', 'localhost')
+      .replace('0.0.0.0', 'localhost');
+    if (rewritten !== info.url) {
+      return { ...info, url: rewritten };
+    }
   }
   return info;
 }
@@ -31,7 +37,9 @@ app.http('negotiate', {
   extraInputs: [signalRInput],
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const auth = await requireUser(request);
-    if (isAuthError(auth)) return auth;
+    if (isAuthError(auth)) {
+      return auth;
+    }
 
     const connectionInfo = context.extraInputs.get(signalRInput) as Record<string, unknown> | null;
     if (!connectionInfo) {
@@ -63,8 +71,16 @@ function parseConnectionString(): ParsedConnectionString | null {
   if (!cs) return null;
   const endpointMatch = cs.match(/Endpoint=(.*?);/i);
   const keyMatch = cs.match(/AccessKey=(.*?)(;|$)/i);
+  const portMatch = cs.match(/Port=(\d+)/i);
   if (!endpointMatch || !keyMatch) return null;
-  return { endpoint: endpointMatch[1].replace(/\/$/, ''), accessKey: keyMatch[1] };
+  let endpoint = endpointMatch[1].replace(/\/$/, '');
+  // The emulator's connection string may use 0.0.0.0 (bind-all) which isn't
+  // routable from the Functions container. Rewrite to the Docker service name.
+  endpoint = endpoint.replace('0.0.0.0', 'signalr-emulator');
+  if (portMatch) {
+    endpoint = `${endpoint}:${portMatch[1]}`;
+  }
+  return { endpoint, accessKey: keyMatch[1] };
 }
 
 function generateToken(url: string, accessKey: string, ttlSeconds = 300): string {

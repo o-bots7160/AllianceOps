@@ -29,14 +29,12 @@ export function usePicklistData() {
   const { user, activeTeam } = useAuth();
   const isOwnTeam = activeTeam !== null && activeTeam.teamNumber === teamNumber;
   const canEdit = isOwnTeam;
-  const teamId = isOwnTeam ? activeTeam?.teamId ?? null : null;
+  const teamId = isOwnTeam ? (activeTeam?.teamId ?? null) : null;
 
   const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
-  const { data: matches } = useApi<TBAMatch[]>(
-    eventKey ? `event/${eventKey}/matches` : null,
-  );
+  const { data: matches } = useApi<TBAMatch[]>(eventKey ? `event/${eventKey}/matches` : null);
 
   // Build epaMap (teamNumber → EnrichedTeam) for TeamCard
   const epaMap = useMemo(() => {
@@ -93,8 +91,7 @@ export function usePicklistData() {
       // No adapter registered for this year
     }
     return (adapter?.gameSpecificMetrics ?? []).filter(
-      (m: GameMetricDefinition) =>
-        m.renderLocation === 'team_card' || m.renderLocation === 'all',
+      (m: GameMetricDefinition) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
     );
   }, [year]);
 
@@ -136,9 +133,7 @@ export function usePicklistData() {
   const loadAbortRef = useRef<AbortController | null>(null);
 
   // Async confirm dialog state for discarding unsaved changes on event switch
-  const [discardConfirm, setDiscardConfirm] = useState<{ newKey: string } | null>(
-    null,
-  );
+  const [discardConfirm, setDiscardConfirm] = useState<{ newKey: string } | null>(null);
 
   const resetPicklistState = useCallback(() => {
     loadAbortRef.current?.abort();
@@ -245,17 +240,14 @@ export function usePicklistData() {
   }, [initialized, teamId, eventKey, dirty, loadPicklist]);
 
   // Wrapper for setEntries that marks dirty
-  const updateEntries = useCallback(
-    (updater: (prev: PicklistEntry[]) => PicklistEntry[]) => {
-      setEntries((prev) => {
-        const next = updater(prev);
-        setDirty(true);
-        setSaved(false);
-        return next;
-      });
-    },
-    [],
-  );
+  const updateEntries = useCallback((updater: (prev: PicklistEntry[]) => PicklistEntry[]) => {
+    setEntries((prev) => {
+      const next = updater(prev);
+      setDirty(true);
+      setSaved(false);
+      return next;
+    });
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!eventKey || !teamId) return;
@@ -335,7 +327,7 @@ export function usePicklistData() {
   }, []);
 
   // --- SignalR: listen for teammate picklist updates ---
-  const signalR = useSignalR();
+  const signalR = useSignalR(!!user);
   const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
 
   useEffect(() => {

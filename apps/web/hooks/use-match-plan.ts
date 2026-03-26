@@ -3,11 +3,7 @@ import { getApiBase } from '../lib/api-base';
 import { useSignalR } from './use-signalr';
 import { useAutosave } from './use-autosave';
 import type { EnrichedTeam } from '../lib/types';
-import type {
-  DutySlotDefinition,
-  DutyTemplate,
-  DutyTemplateSlot,
-} from '@allianceops/shared';
+import type { DutySlotDefinition, DutyTemplate, DutyTemplateSlot } from '@allianceops/shared';
 
 export type SaveStatus = 'clean' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -46,11 +42,7 @@ export interface UseMatchPlanReturn {
 }
 
 /** Sum EPA breakdown values for the given keys. */
-function sumEpaKeys(
-  teamNum: number,
-  epaMap: Map<number, EnrichedTeam>,
-  keys: string[],
-): number {
+function sumEpaKeys(teamNum: number, epaMap: Map<number, EnrichedTeam>, keys: string[]): number {
   const bd = epaMap.get(teamNum)?.epa?.breakdown;
   if (!bd) return 0;
   return keys.reduce((sum, k) => sum + (bd[k] ?? 0), 0);
@@ -150,14 +142,9 @@ function buildTemplateAssignments(
       slotAssignIndex.set(sig, idx + 1);
     } else {
       const catKey =
-        slot.category === 'auto'
-          ? 'auto'
-          : slot.category === 'endgame'
-            ? 'endgame'
-            : 'teleop';
+        slot.category === 'auto' ? 'auto' : slot.category === 'endgame' ? 'endgame' : 'teleop';
       const ranked = [...teamNums].sort(
-        (x, y) =>
-          (epaMap.get(y)?.epa?.[catKey] ?? 0) - (epaMap.get(x)?.epa?.[catKey] ?? 0),
+        (x, y) => (epaMap.get(y)?.epa?.[catKey] ?? 0) - (epaMap.get(x)?.epa?.[catKey] ?? 0),
       );
       const sig = `_cat_${catKey}`;
       const idx = slotAssignIndex.get(sig) ?? 0;
@@ -313,7 +300,7 @@ export function useMatchPlan({
   }, []);
 
   // --- SignalR: listen for teammate match plan updates ---
-  const signalR = useSignalR();
+  const signalR = useSignalR(isOwnTeam);
   const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
   const [remoteUpdateAvailable, setRemoteUpdateAvailable] = useState(false);
 
@@ -349,11 +336,13 @@ export function useMatchPlan({
     if (signalR.state !== 'connected') return;
 
     const handler = (...args: unknown[]) => {
-      const msg = args[0] as {
-        type?: string;
-        matchKey?: string;
-        updatedBy?: string;
-      } | undefined;
+      const msg = args[0] as
+        | {
+            type?: string;
+            matchKey?: string;
+            updatedBy?: string;
+          }
+        | undefined;
       if (msg?.type !== 'matchplan-updated') return;
       if (msg.matchKey !== matchKey) return;
 
