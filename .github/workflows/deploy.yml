@@ -151,6 +151,48 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Ensure PostgreSQL is Running
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SERVER="psql-aops-${{ inputs.env_suffix }}"
+            RG="rg-aops-${{ inputs.env_suffix }}"
+
+            STATE=$(az postgres flexible-server show \
+              --resource-group $RG \
+              --name $SERVER \
+              --query state -o tsv \
+              --only-show-errors)
+            echo "PostgreSQL state: $STATE"
+
+            if [ "$STATE" = "Stopped" ]; then
+              echo "Starting PostgreSQL server..."
+              az postgres flexible-server start \
+                --resource-group $RG \
+                --name $SERVER \
+                --only-show-errors
+
+              echo "Waiting for server to become ready..."
+              for i in $(seq 1 12); do
+                STATE=$(az postgres flexible-server show \
+                  --resource-group $RG \
+                  --name $SERVER \
+                  --query state -o tsv \
+                  --only-show-errors)
+                echo "  Attempt $i/12: state=$STATE"
+                if [ "$STATE" = "Ready" ]; then
+                  echo "PostgreSQL is ready"
+                  break
+                fi
+                sleep 10
+              done
+
+              if [ "$STATE" != "Ready" ]; then
+                echo "::error::PostgreSQL did not become ready within 2 minutes (state: $STATE)"
+                exit 1
+              fi
+            fi
+
       - name: Run Database Migrations
         id: db-migrate
         run: |

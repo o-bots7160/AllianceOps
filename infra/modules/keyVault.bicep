@@ -29,6 +29,10 @@ param signalRConnectionString string = ''
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
+@description('Diagnostic verbosity level: full = all diagnostics, essential = only critical diagnostics')
+@allowed(['full', 'essential'])
+param diagnosticLevel string = 'full'
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
   location: location
@@ -95,8 +99,8 @@ output vaultUri string = keyVault.properties.vaultUri
 output vaultName string = keyVault.name
 output resourceId string = keyVault.id
 
-// Diagnostic settings: Key Vault audit logs → Log Analytics
-resource keyVaultDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+// Diagnostic settings: Key Vault audit logs → Log Analytics (full diagnostics only)
+resource keyVaultDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId) && diagnosticLevel == 'full') {
   name: 'diag-${name}'
   scope: keyVault
   properties: {

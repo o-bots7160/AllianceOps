@@ -54,6 +54,23 @@ param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 @allowed(['Free_F1', 'Standard_S1'])
 param signalRSkuName string = 'Free_F1'
 
+@description('Diagnostic verbosity level: full = all diagnostics, essential = only critical diagnostics')
+@allowed(['full', 'essential'])
+param diagnosticLevel string = 'full'
+
+@description('Log Analytics data retention in days')
+@minValue(7)
+@maxValue(730)
+param logRetentionDays int = 30
+
+@description('Log Analytics daily ingestion cap in GB (string to support decimal values like "0.5")')
+param logDailyCapGb string = '1'
+
+@description('Application Insights sampling percentage (1-100). Lower values reduce telemetry volume and cost.')
+@minValue(1)
+@maxValue(100)
+param appInsightsSamplingPercentage int = 100
+
 // Resource naming: {abbreviation}-{prefix}-{env}
 var suffix = '${namePrefix}-${environmentName}'
 // Storage accounts cannot have hyphens
@@ -67,6 +84,8 @@ module appInsights 'modules/appInsights.bicep' = {
     appInsightsName: 'appi-${suffix}'
     logAnalyticsName: 'log-${suffix}'
     location: location
+    retentionInDays: logRetentionDays
+    dailyQuotaGb: logDailyCapGb
   }
 }
 
@@ -79,6 +98,7 @@ module postgres 'modules/postgres.bicep' = {
     skuName: postgresSkuName
     skuTier: postgresSkuTier
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+    diagnosticLevel: diagnosticLevel
   }
 }
 
@@ -93,6 +113,8 @@ module functionApp 'modules/functionApp.bicep' = {
     keyVaultName: 'kv-${suffix}'
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
     alwaysReadyCount: functionAlwaysReadyCount
+    diagnosticLevel: diagnosticLevel
+    appInsightsSamplingPercentage: appInsightsSamplingPercentage
   }
 }
 
@@ -107,6 +129,7 @@ module keyVault 'modules/keyVault.bicep' = {
     postgresAdminPassword: postgresAdminPassword
     signalRConnectionString: signalR.outputs.connectionString
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+    diagnosticLevel: diagnosticLevel
   }
 }
 
@@ -143,6 +166,7 @@ module signalR 'modules/signalR.bicep' = {
       'http://localhost:4280'
     ]
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+    diagnosticLevel: diagnosticLevel
   }
 }
 

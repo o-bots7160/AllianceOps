@@ -23,6 +23,10 @@ param skuTier string = 'Burstable'
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
+@description('Diagnostic verbosity level: full = all diagnostics, essential = only critical diagnostics')
+@allowed(['full', 'essential'])
+param diagnosticLevel string = 'full'
+
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: name
   location: location
@@ -87,8 +91,8 @@ resource azureExtensions 'Microsoft.DBforPostgreSQL/flexibleServers/configuratio
   }
 }
 
-// Server parameter: enable logging of connections
-resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+// Server parameter: enable logging of connections (full diagnostics only)
+resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = if (diagnosticLevel == 'full') {
   parent: postgresServer
   name: 'log_connections'
   dependsOn: [azureExtensions]
@@ -98,8 +102,8 @@ resource logConnections 'Microsoft.DBforPostgreSQL/flexibleServers/configuration
   }
 }
 
-// Server parameter: enable logging of disconnections
-resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+// Server parameter: enable logging of disconnections (full diagnostics only)
+resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = if (diagnosticLevel == 'full') {
   parent: postgresServer
   name: 'log_disconnections'
   dependsOn: [logConnections]
@@ -109,8 +113,8 @@ resource logDisconnections 'Microsoft.DBforPostgreSQL/flexibleServers/configurat
   }
 }
 
-// Server parameter: log checkpoints
-resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+// Server parameter: log checkpoints (full diagnostics only)
+resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = if (diagnosticLevel == 'full') {
   parent: postgresServer
   name: 'log_checkpoints'
   dependsOn: [logDisconnections]
@@ -120,8 +124,8 @@ resource logCheckpoints 'Microsoft.DBforPostgreSQL/flexibleServers/configuration
   }
 }
 
-// Server parameter: log slow queries (>1s)
-resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+// Server parameter: log slow queries (>1s, full diagnostics only)
+resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = if (diagnosticLevel == 'full') {
   parent: postgresServer
   name: 'log_min_duration_statement'
   dependsOn: [logCheckpoints]
@@ -131,8 +135,8 @@ resource logMinDurationStatement 'Microsoft.DBforPostgreSQL/flexibleServers/conf
   }
 }
 
-// Diagnostic settings: PostgreSQL logs → Log Analytics
-resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+// Diagnostic settings: PostgreSQL logs → Log Analytics (full diagnostics only)
+resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId) && diagnosticLevel == 'full') {
   name: 'diag-${name}'
   scope: postgresServer
   dependsOn: [logMinDurationStatement]

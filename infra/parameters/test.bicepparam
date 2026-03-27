@@ -12,3 +12,7 @@ param customDomains = []
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 param tbaApiKey = readEnvironmentVariable('TBA_API_KEY', '')
 param linkFunctionAppBackend = false
+param diagnosticLevel = 'essential'
+param logRetentionDays = 7
+param logDailyCapGb = '0.5'
+param appInsightsSamplingPercentage = 50
