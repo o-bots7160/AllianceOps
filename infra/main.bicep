@@ -58,8 +58,8 @@ param signalRSkuName string = 'Free_F1'
 @allowed(['full', 'essential'])
 param diagnosticLevel string = 'full'
 
-@description('Log Analytics data retention in days')
-@minValue(7)
+@description('Log Analytics data retention in days (minimum 30 for PerGB2018 SKU)')
+@minValue(30)
 @maxValue(730)
 param logRetentionDays int = 30
 

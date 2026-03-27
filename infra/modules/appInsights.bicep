@@ -7,8 +7,8 @@ param logAnalyticsName string
 @description('Azure region')
 param location string
 
-@description('Log Analytics data retention in days')
-@minValue(7)
+@description('Log Analytics data retention in days (minimum 30 for PerGB2018 SKU)')
+@minValue(30)
 @maxValue(730)
 param retentionInDays int = 30
 
