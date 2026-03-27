@@ -47,6 +47,7 @@ export type SortKey =
   | 'manualRank'
   | 'team'
   | 'tbaRank'
+  | 'analysis'
   | 'epaRank'
   | 'epaTotal'
   | 'epaAuto'

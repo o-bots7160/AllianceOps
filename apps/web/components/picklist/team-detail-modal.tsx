@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { TeamCard } from '@/components/team-card';
 import type { EnrichedTeam } from './types';
@@ -35,6 +35,10 @@ export function TeamDetailModal({
 
   const teamKey = `frc${teamNumber}`;
   const team = epaMap.get(teamNumber);
+  const allRankAnalyses = useMemo(
+    () => Array.from(rankAnalysisMap.values()),
+    [rankAnalysisMap],
+  );
 
   return createPortal(
     <div
@@ -69,6 +73,7 @@ export function TeamDetailModal({
             metrics={cardMetrics}
             record={teamRecords.get(teamNumber)}
             rankAnalysis={rankAnalysisMap.get(teamKey)}
+            allRankAnalyses={allRankAnalyses}
             defaultExpanded
           />
         ) : (

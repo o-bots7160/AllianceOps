@@ -1,3 +1,4 @@
+import type { TeamRankAnalysis } from '@allianceops/shared';
 import type {
   EnrichedTeam,
   PicklistEntry,
@@ -40,6 +41,7 @@ export function defaultDirectionForKey(key: SortKey): SortDirection {
     case 'team':
     case 'tbaRank':
     case 'epaRank':
+    case 'analysis':
       return 'asc';
     case 'epaTotal':
     case 'epaAuto':
@@ -70,6 +72,7 @@ export function compareEntries(
   a: PicklistEntry,
   b: PicklistEntry,
   sortState: SortState,
+  rankAnalysisMap?: Map<string, TeamRankAnalysis>,
 ): number {
   const direction = sortState.direction;
   const textFactor = direction === 'asc' ? 1 : -1;
@@ -86,6 +89,15 @@ export function compareEntries(
       const cmp = compareNullableNumber(a.tbaRank, b.tbaRank, direction);
       if (cmp !== 0) return cmp;
       return a.epaRank - b.epaRank;
+    }
+    case 'analysis': {
+      const aAnalysis = rankAnalysisMap?.get(`frc${a.teamNumber}`);
+      const bAnalysis = rankAnalysisMap?.get(`frc${b.teamNumber}`);
+      const aDelta = aAnalysis?.rankDelta ?? null;
+      const bDelta = bAnalysis?.rankDelta ?? null;
+      const cmp = compareNullableNumber(aDelta, bDelta, direction);
+      if (cmp !== 0) return cmp;
+      return a.teamNumber - b.teamNumber;
     }
     case 'epaRank': {
       const cmp = direction === 'asc' ? a.epaRank - b.epaRank : b.epaRank - a.epaRank;

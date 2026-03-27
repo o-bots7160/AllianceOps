@@ -43,6 +43,7 @@ export default function EventPage() {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [sortColumn, setSortColumn] = useState('_order');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [scoreAllianceFilter, setScoreAllianceFilter] = useState<'red' | 'blue'>('red');
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
@@ -85,15 +86,34 @@ export default function EventPage() {
         case 'comp_level':
           cmp = a._order - b._order;
           break;
-        case 'redScore':
-          cmp = a.alliances.red.score - b.alliances.red.score;
+        case 'redScore': {
+          const aScore = a.alliances[scoreAllianceFilter].score;
+          const bScore = b.alliances[scoreAllianceFilter].score;
+          cmp = aScore - bScore;
           break;
+        }
+        case 'margin': {
+          const aPlayed = a.alliances.red.score >= 0;
+          const bPlayed = b.alliances.red.score >= 0;
+          if (!aPlayed && !bPlayed) {
+            cmp = 0;
+          } else if (!aPlayed) {
+            cmp = -1;
+          } else if (!bPlayed) {
+            cmp = 1;
+          } else {
+            const aMargin = Math.abs(a.alliances.red.score - a.alliances.blue.score);
+            const bMargin = Math.abs(b.alliances.red.score - b.alliances.blue.score);
+            cmp = aMargin - bMargin;
+          }
+          break;
+        }
         default:
           cmp = a._order - b._order;
       }
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [sortedMatches, sortColumn, sortDirection]);
+  }, [sortedMatches, sortColumn, sortDirection, scoreAllianceFilter]);
 
   const matchColumns = useMemo<ColumnDef<MatchRow>[]>(
     () => [
@@ -160,6 +180,26 @@ export default function EventPage() {
               : '—'}
           </span>
         ),
+      },
+      {
+        key: 'margin',
+        header: 'Margin',
+        sortable: true,
+        render: (row) => {
+          if (row.alliances.red.score < 0) return <span className="font-mono">—</span>;
+          const diff = row.alliances.red.score - row.alliances.blue.score;
+          if (diff === 0) return <span className="font-mono text-gray-500">0</span>;
+          const winner = diff > 0 ? 'red' : 'blue';
+          const colorClass =
+            winner === 'red'
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-blue-600 dark:text-blue-400';
+          return (
+            <span className={`font-mono ${colorClass}`}>
+              {diff > 0 ? `+${diff}` : `${diff}`}
+            </span>
+          );
+        },
       },
     ],
     [myTeamKey],
@@ -265,19 +305,47 @@ export default function EventPage() {
       {matchesLoading && <LoadingSpinner message="Loading matches..." />}
 
       {displayMatches.length > 0 && (
-        <DataTable
-          data={displayMatches}
-          columns={matchColumns}
-          keyExtractor={(row) => row.key}
-          sortColumn={sortColumn}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          isRowHighlighted={(row) =>
-            row.alliances.red.team_keys.includes(myTeamKey) ||
-            row.alliances.blue.team_keys.includes(myTeamKey)
-          }
-          emptyMessage="No matches found."
-        />
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Sort scores by:</span>
+            <div className="inline-flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-xs">
+              <button
+                onClick={() => setScoreAllianceFilter('red')}
+                className={`px-3 py-1 transition-colors ${
+                  scoreAllianceFilter === 'red'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950'
+                }`}
+              >
+                Red
+              </button>
+              <button
+                onClick={() => setScoreAllianceFilter('blue')}
+                className={`px-3 py-1 transition-colors ${
+                  scoreAllianceFilter === 'blue'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950'
+                }`}
+              >
+                Blue
+              </button>
+            </div>
+          </div>
+
+          <DataTable
+            data={displayMatches}
+            columns={matchColumns}
+            keyExtractor={(row) => row.key}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            isRowHighlighted={(row) =>
+              row.alliances.red.team_keys.includes(myTeamKey) ||
+              row.alliances.blue.team_keys.includes(myTeamKey)
+            }
+            emptyMessage="No matches found."
+          />
+        </div>
       )}
 
       {eventKey && !matchesLoading && displayMatches.length === 0 && (

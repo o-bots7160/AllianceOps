@@ -5,6 +5,7 @@ import type { GameMetricDefinition, TeamRankAnalysis } from '@allianceops/shared
 import type { EnrichedTeam } from '../lib/types';
 import { EpaBreakdown } from './team-card/epa-breakdown';
 import { GameBreakdown } from './team-card/game-breakdown';
+import { RankDeltaScale } from './picklist/rank-delta-scale';
 
 export const DETERMINATION_LABELS: Record<string, { label: string; color: string }> = {
   accurate: {
@@ -83,6 +84,7 @@ export function TeamCard({
   metrics,
   defaultExpanded = false,
   rankAnalysis,
+  allRankAnalyses,
   sectionState,
   onSectionToggle,
 }: {
@@ -93,6 +95,7 @@ export function TeamCard({
   metrics?: GameMetricDefinition[];
   defaultExpanded?: boolean;
   rankAnalysis?: TeamRankAnalysis | null;
+  allRankAnalyses?: TeamRankAnalysis[];
   sectionState?: SectionExpandState;
   onSectionToggle?: (section: keyof SectionExpandState) => void;
 }) {
@@ -185,11 +188,18 @@ export function TeamCard({
           </button>
           {rankExpanded && (
             <div className="space-y-2 text-xs mt-2">
-              <span
-                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${DETERMINATION_LABELS[rankAnalysis.determination]?.color}`}
-              >
-                {DETERMINATION_LABELS[rankAnalysis.determination]?.label}
-              </span>
+              {allRankAnalyses && allRankAnalyses.length > 0 ? (
+                <RankDeltaScale
+                  analysis={rankAnalysis}
+                  allAnalyses={allRankAnalyses}
+                />
+              ) : (
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${DETERMINATION_LABELS[rankAnalysis.determination]?.color}`}
+                >
+                  {DETERMINATION_LABELS[rankAnalysis.determination]?.label}
+                </span>
+              )}
               <div className="space-y-1">
                 <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />
                 <StrengthBar value={rankAnalysis.opponentStrength} label="Opponents" />
