@@ -95,6 +95,10 @@ var kvAppSettings = !empty(keyVaultName)
         name: 'DATABASE_URL'
         value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=DatabaseUrl)'
       }
+      {
+        name: 'AzureSignalRConnectionString'
+        value: '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=SignalRConnectionString)'
+      }
     ]
   : []
 

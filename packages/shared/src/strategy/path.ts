@@ -1,4 +1,5 @@
 import type { StatboticsEPA } from '../types/statbotics.js';
+import { computeAllianceStrength } from './analysis-utils.js';
 
 export interface PathMatch {
   matchKey: string;
@@ -60,11 +61,8 @@ export function analyzePath(
     const allianceTeams = isRed ? match.redTeams : match.blueTeams;
     const opponentTeams = isRed ? match.blueTeams : match.redTeams;
 
-    const opponentEpas = opponentTeams.map((t) => epaMap[t]?.total ?? fieldAvgEpa);
-    const opponentAvgEpa = opponentEpas.reduce((a, b) => a + b, 0) / opponentEpas.length;
-
-    const allianceEpas = allianceTeams.map((t) => epaMap[t]?.total ?? fieldAvgEpa);
-    const allianceAvgEpa = allianceEpas.reduce((a, b) => a + b, 0) / allianceEpas.length;
+    const opponentAvgEpa = computeAllianceStrength(opponentTeams, epaMap, fieldAvgEpa);
+    const allianceAvgEpa = computeAllianceStrength(allianceTeams, epaMap, fieldAvgEpa);
 
     const difficultyScore = opponentAvgEpa / fieldAvgEpa;
     const predictedMargin = (allianceAvgEpa - opponentAvgEpa) * 3;

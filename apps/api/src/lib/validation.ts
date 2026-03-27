@@ -13,10 +13,6 @@ export const UpsertMatchPlanSchema = z.object({
   ),
 });
 
-export const ApplyTemplateSchema = z.object({
-  templateName: z.enum(['safe', 'balanced', 'aggressive']),
-  teamNumbers: z.array(z.int().positive()).min(1),
-});
 
 export const UpsertPicklistSchema = z.object({
   entries: z.array(
@@ -111,4 +107,30 @@ export function requiredParam(request: HttpRequest, name: string): string | Http
 /** Type guard: check if requiredParam result is an error response. */
 export function isParamError(result: string | HttpResponseInit): result is HttpResponseInit {
   return typeof result !== 'string';
+}
+
+/**
+ * Extract a required route parameter and parse it as a number.
+ * Returns 400 if the parameter is missing or not a valid number.
+ */
+export function requiredNumericParam(
+  request: HttpRequest,
+  name: string,
+): number | HttpResponseInit {
+  const raw = request.params[name];
+  if (!raw) {
+    return { status: 400, jsonBody: { error: `Missing required parameter: ${name}` } };
+  }
+  const value = Number(raw);
+  if (isNaN(value)) {
+    return { status: 400, jsonBody: { error: `Parameter '${name}' must be a valid number` } };
+  }
+  return value;
+}
+
+/** Type guard: check if requiredNumericParam result is an error response. */
+export function isNumericParamError(
+  result: number | HttpResponseInit,
+): result is HttpResponseInit {
+  return typeof result !== 'number';
 }

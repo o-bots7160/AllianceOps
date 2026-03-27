@@ -1,150 +1,28 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '../../components/use-auth';
 import { getApiBase } from '../../lib/api-base';
-
-type TeamDetail = {
-  id: string;
-  teamNumber: number;
-  name: string;
-  members: Array<{
-    id: string;
-    role: 'COACH' | 'MENTOR' | 'STUDENT';
-    user: { id: string; displayName: string | null; email: string | null };
-  }>;
-};
-
-type JoinRequestItem = {
-  id: string;
-  status: string;
-  createdAt: string;
-  user: { id: string; displayName: string | null; email: string | null };
-};
+import { LoadingSpinner } from '../../components/loading-spinner';
+import { StatusBanner } from '../../components/status-banner';
+import { ConfirmDialog } from '../../components/confirm-dialog';
+import { CreateTeamForm } from '../../components/team/create-team-form';
+import { JoinTeamSection } from '../../components/team/join-team-section';
+import { TeamDetail } from '../../components/team/team-detail';
+import type { TeamDetail as TeamDetailType, JoinRequestItem, TeamMemberRole } from '../../components/team/types';
 
 export default function TeamPage() {
   const { user, activeTeam, setActiveTeamId, loading: authLoading, refetch } = useAuth();
-  const [teamDetail, setTeamDetail] = useState<TeamDetail | null>(null);
+  const [teamDetail, setTeamDetail] = useState<TeamDetailType | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequestItem[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── Create Team ──────────────────────────────────────
-  const [createNumber, setCreateNumber] = useState('');
-  const [createName, setCreateName] = useState('');
-  const [nameLookupLoading, setNameLookupLoading] = useState(false);
-  const [nameWasAutoFilled, setNameWasAutoFilled] = useState(false);
-  const nameLookupRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const lookupTeamName = useCallback(async (num: string) => {
-    const parsed = parseInt(num, 10);
-    if (!parsed || parsed <= 0) return;
-    setNameLookupLoading(true);
-    try {
-      const res = await fetch(`${getApiBase()}/team/${parsed}/info`);
-      if (res.ok) {
-        const result = await res.json();
-        const nickname = result?.data?.nickname;
-        if (nickname) {
-          setCreateName(nickname);
-          setNameWasAutoFilled(true);
-        }
-      }
-    } catch {
-      // Lookup failed — leave name field editable
-    } finally {
-      setNameLookupLoading(false);
-    }
-  }, []);
-
-  function handleCreateNumberChange(value: string) {
-    setCreateNumber(value);
-    // Reset auto-filled name when number changes
-    if (nameWasAutoFilled) {
-      setCreateName('');
-      setNameWasAutoFilled(false);
-    }
-    // Debounce the lookup
-    if (nameLookupRef.current) clearTimeout(nameLookupRef.current);
-    const parsed = parseInt(value, 10);
-    if (parsed && parsed > 0) {
-      nameLookupRef.current = setTimeout(() => lookupTeamName(value), 500);
-    } else {
-      setNameLookupLoading(false);
-    }
-  }
-
-  // Clean up debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (nameLookupRef.current) clearTimeout(nameLookupRef.current);
-    };
-  }, []);
-
-  async function handleCreateTeam() {
-    setError(null);
-    try {
-      const res = await fetch(`${getApiBase()}/teams`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamNumber: parseInt(createNumber, 10), name: createName }),
-      });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || `Error ${res.status}`);
-      }
-      setCreateNumber('');
-      setCreateName('');
-      await refetch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }
-
-  // ─── Join via Code ────────────────────────────────────
-  const [joinCode, setJoinCode] = useState('');
-
-  async function handleJoinViaCode() {
-    setError(null);
-    try {
-      const res = await fetch(`${getApiBase()}/teams/join/${joinCode}`, { method: 'POST' });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || `Error ${res.status}`);
-      }
-      setJoinCode('');
-      await refetch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }
-
-  // ─── Join Request by Team Number ──────────────────────
-  const [requestTeamNumber, setRequestTeamNumber] = useState('');
-
-  async function handleJoinRequest() {
-    setError(null);
-    try {
-      const lookupRes = await fetch(`${getApiBase()}/teams/lookup/${requestTeamNumber}`);
-      if (!lookupRes.ok) throw new Error('Team not found');
-      const { data: team } = await lookupRes.json();
-
-      const res = await fetch(`${getApiBase()}/teams/${team.id}/join-request`, { method: 'POST' });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || `Error ${res.status}`);
-      }
-      setRequestTeamNumber('');
-      setError(null);
-      alert('Join request submitted! A coach or mentor will review it.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }
+  const clearError = useCallback(() => setError(null), []);
 
   // ─── Load Team Detail ─────────────────────────────────
-  async function loadTeamDetail(teamId: string) {
+  const loadTeamDetail = useCallback(async (teamId: string) => {
     setDetailLoading(true);
     setError(null);
     try {
@@ -167,10 +45,10 @@ export default function TeamPage() {
     } finally {
       setDetailLoading(false);
     }
-  }
+  }, []);
 
   // ─── Generate Invite Code ─────────────────────────────
-  async function handleGenerateInvite() {
+  const handleGenerateInvite = useCallback(async () => {
     if (!activeTeam) return;
     setError(null);
     try {
@@ -188,58 +66,85 @@ export default function TeamPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
-  }
+  }, [activeTeam]);
 
   // ─── Review Join Request ──────────────────────────────
-  async function handleReviewRequest(requestId: string, action: 'approve' | 'reject') {
-    if (!activeTeam) return;
-    setError(null);
-    try {
-      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/join-requests/${requestId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || `Error ${res.status}`);
+  const handleReviewRequest = useCallback(
+    async (requestId: string, action: 'approve' | 'reject') => {
+      if (!activeTeam) return;
+      setError(null);
+      try {
+        const res = await fetch(
+          `${getApiBase()}/teams/${activeTeam.teamId}/join-requests/${requestId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+          },
+        );
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || `Error ${res.status}`);
+        }
+        await loadTeamDetail(activeTeam.teamId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
       }
-      if (activeTeam) await loadTeamDetail(activeTeam.teamId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }
+    },
+    [activeTeam, loadTeamDetail],
+  );
 
   // ─── Change Member Role ───────────────────────────────
-  async function handleChangeRole(userId: string, newRole: 'COACH' | 'MENTOR' | 'STUDENT') {
-    if (!activeTeam) return;
-    setError(null);
-    try {
-      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || `Error ${res.status}`);
+  const handleChangeRole = useCallback(
+    async (userId: string, newRole: TeamMemberRole) => {
+      if (!activeTeam) return;
+      setError(null);
+      try {
+        const res = await fetch(
+          `${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}/role`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole }),
+          },
+        );
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || `Error ${res.status}`);
+        }
+        await loadTeamDetail(activeTeam.teamId);
+        await refetch();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
       }
-      await loadTeamDetail(activeTeam.teamId);
-      await refetch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }
+    },
+    [activeTeam, loadTeamDetail, refetch],
+  );
 
   // ─── Remove Member ────────────────────────────────────
-  async function handleRemoveMember(userId: string, displayName: string) {
-    if (!activeTeam) return;
-    if (!confirm(`Remove ${displayName} from the team?`)) return;
+  const [removeConfirm, setRemoveConfirm] = useState<{
+    userId: string;
+    displayName: string;
+  } | null>(null);
+
+  const handleRemoveMember = useCallback(
+    async (userId: string, displayName: string) => {
+      if (!activeTeam) return;
+      setRemoveConfirm({ userId, displayName });
+    },
+    [activeTeam],
+  );
+
+  const executeRemoveMember = useCallback(async () => {
+    if (!activeTeam || !removeConfirm) return;
+    const { userId } = removeConfirm;
+    setRemoveConfirm(null);
     setError(null);
     try {
-      const res = await fetch(`${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `${getApiBase()}/teams/${activeTeam.teamId}/members/${userId}`,
+        { method: 'DELETE' },
+      );
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error || `Error ${res.status}`);
@@ -249,10 +154,10 @@ export default function TeamPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
-  }
+  }, [activeTeam, removeConfirm, loadTeamDetail, refetch]);
 
   if (authLoading) {
-    return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+    return <LoadingSpinner />;
   }
 
   if (!user) {
@@ -267,16 +172,17 @@ export default function TeamPage() {
   }
 
   const hasTeams = user.teams.length > 0;
-  const isCoachOrMentor = activeTeam && (activeTeam.role === 'COACH' || activeTeam.role === 'MENTOR');
+  const isCoachOrMentor =
+    activeTeam != null && (activeTeam.role === 'COACH' || activeTeam.role === 'MENTOR');
   const isCoach = activeTeam?.role === 'COACH';
 
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold">Team Management</h2>
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-300 text-sm">
+        <StatusBanner variant="error" dismissible onDismiss={clearError}>
           {error}
-        </div>
+        </StatusBanner>
       )}
 
       {/* ─── My Teams ─────────────────────────────────────── */}
@@ -291,10 +197,11 @@ export default function TeamPage() {
                   setActiveTeamId(t.teamId);
                   loadTeamDetail(t.teamId);
                 }}
-                className={`text-left p-4 rounded border transition-colors ${activeTeam?.teamId === t.teamId
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
-                  }`}
+                className={`text-left p-4 rounded border transition-colors ${
+                  activeTeam?.teamId === t.teamId
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+                }`}
               >
                 <div className="font-semibold">Team {t.teamNumber}</div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">{t.name}</div>
@@ -310,137 +217,20 @@ export default function TeamPage() {
       )}
 
       {/* ─── Active Team Detail ───────────────────────────── */}
+      {activeTeam && detailLoading && <LoadingSpinner message="Loading team details..." />}
       {activeTeam && teamDetail && !detailLoading && (
-        <section className="space-y-4">
-          <h3 className="text-lg font-semibold">
-            Team {teamDetail.teamNumber} — {teamDetail.name}
-          </h3>
-
-          {/* Members */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-              Members ({teamDetail.members.length})
-            </h4>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th className="py-1">Name</th>
-                  <th className="py-1">Role</th>
-                  {isCoachOrMentor && <th className="py-1 text-right">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {teamDetail.members.map((m) => {
-                  const name = m.user.displayName || m.user.email || m.user.id;
-                  const isSelf = m.user.id === user.id;
-
-                  return (
-                    <tr key={m.id} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-2">
-                        {name}
-                        {isSelf && (
-                          <span className="ml-1.5 text-xs text-gray-400 dark:text-gray-500">
-                            (you)
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2">
-                        {isCoach && !isSelf ? (
-                          <select
-                            value={m.role}
-                            onChange={(e) =>
-                              handleChangeRole(
-                                m.user.id,
-                                e.target.value as 'COACH' | 'MENTOR' | 'STUDENT',
-                              )
-                            }
-                            className="px-2 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-                          >
-                            <option value="COACH">COACH</option>
-                            <option value="MENTOR">MENTOR</option>
-                            <option value="STUDENT">STUDENT</option>
-                          </select>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-800">
-                            {m.role}
-                          </span>
-                        )}
-                      </td>
-                      {isCoachOrMentor && (
-                        <td className="py-2 text-right">
-                          {!isSelf &&
-                            (isCoach || m.role === 'STUDENT') && (
-                              <button
-                                onClick={() => handleRemoveMember(m.user.id, name)}
-                                className="px-2 py-0.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                              >
-                                Remove
-                              </button>
-                            )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Invite Code (Coach/Mentor only) */}
-          {isCoachOrMentor && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Invite Code</h4>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleGenerateInvite}
-                  className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
-                >
-                  Generate Invite Code
-                </button>
-                {inviteCode && (
-                  <span className="font-mono text-lg font-bold text-primary-600 dark:text-primary-400">
-                    {inviteCode}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Join Requests (Coach/Mentor only) */}
-          {isCoachOrMentor && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Pending Join Requests
-              </h4>
-              {joinRequests.length > 0 ? (
-                joinRequests.map((r) => (
-                  <div
-                    key={r.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded"
-                  >
-                    <span>{r.user.displayName || r.user.email || r.user.id}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleReviewRequest(r.id, 'approve')}
-                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleReviewRequest(r.id, 'reject')}
-                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-400 dark:text-gray-500">No pending requests.</p>
-              )}
-            </div>
-          )}
-        </section>
+        <TeamDetail
+          teamDetail={teamDetail}
+          joinRequests={joinRequests}
+          isCoachOrMentor={isCoachOrMentor}
+          isCoach={isCoach}
+          currentUserId={user.id}
+          inviteCode={inviteCode}
+          onGenerateInvite={handleGenerateInvite}
+          onReviewRequest={handleReviewRequest}
+          onChangeRole={handleChangeRole}
+          onRemoveMember={handleRemoveMember}
+        />
       )}
 
       {/* ─── Create / Join ────────────────────────────────── */}
@@ -448,84 +238,23 @@ export default function TeamPage() {
         <h3 className="text-lg font-semibold">
           {hasTeams ? 'Create or Join Another Team' : 'Get Started'}
         </h3>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Create Team */}
-          <div className="p-4 border border-gray-200 dark:border-gray-700 rounded space-y-3">
-            <h4 className="font-medium">Create a Team</h4>
-            <input
-              type="number"
-              placeholder="Team Number"
-              value={createNumber}
-              onChange={(e) => handleCreateNumberChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm"
-            />
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={nameLookupLoading ? 'Looking up team name...' : 'Team Name'}
-                value={createName}
-                onChange={(e) => {
-                  setCreateName(e.target.value);
-                  setNameWasAutoFilled(false);
-                }}
-                disabled={nameLookupLoading}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm disabled:opacity-50 disabled:cursor-wait"
-              />
-              {nameLookupLoading && (
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-primary-500 rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-            <button
-              onClick={handleCreateTeam}
-              disabled={!createNumber || !createName}
-              className="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
-            >
-              Create Team
-            </button>
-          </div>
-
-          {/* Join via Code */}
-          <div className="p-4 border border-gray-200 dark:border-gray-700 rounded space-y-3">
-            <h4 className="font-medium">Join via Invite Code</h4>
-            <input
-              type="text"
-              placeholder="Enter invite code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm font-mono"
-            />
-            <button
-              onClick={handleJoinViaCode}
-              disabled={!joinCode}
-              className="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
-            >
-              Join Team
-            </button>
-          </div>
-
-          {/* Request to Join */}
-          <div className="p-4 border border-gray-200 dark:border-gray-700 rounded space-y-3">
-            <h4 className="font-medium">Request to Join</h4>
-            <input
-              type="number"
-              placeholder="Team Number"
-              value={requestTeamNumber}
-              onChange={(e) => setRequestTeamNumber(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm"
-            />
-            <button
-              onClick={handleJoinRequest}
-              disabled={!requestTeamNumber}
-              className="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
-            >
-              Request to Join
-            </button>
-          </div>
+          <CreateTeamForm setError={setError} onCreated={refetch} />
+          <JoinTeamSection setError={setError} onJoined={refetch} />
         </div>
       </section>
+
+      {removeConfirm && (
+        <ConfirmDialog
+          open
+          title="Remove Team Member"
+          message={`Remove ${removeConfirm.displayName} from the team?`}
+          confirmLabel="Remove"
+          variant="danger"
+          onConfirm={executeRemoveMember}
+          onCancel={() => setRemoveConfirm(null)}
+        />
+      )}
     </div>
   );
 }

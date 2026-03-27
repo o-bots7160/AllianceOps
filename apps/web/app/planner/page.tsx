@@ -1,25 +1,24 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { useAuth } from '../../components/use-auth';
 import { filterMatchesByCursor, getTeamRecord } from '../../lib/simulation-filters';
-import { matchLabel, sortMatches } from '../../lib/match-utils';
+import { sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
-import { LoadingSpinner } from '../../components/loading-spinner';
+import { PageGuard } from '../../components/page-guard';
+import { StatusBanner } from '../../components/status-banner';
+import { SaveStatusBar } from '../../components/save-status-bar';
 import { TeamCard, type SectionExpandState } from '../../components/team-card';
-import { getApiBase } from '../../lib/api-base';
-import type { EnrichedTeam } from '../../lib/types';
+import { MatchSelector } from '../../components/planner/match-selector';
+import { DutySlotEditor } from '../../components/planner/duty-slot-editor';
+import { useMatchPlan } from '../../hooks/use-match-plan';
 import { useUnsavedGuard } from '../../hooks/use-unsaved-guard';
-import {
-  getAdapter,
-  analyzeAllRankDiscrepancies,
-  type DutySlotDefinition,
-  type DutyTemplateSlot,
-} from '@allianceops/shared';
+import type { EnrichedTeam } from '../../lib/types';
+import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
 
 interface TBAMatch {
   key: string;
@@ -31,140 +30,6 @@ interface TBAMatch {
     blue: { team_keys: string[]; score: number };
   };
   winning_alliance: string;
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  auto: 'border-l-green-500',
-  teleop: 'border-l-blue-500',
-  endgame: 'border-l-purple-500',
-  defense: 'border-l-orange-500',
-  discipline: 'border-l-red-500',
-};
-
-/** Sum EPA breakdown values for the given keys. */
-function sumEpaKeys(
-  teamNum: number,
-  epaMap: Map<number, EnrichedTeam>,
-  keys: string[],
-): number {
-  const bd = epaMap.get(teamNum)?.epa?.breakdown;
-  if (!bd) return 0;
-  return keys.reduce((sum, k) => sum + (bd[k] ?? 0), 0);
-}
-
-/** Normalize a template assignment value to a full DutyTemplateSlot. */
-function toSlotConfig(val: string | DutyTemplateSlot | undefined): DutyTemplateSlot {
-  if (!val) return { hint: '' };
-  if (typeof val === 'string') return { hint: val };
-  return val;
-}
-
-/** Build smart assignments from EPA data using adapter-defined duty slots. */
-function buildTemplateAssignments(
-  _templateName: string,
-  teamNums: number[],
-  epaMap: Map<number, EnrichedTeam>,
-  dutySlots: DutySlotDefinition[],
-  templateHints: Record<string, string | DutyTemplateSlot>,
-): { assignments: Record<string, number | null>; notes: Record<string, string> } {
-  if (teamNums.length === 0) return { assignments: {}, notes: {} };
-
-  const byTotal = [...teamNums].sort(
-    (a, b) => (epaMap.get(b)?.epa?.total ?? 0) - (epaMap.get(a)?.epa?.total ?? 0),
-  );
-  const weakest = byTotal[byTotal.length - 1];
-
-  const a: Record<string, number | null> = {};
-  const n: Record<string, string> = {};
-
-  // Group slots by epaRankKeys signature to track assignment order
-  const slotAssignIndex = new Map<string, number>();
-
-  for (const slot of dutySlots) {
-    const cfg = toSlotConfig(templateHints[slot.key]);
-    n[slot.key] = cfg.hint;
-    const strategy = cfg.strategy ?? 'strongest';
-
-    // Skip: leave unassigned
-    if (strategy === 'skip' || strategy === 'all') {
-      a[slot.key] = null;
-      continue;
-    }
-
-    // Weakest: assign lowest overall EPA scorer
-    if (strategy === 'weakest') {
-      a[slot.key] = weakest;
-      continue;
-    }
-
-    // Endgame smart: compare scoring EPA vs tower EPA per team
-    if (strategy === 'endgame_smart') {
-      const towerKeys = cfg.epaRankKeysOverride ?? slot.epaRankKeys ?? ['total_tower'];
-      const scoringKeys = cfg.scoringKeysOverride ?? ['teleop_fuel', 'total_fuel'];
-      const LOW_EPA_THRESHOLD = 5;
-
-      // Pick the next unassigned team by total EPA (strongest first)
-      const sig = '_endgame_smart';
-      const idx = slotAssignIndex.get(sig) ?? 0;
-      const ranked = [...teamNums].sort(
-        (x, y) => (epaMap.get(y)?.epa?.total ?? 0) - (epaMap.get(x)?.epa?.total ?? 0),
-      );
-      const team = ranked[idx % ranked.length];
-      slotAssignIndex.set(sig, idx + 1);
-
-      const scoringEpa = sumEpaKeys(team, epaMap, scoringKeys);
-      const towerEpa = sumEpaKeys(team, epaMap, towerKeys);
-
-      if (scoringEpa > towerEpa) {
-        a[slot.key] = team;
-        n[slot.key] = `Continue scoring — fuel/teleop EPA (${scoringEpa.toFixed(1)}) exceeds tower EPA (${towerEpa.toFixed(1)}). Skip tower climb`;
-      } else if (towerEpa >= scoringEpa && towerEpa > LOW_EPA_THRESHOLD) {
-        a[slot.key] = team;
-        n[slot.key] = `Climb tower — tower EPA (${towerEpa.toFixed(1)}) is competitive. Target highest achievable level`;
-      } else {
-        a[slot.key] = null;
-        n[slot.key] = `Low scoring (${scoringEpa.toFixed(1)}) and tower (${towerEpa.toFixed(1)}) EPA — suggest defense`;
-      }
-      continue;
-    }
-
-    // Defense/discipline defaults (when no explicit strategy)
-    if (slot.category === 'defense' && !cfg.strategy) {
-      a[slot.key] = null;
-      continue;
-    }
-    if (slot.category === 'discipline' && !cfg.strategy) {
-      a[slot.key] = null;
-      continue;
-    }
-
-    // Strongest: rank by EPA keys (with optional override)
-    const keys = cfg.epaRankKeysOverride ?? slot.epaRankKeys;
-    if (keys && keys.length > 0) {
-      const ranked = [...teamNums].sort(
-        (x, y) => sumEpaKeys(y, epaMap, keys) - sumEpaKeys(x, epaMap, keys),
-      );
-      const sig = keys.join(',');
-      const idx = slotAssignIndex.get(sig) ?? 0;
-      a[slot.key] = ranked[idx % ranked.length];
-      slotAssignIndex.set(sig, idx + 1);
-    } else {
-      // Fallback: rank by category EPA
-      const catKey =
-        slot.category === 'auto' ? 'auto' :
-          slot.category === 'endgame' ? 'endgame' : 'teleop';
-      const ranked = [...teamNums].sort(
-        (x, y) =>
-          (epaMap.get(y)?.epa?.[catKey] ?? 0) - (epaMap.get(x)?.epa?.[catKey] ?? 0),
-      );
-      const sig = `_cat_${catKey}`;
-      const idx = slotAssignIndex.get(sig) ?? 0;
-      a[slot.key] = ranked[idx % ranked.length];
-      slotAssignIndex.set(sig, idx + 1);
-    }
-  }
-
-  return { assignments: a, notes: n };
 }
 
 export default function PlannerPage() {
@@ -199,7 +64,6 @@ export default function PlannerPage() {
 
   const [selectedMatch, setSelectedMatch] = useState<string>('');
 
-  // Compute currentMatch before useSimulationEpa so we can scope the fetch
   const allSortedMatches = useMemo(
     () => (matches ? sortMatches(matches) : undefined),
     [matches],
@@ -219,7 +83,6 @@ export default function PlannerPage() {
   const defaultMatch = nextUnplayed ?? myMatches?.[myMatches.length - 1];
   const currentMatch = myMatches?.find((m) => m.key === selectedMatch) ?? defaultMatch;
 
-  // Extract all 6 match team numbers for the simulation EPA fetch
   const matchTeamNumbers = useMemo(() => {
     if (!currentMatch) return [];
     return [
@@ -241,7 +104,13 @@ export default function PlannerPage() {
   }, [teams]);
 
   const rankAnalysisMap = useMemo(() => {
-    if (!teams || !matches) return new Map<string, ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V> ? V : never>();
+    if (!teams || !matches)
+      return new Map<
+        string,
+        ReturnType<typeof analyzeAllRankDiscrepancies> extends Map<string, infer V>
+        ? V
+        : never
+      >();
     const teamInputs = teams
       .filter((t) => t.tbaRank != null && epaRankMap.has(t.team_number))
       .map((t) => ({
@@ -266,352 +135,214 @@ export default function PlannerPage() {
     return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaRecord);
   }, [teams, matches, epaRankMap]);
 
-  const [assignments, setAssignments] = useState<Record<string, number | null>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [template, setTemplate] = useState<string>('');
-  const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [sectionState, setSectionState] = useState<SectionExpandState>({ rank: true, epa: true, game: true });
-  const handleSectionToggle = useCallback((section: keyof SectionExpandState) => {
-    setSectionState((prev) => ({ ...prev, [section]: !prev[section] }));
-  }, []);
-  const { confirmIfDirty } = useUnsavedGuard(dirty);
-
-  // Load saved plan when match or team changes
-  useEffect(() => {
-    if (!currentMatch || !activeTeam?.teamId || !eventKey || !isOwnTeam) return;
-    let cancelled = false;
-    setPlanLoading(true);
-    const API_BASE = getApiBase();
-    fetch(
-      `${API_BASE}/teams/${activeTeam.teamId}/event/${eventKey}/match/${currentMatch.key}/plan`,
-      { credentials: 'same-origin' },
-    )
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (cancelled || !json?.data) {
-          setPlanLoading(false);
-          return;
-        }
-        const plan = json.data;
-        if (plan.duties && plan.duties.length > 0) {
-          const loadedAssignments: Record<string, number | null> = {};
-          const loadedNotes: Record<string, string> = {};
-          for (const d of plan.duties) {
-            loadedAssignments[d.slotKey] = d.teamNumber;
-            loadedNotes[d.slotKey] = d.notes ?? '';
-          }
-          setAssignments(loadedAssignments);
-          setNotes(loadedNotes);
-          setTemplate('');
-          setDirty(false);
-          setLastUpdated(plan.updatedAt ?? null);
-        }
-        setPlanLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setPlanLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [currentMatch?.key, activeTeam?.teamId, eventKey, isOwnTeam]);
-
   const isRed = currentMatch?.alliances.red.team_keys.includes(myTeamKey);
   const allianceTeams = currentMatch
     ? isRed
       ? currentMatch.alliances.red.team_keys
       : currentMatch.alliances.blue.team_keys
     : [];
-
   const teamNumbers = allianceTeams.map((t) => parseInt(t.replace('frc', ''), 10));
 
-  const handleTemplateChange = useCallback(
-    (name: string) => {
-      setTemplate(name);
-      if (!name) {
-        setAssignments({});
-        setNotes({});
-        return;
-      }
-      const tmpl = dutyTemplates.find((t) => t.name === name);
-      const result = buildTemplateAssignments(
-        name,
-        teamNumbers,
-        epaMap,
-        dutySlots,
-        tmpl?.assignments ?? {},
-      );
-      setAssignments(result.assignments);
-      setNotes(result.notes);
-      setDirty(true);
-      setSaved(false);
+  const plan = useMatchPlan({
+    matchKey: currentMatch?.key,
+    teamId: activeTeam?.teamId,
+    eventKey: eventKey ?? '',
+    userId: user?.id,
+    isOwnTeam,
+    canEdit,
+    teamNumbers,
+    epaMap,
+    dutySlots,
+    dutyTemplates,
+  });
+
+  const [sectionState, setSectionState] = useState<SectionExpandState>({
+    rank: true,
+    epa: true,
+    game: true,
+  });
+  const handleSectionToggle = useCallback((section: keyof SectionExpandState) => {
+    setSectionState((prev) => ({ ...prev, [section]: !prev[section] }));
+  }, []);
+
+  const { confirmIfDirty } = useUnsavedGuard(plan.dirty);
+
+  const handleMatchChange = useCallback(
+    (key: string) => {
+      confirmIfDirty(() => {
+        setSelectedMatch(key);
+        plan.resetPlan();
+      });
     },
-    [teamNumbers.join(','), teams, dutySlots, dutyTemplates],
+    [confirmIfDirty, plan.resetPlan],
   );
 
-  const handleSave = async () => {
-    if (!currentMatch || !canEdit) return;
-    const duties = Object.entries(assignments)
-      .filter(([, v]) => v !== null)
-      .map(([slotKey, teamNumber]) => ({
-        slotKey,
-        teamNumber: teamNumber!,
-        notes: notes[slotKey] || undefined,
-      }));
-
-    try {
-      const API_BASE = getApiBase();
-      await fetch(
-        `${API_BASE}/teams/${activeTeam?.teamId}/event/${eventKey}/match/${currentMatch.key}/plan`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ duties }),
-        },
-      );
-      setSaved(true);
-      setDirty(false);
-      setLastUpdated(new Date().toISOString());
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      // handle error
-    }
-  };
-
-  if (!eventKey) {
-    return <p className="text-gray-500">Select an event on the Event page first.</p>;
-  }
-
-  if (matchesLoading || teamsLoading) {
-    return <LoadingSpinner message="Loading planner data..." />;
-  }
-
   return (
-    <div className="space-y-6">
-      <InfoBox
-        heading={`Duty Planner${adapter ? ` — ${adapter.gameName} ${adapter.year}` : ''}`}
-        headingExtra={
-          <div className="flex items-center gap-3">
-            {currentMatch && (
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                  }`}
-              >
-                {isRed ? 'Red' : 'Blue'} Alliance
-              </span>
-            )}
-          </div>
-        }
-      >
-        <p>
-          <strong>Duty Planner</strong> lets you assign specific roles to each alliance partner for an
-          upcoming match. Select a match, then assign teams to their duties.
-        </p>
-        <p>
-          Use <strong>Templates</strong> to quickly apply a pre-built strategy. Templates auto-assign
-          teams to roles based on their EPA data. You can customize assignments after applying a
-          template.
-        </p>
-        <p>
-          Add <strong>notes</strong> to any duty slot for match-specific instructions. Click{' '}
-          <strong>Save Plan</strong> to store the plan. Duty categories are color-coded: green (auto),
-          blue (teleop), purple (endgame), orange (defense), red (discipline).
-        </p>
-      </InfoBox>
-
-      {!canEdit && teamNumber && activeTeam && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            Viewing team {teamNumber} — read-only (you&apos;re not a member)
-          </p>
-        </div>
-      )}
-
-      {!adapter && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            No game adapter registered for {year}. Duty slots and templates are unavailable.
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
-        <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[8rem]">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Match
-          </label>
-          <select
-            value={selectedMatch || currentMatch?.key || ''}
-            onChange={(e) => {
-              const newKey = e.target.value;
-              confirmIfDirty(() => {
-                setSelectedMatch(newKey);
-                setAssignments({});
-                setNotes({});
-                setTemplate('');
-                setDirty(false);
-              });
-            }}
-            className="w-full h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
-          >
-            {myMatches?.map((m) => (
-              <option key={m.key} value={m.key}>
-                {matchLabel(m)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {dutyTemplates.length > 0 && (
-          <div className="w-full sm:w-auto min-w-0 sm:max-w-[16rem] md:max-w-xs">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Template
-            </label>
-            <select
-              value={template}
-              onChange={(e) => handleTemplateChange(e.target.value)}
-              disabled={!canEdit}
-              className="w-full h-[38px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm truncate disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">Manual</option>
-              {dutyTemplates.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.label} — {t.description}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 sm:ml-auto shrink-0">
-          <button
-            onClick={handleSave}
-            disabled={!canEdit}
-            className={`h-[38px] px-4 rounded-md text-sm font-medium whitespace-nowrap ${canEdit
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              }`}
-          >
-            {canEdit ? 'Save Plan' : !user ? 'Log In to Save' : !activeTeam ? 'Join Team to Save' : 'Read Only'}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 text-xs">
-        {saved && (
-          <span className="text-green-600 font-medium">&#10003; Saved</span>
-        )}
-        {dirty && !saved && (
-          <span className="text-amber-600 dark:text-amber-400">Unsaved changes</span>
-        )}
-        {lastUpdated && !dirty && !saved && (
-          <span className="text-gray-400">
-            Last saved {new Date(lastUpdated).toLocaleTimeString()}
-          </span>
-        )}
-      </div>
-
-      {activeCursor !== null && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to match {activeCursor}.
-          </p>
-        </div>
-      )}
-
-      {currentMatch && (
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Team Strengths
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {allianceTeams.map((t) => (
-                <TeamCard
-                  key={t}
-                  teamKey={t}
-                  epaMap={epaMap}
-                  metrics={cardMetrics}
-                  epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
-                  defaultExpanded
-                  record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
-                  rankAnalysis={rankAnalysisMap.get(t)}
-                  sectionState={sectionState}
-                  onSectionToggle={handleSectionToggle}
-                />
-              ))}
-            </div>
-          </div>
-
-          {dutySlots.length > 0 && (
-            <div className="relative">
-              {!canEdit && !activeTeam && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm rounded-lg">
-                  <div className="text-center px-6 py-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg max-w-sm">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {!user
-                        ? 'Log In to Create or Join a Team to Plan Matches'
-                        : 'Join a Team to Plan Matches'}
-                    </p>
-                    <a
-                      href={!user ? '/' : '/team/'}
-                      className="mt-3 inline-block text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                    >
-                      {!user ? 'Log In' : 'Go to Team Page'} &rarr;
-                    </a>
-                  </div>
-                </div>
+    <PageGuard
+      condition={eventKey}
+      loading={matchesLoading || teamsLoading}
+      message="Select an event on the Event page first."
+    >
+      <div className="space-y-6">
+        <InfoBox
+          heading={`Duty Planner${adapter ? ` — ${adapter.gameName} ${adapter.year}` : ''}`}
+          headingExtra={
+            <div className="flex items-center gap-3">
+              {currentMatch && (
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    }`}
+                >
+                  {isRed ? 'Red' : 'Blue'} Alliance
+                </span>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {dutySlots.map((slot) => (
-                  <div
-                    key={slot.key}
-                    className={`rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 ${CATEGORY_COLORS[slot.category] || ''
-                      } p-3 space-y-2`}
-                  >
-                    <div className="font-medium text-sm" title={slot.description}>
-                      {slot.label}
-                    </div>
-                    <select
-                      value={assignments[slot.key] ?? ''}
-                      onChange={(e) => {
-                        setAssignments((a) => ({
-                          ...a,
-                          [slot.key]: e.target.value ? parseInt(e.target.value, 10) : null,
-                        }));
-                        setDirty(true);
-                        setSaved(false);
-                      }}
-                      disabled={!canEdit}
-                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Unassigned</option>
-                      {teamNumbers.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                    <textarea
-                      rows={3}
-                      placeholder="Notes..."
-                      value={notes[slot.key] || ''}
-                      onChange={(e) => {
-                        setNotes((n) => ({ ...n, [slot.key]: e.target.value }));
-                        setDirty(true);
-                        setSaved(false);
-                      }}
-                      disabled={!canEdit}
-                      className="w-full rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-xs resize-y disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
+            </div>
+          }
+        >
+          <p>
+            <strong>Duty Planner</strong> lets you assign specific roles to each alliance partner
+            for an upcoming match. Select a match, then assign teams to their duties.
+          </p>
+          <p>
+            Use <strong>Templates</strong> to quickly apply a pre-built strategy. Templates
+            auto-assign teams to roles based on their EPA data. You can customize assignments after
+            applying a template.
+          </p>
+          <p>
+            Add <strong>notes</strong> to any duty slot for match-specific instructions. Click{' '}
+            <strong>Save Plan</strong> to store the plan. Duty categories are color-coded: green
+            (auto), blue (teleop), purple (endgame), orange (defense), red (discipline).
+          </p>
+        </InfoBox>
+
+        {!canEdit && teamNumber && activeTeam && (
+          <StatusBanner variant="warning">
+            Viewing team {teamNumber} — read-only (you&apos;re not a member)
+          </StatusBanner>
+        )}
+
+        {!adapter && (
+          <StatusBanner variant="warning">
+            No game adapter registered for {year}. Duty slots and templates are unavailable.
+          </StatusBanner>
+        )}
+
+        <MatchSelector
+          myMatches={myMatches ?? []}
+          currentMatchKey={currentMatch?.key}
+          selectedMatch={selectedMatch}
+          onMatchChange={handleMatchChange}
+          template={plan.template}
+          onTemplateChange={plan.applyTemplate}
+          dutyTemplates={dutyTemplates}
+          canEdit={canEdit}
+          saveStatus={plan.saveStatus}
+          user={user}
+          activeTeam={activeTeam}
+          onSave={plan.save}
+          autosaveEnabled={plan.autosaveEnabled}
+          onToggleAutosave={plan.toggleAutosave}
+        />
+
+        {plan.lastUpdatedBy && (
+          <StatusBanner variant="info">
+            Plan updated by {plan.lastUpdatedBy}
+          </StatusBanner>
+        )}
+
+        {plan.remoteUpdateAvailable && (
+          <StatusBanner variant="warning">
+            <span>A teammate updated this plan.</span>{' '}
+            <button
+              onClick={plan.applyRemoteUpdate}
+              className="underline font-medium hover:text-blue-600"
+            >
+              Reload latest
+            </button>
+          </StatusBanner>
+        )}
+
+        {activeCursor !== null && (
+          <StatusBanner variant="warning">
+            📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to
+            match {activeCursor}.
+          </StatusBanner>
+        )}
+
+        {currentMatch && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Team Strengths
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {allianceTeams.map((t) => (
+                  <TeamCard
+                    key={t}
+                    teamKey={t}
+                    epaMap={epaMap}
+                    metrics={cardMetrics}
+                    epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
+                    defaultExpanded
+                    record={
+                      activeCursor !== null && matches
+                        ? getTeamRecord(matches, t, activeCursor)
+                        : undefined
+                    }
+                    rankAnalysis={rankAnalysisMap.get(t)}
+                    sectionState={sectionState}
+                    onSectionToggle={handleSectionToggle}
+                  />
                 ))}
               </div>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+
+            {dutySlots.length > 0 && (
+              <div className="relative">
+                {!canEdit && !activeTeam && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm rounded-lg">
+                    <div className="text-center px-6 py-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg max-w-sm">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {!user
+                          ? 'Log In to Create or Join a Team to Plan Matches'
+                          : 'Join a Team to Plan Matches'}
+                      </p>
+                      <a
+                        href={!user ? '/' : '/team/'}
+                        className="mt-3 inline-block text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                      >
+                        {!user ? 'Log In' : 'Go to Team Page'} &rarr;
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {dutySlots.map((slot) => (
+                    <DutySlotEditor
+                      key={slot.key}
+                      slot={slot}
+                      assignment={plan.assignments[slot.key] ?? null}
+                      note={plan.notes[slot.key] || ''}
+                      teamNumbers={teamNumbers}
+                      canEdit={canEdit}
+                      onAssignmentChange={(v) => plan.setAssignment(slot.key, v)}
+                      onNoteChange={(v) => plan.setNote(slot.key, v)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <SaveStatusBar
+          status={plan.saveStatus}
+          errorMessage={plan.saveError}
+          lastSavedAt={plan.lastSavedAt}
+        />
+      </div>
+    </PageGuard>
   );
 }

@@ -4,10 +4,15 @@ services:
     volumes:
       - .:/workspaces/AllianceOps:cached
       - /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock
+      - signalr-shared:/signalr-shared:ro
     command: sleep infinity
     depends_on:
-      - postgres
-      - azurite
+      postgres:
+        condition: service_started
+      azurite:
+        condition: service_started
+      signalr-emulator:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://allianceops:allianceops@postgres:5432/allianceops
       - AZURITE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1
@@ -39,6 +44,20 @@ services:
     volumes:
       - azurite-data:/data
 
+  signalr-emulator:
+    build: docker/signalr-emulator
+    restart: unless-stopped
+    ports:
+      - '8888:8888'
+    volumes:
+      - signalr-shared:/shared
+    healthcheck:
+      test: ["CMD", "test", "-f", "/shared/connection-string"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
 volumes:
   postgres-data:
   azurite-data:
+  signalr-shared:

@@ -9,6 +9,8 @@ import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { useSimulationEpa } from '../../hooks/use-simulation-epa';
 import { InfoBox } from '../../components/info-box';
 import { LoadingSpinner } from '../../components/loading-spinner';
+import { PageGuard } from '../../components/page-guard';
+import { StatusBanner } from '../../components/status-banner';
 import { TeamCard } from '../../components/team-card';
 import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
 import type { EnrichedTeam } from '../../lib/types';
@@ -41,10 +43,10 @@ export default function BriefingPage() {
       (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
     );
 
-  const { data: rawMatches, loading: matchesLoading } = useApi<TBAMatch[]>(
+  const { data: rawMatches, loading: matchesLoading, error: matchesError } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
   );
-  const { data: teams, loading: teamsLoading } = useApi<EnrichedTeam[]>(
+  const { data: teams, loading: teamsLoading, error: teamsError } = useApi<EnrichedTeam[]>(
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
@@ -56,23 +58,24 @@ export default function BriefingPage() {
     [matches],
   );
 
-  const nextMatch = allSortedMatches?.find(
-    (m) =>
-      (m.alliances.red.team_keys.includes(myTeamKey) ||
-        m.alliances.blue.team_keys.includes(myTeamKey)) &&
-      m.alliances.red.score < 0,
-  );
-
-  // Fall back to last match if all played
-  const currentMatch =
-    nextMatch ??
-    allSortedMatches
-      ?.filter(
-        (m) =>
-          m.alliances.red.team_keys.includes(myTeamKey) ||
-          m.alliances.blue.team_keys.includes(myTeamKey),
-      )
-      .pop();
+  const currentMatch = useMemo(() => {
+    const next = allSortedMatches?.find(
+      (m) =>
+        (m.alliances.red.team_keys.includes(myTeamKey) ||
+          m.alliances.blue.team_keys.includes(myTeamKey)) &&
+        m.alliances.red.score < 0,
+    );
+    return (
+      next ??
+      allSortedMatches
+        ?.filter(
+          (m) =>
+            m.alliances.red.team_keys.includes(myTeamKey) ||
+            m.alliances.blue.team_keys.includes(myTeamKey),
+        )
+        .pop()
+    );
+  }, [allSortedMatches, myTeamKey]);
 
   // Extract only the 6 match team numbers for the simulation EPA fetch
   const matchTeamNumbers = useMemo(() => {
@@ -122,42 +125,41 @@ export default function BriefingPage() {
     return analyzeAllRankDiscrepancies(teamInputs, matchInputs, epaInputMap);
   }, [teams, matches, epaRankMap]);
 
-  if (!eventKey) {
-    return <p className="text-gray-500">Select an event on the Event page first.</p>;
-  }
-
-  if (matchesLoading || teamsLoading) {
-    return <LoadingSpinner message="Loading match data..." />;
-  }
-
-  if (!currentMatch) {
-    return <p className="text-gray-500">No matches found for your team at this event.</p>;
-  }
-
-  const isRed = currentMatch.alliances.red.team_keys.includes(myTeamKey);
+  const isRed = currentMatch?.alliances.red.team_keys.includes(myTeamKey) ?? false;
   const ourTeams = isRed
-    ? currentMatch.alliances.red.team_keys
-    : currentMatch.alliances.blue.team_keys;
+    ? (currentMatch?.alliances.red.team_keys ?? [])
+    : (currentMatch?.alliances.blue.team_keys ?? []);
   const oppTeams = isRed
-    ? currentMatch.alliances.blue.team_keys
-    : currentMatch.alliances.red.team_keys;
+    ? (currentMatch?.alliances.blue.team_keys ?? [])
+    : (currentMatch?.alliances.red.team_keys ?? []);
 
-  // Simple win conditions based on EPA comparison
   const ourAvgEpa =
-    ourTeams.reduce((sum, t) => {
-      const num = parseInt(t.replace('frc', ''), 10);
-      return sum + (epaMap.get(num)?.epa?.total ?? 0);
-    }, 0) / ourTeams.length;
+    ourTeams.length > 0
+      ? ourTeams.reduce((sum, t) => {
+          const num = parseInt(t.replace('frc', ''), 10);
+          return sum + (epaMap.get(num)?.epa?.total ?? 0);
+        }, 0) / ourTeams.length
+      : 0;
 
   const oppAvgEpa =
-    oppTeams.reduce((sum, t) => {
-      const num = parseInt(t.replace('frc', ''), 10);
-      return sum + (epaMap.get(num)?.epa?.total ?? 0);
-    }, 0) / oppTeams.length;
+    oppTeams.length > 0
+      ? oppTeams.reduce((sum, t) => {
+          const num = parseInt(t.replace('frc', ''), 10);
+          return sum + (epaMap.get(num)?.epa?.total ?? 0);
+        }, 0) / oppTeams.length
+      : 0;
 
   const epaDiff = ourAvgEpa - oppAvgEpa;
 
   return (
+    <PageGuard condition={eventKey} message="Select an event on the Event page first.">
+      {(matchesLoading || teamsLoading) ? (
+        <LoadingSpinner message="Loading match data..." />
+      ) : (matchesError || teamsError) ? (
+        <StatusBanner variant="error">{matchesError || teamsError}</StatusBanner>
+      ) : !currentMatch ? (
+        <p className="text-gray-500">No matches found for your team at this event.</p>
+      ) : (
     <div className="space-y-6">
       <InfoBox
         heading={`Match Briefing — ${matchLabel(currentMatch)}`}
@@ -266,5 +268,7 @@ export default function BriefingPage() {
         </div>
       </div>
     </div>
+      )}
+    </PageGuard>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
+import { usePersistentState } from '../hooks/use-persistent-state';
 
 interface EventSetupState {
   year: number;
@@ -21,28 +22,7 @@ const DEFAULT_STATE: EventSetupState = { year: CURRENT_YEAR, eventKey: '', teamN
 const EventSetupContext = createContext<EventSetupContextValue | null>(null);
 
 export function EventSetupProvider({ children }: { children: ReactNode }) {
-  const [setup, setSetup] = useState<EventSetupState>(DEFAULT_STATE);
-  const [hydrated, setHydrated] = useState(false);
-
-  // Hydrate from localStorage after mount to avoid SSR mismatch
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSetup(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
-    setHydrated(true);
-  }, []);
-
-  // Persist to localStorage on changes (only after hydration)
-  useEffect(() => {
-    if (hydrated) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(setup));
-    }
-  }, [setup, hydrated]);
+  const [setup, setSetup] = usePersistentState<EventSetupState>(STORAGE_KEY, DEFAULT_STATE);
 
   const value: EventSetupContextValue = {
     ...setup,

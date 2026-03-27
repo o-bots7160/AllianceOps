@@ -28,64 +28,6 @@ interface TeamComboboxProps {
     compact?: boolean;
 }
 
-/** localStorage key for recent team searches. */
-const RECENT_KEY = 'allianceops-recent-teams';
-const MAX_RECENT = 5;
-
-/** Read recent searches from localStorage, sorted most-recent first. */
-export function loadRecentSearches(): RecentSearch[] {
-    try {
-        const raw = localStorage.getItem(RECENT_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return [];
-        return parsed
-            .filter(
-                (r: unknown): r is RecentSearch =>
-                    typeof r === 'object' &&
-                    r !== null &&
-                    typeof (r as RecentSearch).teamNumber === 'number' &&
-                    typeof (r as RecentSearch).lastSearchedAt === 'string',
-            )
-            .sort((a, b) => b.lastSearchedAt.localeCompare(a.lastSearchedAt))
-            .slice(0, MAX_RECENT);
-    } catch {
-        return [];
-    }
-}
-
-/**
- * Add or update a team number in the recent searches list.
- * If the team already exists, its lastSearchedAt is updated to now
- * (moving it to the top) without removing other entries.
- * Keeps at most 5 entries, dropping the oldest when full.
- */
-export function addRecentSearch(teamNumber: number, name?: string): RecentSearch[] {
-    const now = new Date().toISOString();
-    const current = loadRecentSearches();
-    const existing = current.find((r) => r.teamNumber === teamNumber);
-    let updated: RecentSearch[];
-    if (existing) {
-        // Update timestamp and name (if provided), keep all others
-        updated = current.map((r) =>
-            r.teamNumber === teamNumber
-                ? { ...r, lastSearchedAt: now, ...(name !== undefined ? { name } : {}) }
-                : r,
-        );
-    } else {
-        // Add new entry, drop oldest if over limit
-        updated = [{ teamNumber, name, lastSearchedAt: now }, ...current].slice(0, MAX_RECENT);
-    }
-    // Re-sort descending by lastSearchedAt
-    updated.sort((a, b) => b.lastSearchedAt.localeCompare(a.lastSearchedAt));
-    try {
-        localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
-    } catch {
-        // Ignore storage errors
-    }
-    return updated;
-}
-
 /**
  * A combo input that lets the user manually type any FRC team number OR
  * pick from their own teams in a dropdown. When the typed number matches

@@ -1,11 +1,15 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { getTeamRecord } from '../../lib/simulation-filters';
 import { matchLabel, sortMatches } from '../../lib/match-utils';
 import { InfoBox } from '../../components/info-box';
+import { StatusBanner } from '../../components/status-banner';
+import { LoadingSpinner } from '../../components/loading-spinner';
+import { PageGuard } from '../../components/page-guard';
 
 interface TBAMatch {
   key: string;
@@ -28,11 +32,14 @@ export default function SimulationPage() {
   const activeEventKey = simEventKey || eventKey;
   const myTeamKey = `frc${teamNumber}`;
 
-  const { data: matches, loading } = useApi<TBAMatch[]>(
+  const { data: matches, loading, error } = useApi<TBAMatch[]>(
     activeEventKey ? `event/${activeEventKey}/matches` : null,
   );
 
-  const allSortedMatches = matches ? sortMatches(matches) : undefined;
+  const allSortedMatches = useMemo(
+    () => (matches ? sortMatches(matches) : undefined),
+    [matches],
+  );
 
   // For the cursor, we use ALL matches in competition order
   // The cursor number maps to position in sorted array
@@ -48,12 +55,12 @@ export default function SimulationPage() {
     ? getTeamRecord(allSortedMatches, myTeamKey, activeCursor)
     : { wins: 0, losses: 0, ties: 0 };
 
-  if (!eventKey) {
-    return <p className="text-gray-500">Select a team and event in the header to begin.</p>;
-  }
-
   return (
-    <div className="space-y-6">
+    <PageGuard
+      condition={eventKey && teamNumber}
+      message="Please select a team and event to continue."
+    >
+      <div className="space-y-6">
       <InfoBox heading="Simulation Replay">
         <p>
           <strong>Simulation Replay</strong> lets you time-travel through a past event match by match.
@@ -133,7 +140,8 @@ export default function SimulationPage() {
         </div>
       </div>
 
-      {loading && <p className="text-gray-500">Loading matches...</p>}
+      {loading && <LoadingSpinner message="Loading matches..." />}
+      {error && <StatusBanner variant="error">{error}</StatusBanner>}
 
       {visibleMatches && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -207,6 +215,7 @@ export default function SimulationPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PageGuard>
   );
 }

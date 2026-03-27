@@ -51,6 +51,10 @@ export function useUnsavedGuard(dirty: boolean) {
         return;
       }
 
+      // NOTE: Native window.confirm() is intentionally kept here. This
+      // capture-phase handler must synchronously call e.preventDefault() and
+      // e.stopPropagation() to block Next.js Link navigation. An async
+      // ConfirmDialog cannot prevent the default browser/router action in time.
       if (!window.confirm('You have unsaved changes. Discard them?')) {
         e.preventDefault();
         e.stopPropagation();
@@ -69,6 +73,10 @@ export function useUnsavedGuard(dirty: boolean) {
 
     const handlePopState = () => {
       if (!dirtyRef.current) return;
+      // NOTE: Native window.confirm() is intentionally kept here. The popstate
+      // handler must synchronously decide whether to push the original URL back
+      // onto the history stack. An async dialog would allow the navigation to
+      // complete before the user responds.
       if (!window.confirm('You have unsaved changes. Discard them?')) {
         // Push the original URL back to stay on the page
         history.pushState(null, '', currentPath);
@@ -80,6 +88,8 @@ export function useUnsavedGuard(dirty: boolean) {
   }, []);
 
   /** Run `cb` only if not dirty, or if the user confirms discarding changes. */
+  // NOTE: Native window.confirm() is kept for consistency with the synchronous
+  // link-click and popstate handlers above.
   const confirmIfDirty = useCallback((cb: () => void) => {
     if (!dirtyRef.current) {
       cb();

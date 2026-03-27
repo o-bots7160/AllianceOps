@@ -50,6 +50,10 @@ param linkFunctionAppBackend bool = true
 @description('Budget start date (YYYY-MM-01 format, defaults to current month)')
 param budgetStartDate string = '${utcNow('yyyy')}-${utcNow('MM')}-01'
 
+@description('SignalR Service SKU (Free_F1 or Standard_S1)')
+@allowed(['Free_F1', 'Standard_S1'])
+param signalRSkuName string = 'Free_F1'
+
 // Resource naming: {abbreviation}-{prefix}-{env}
 var suffix = '${namePrefix}-${environmentName}'
 // Storage accounts cannot have hyphens
@@ -101,6 +105,7 @@ module keyVault 'modules/keyVault.bicep' = {
     tbaApiKey: tbaApiKey
     databaseUrl: 'postgresql://${postgres.outputs.adminLogin}:${postgresAdminPassword}@${postgres.outputs.serverFqdn}:5432/allianceops?sslmode=require'
     postgresAdminPassword: postgresAdminPassword
+    signalRConnectionString: signalR.outputs.connectionString
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
   }
 }
@@ -127,7 +132,22 @@ module budget 'modules/budget.bicep' = if (!empty(budgetContactEmails)) {
   }
 }
 
+module signalR 'modules/signalR.bicep' = {
+  name: '${deployPrefix}-signalR'
+  params: {
+    name: 'sigr-${suffix}'
+    location: location
+    skuName: signalRSkuName
+    corsAllowedOrigins: [
+      'https://${staticWebApp.outputs.defaultHostname}'
+      'http://localhost:4280'
+    ]
+    logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 output staticWebAppUrl string = staticWebApp.outputs.defaultHostname
 output functionAppUrl string = functionApp.outputs.defaultHostName
 output keyVaultName string = keyVault.outputs.vaultName
 output appInsightsConnectionString string = appInsights.outputs.connectionString
+output signalRHostname string = signalR.outputs.hostname

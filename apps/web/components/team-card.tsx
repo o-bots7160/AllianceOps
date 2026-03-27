@@ -3,17 +3,8 @@
 import { useState } from 'react';
 import type { GameMetricDefinition, TeamRankAnalysis } from '@allianceops/shared';
 import type { EnrichedTeam } from '../lib/types';
-
-function EpaBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-      <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-const METRIC_COLOR = 'bg-cyan-500';
+import { EpaBreakdown } from './team-card/epa-breakdown';
+import { GameBreakdown } from './team-card/game-breakdown';
 
 export const DETERMINATION_LABELS: Record<string, { label: string; color: string }> = {
   accurate: {
@@ -107,7 +98,6 @@ export function TeamCard({
 }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
-  const maxEpa = 40;
   const bd = data?.epa?.breakdown;
   const displayRecord = record ?? data?.eventRecord;
   const hasBreakdown =
@@ -116,7 +106,7 @@ export function TeamCard({
   // Support both controlled (sectionState/onSectionToggle) and uncontrolled modes
   const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
   const [localRankExpanded, setLocalRankExpanded] = useState(defaultExpanded);
-  const [localEpaExpanded, setLocalEpaExpanded] = useState(true);
+  const [localEpaExpanded, setLocalEpaExpanded] = useState(defaultExpanded);
 
   const expanded = sectionState ? sectionState.game : localExpanded;
   const rankExpanded = sectionState ? sectionState.rank : localRankExpanded;
@@ -256,88 +246,24 @@ export function TeamCard({
         </div>
       )}
 
-      {/* EPA Breakdown */}
+      {/* EPA + Game Breakdowns */}
       {data?.epa?.total != null ? (
         <>
-          <div className="text-xs">
-            <button
-              type="button"
-              onClick={toggleEpaExpanded}
-              className="flex items-center gap-1 w-full text-left"
-            >
-              <svg
-                className={`h-3 w-3 text-gray-400 transition-transform ${epaExpanded ? 'rotate-90' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-              <span className="font-medium text-gray-500 dark:text-gray-400">EPA Breakdown</span>
-            </button>
-            {epaExpanded && (
-              <div className="mt-2.5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-16">Total</span>
-                  <EpaBar value={data.epa.total} max={maxEpa} color="bg-primary-500" />
-                  <span className="w-8 text-right">{data.epa.total.toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-16">Auto</span>
-                  <EpaBar value={data.epa.auto ?? 0} max={maxEpa / 2} color="bg-green-500" />
-                  <span className="w-8 text-right">{(data.epa.auto ?? 0).toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-16">Teleop</span>
-                  <EpaBar value={data.epa.teleop ?? 0} max={maxEpa / 2} color="bg-blue-500" />
-                  <span className="w-8 text-right">{(data.epa.teleop ?? 0).toFixed(1)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-16">Endgame</span>
-                  <EpaBar value={data.epa.endgame ?? 0} max={maxEpa / 3} color="bg-purple-500" />
-                  <span className="w-8 text-right">{(data.epa.endgame ?? 0).toFixed(1)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Game Breakdown */}
+          <EpaBreakdown
+            total={data.epa.total}
+            auto={data.epa.auto ?? null}
+            teleop={data.epa.teleop ?? null}
+            endgame={data.epa.endgame ?? null}
+            expanded={epaExpanded}
+            onToggle={toggleEpaExpanded}
+          />
           {hasBreakdown && (
-            <div className="text-xs">
-              <button
-                type="button"
-                onClick={toggleExpanded}
-                className="flex items-center gap-1 w-full text-left"
-              >
-                <svg
-                  className={`h-3 w-3 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="font-medium text-gray-500 dark:text-gray-400">Game Breakdown</span>
-              </button>
-              {expanded && (
-                <div className="mt-2.5 space-y-2">
-                  {metrics!.map(
-                    (m) =>
-                      bd![m.key] != null && (
-                        <div key={m.key} className="flex items-center gap-2">
-                          <span className="w-16 truncate" title={m.description}>
-                            {m.label}
-                          </span>
-                          <EpaBar value={Math.abs(bd![m.key])} max={6} color={METRIC_COLOR} />
-                          <span className="w-8 text-right">{bd![m.key].toFixed(1)}</span>
-                        </div>
-                      ),
-                  )}
-                </div>
-              )}
-            </div>
+            <GameBreakdown
+              metrics={metrics!}
+              breakdown={bd!}
+              expanded={expanded}
+              onToggle={toggleExpanded}
+            />
           )}
         </>
       ) : (

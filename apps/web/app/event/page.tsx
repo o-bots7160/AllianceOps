@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useEventSetup } from '../../components/use-event-setup';
 import { useApi } from '../../components/use-api';
 import { useSimulation } from '../../components/simulation-context';
 import { filterMatchesByCursor } from '../../lib/simulation-filters';
-import { matchLabel, groupMatchesByPhase, compLevelName, sortMatches } from '../../lib/match-utils';
+import { matchLabel, compLevelName, sortMatches } from '../../lib/match-utils';
 import { InfoBox } from '../../components/info-box';
+import { LoadingSpinner } from '../../components/loading-spinner';
+import { DataTable, type ColumnDef } from '../../components/data-table';
 
 interface TBAEvent {
   key: string;
@@ -29,6 +31,8 @@ interface TBAMatch {
   winning_alliance: string;
 }
 
+type MatchRow = TBAMatch & { _order: number };
+
 function teamDisplay(teamKey: string): string {
   return teamKey.replace('frc', '');
 }
@@ -37,6 +41,8 @@ export default function EventPage() {
   const { year, eventKey, teamNumber, setEventKey } = useEventSetup();
   const { activeCursor } = useSimulation();
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const [sortColumn, setSortColumn] = useState('_order');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
@@ -54,7 +60,110 @@ export default function EventPage() {
 
   const myTeamKey = `frc${teamNumber}`;
   const sortedMatches = matches ? sortMatches(matches) : undefined;
-  const matchGroups = sortedMatches ? groupMatchesByPhase(sortedMatches) : [];
+
+  const handleSort = useCallback(
+    (column: string) => {
+      if (sortColumn === column) {
+        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortColumn(column);
+        setSortDirection('asc');
+      }
+    },
+    [sortColumn],
+  );
+
+  const displayMatches = useMemo<MatchRow[]>(() => {
+    if (!sortedMatches) return [];
+    const rows: MatchRow[] = sortedMatches.map((m, i) => ({ ...m, _order: i }));
+    if (sortColumn === '_order') {
+      return sortDirection === 'asc' ? rows : [...rows].reverse();
+    }
+    return [...rows].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case 'comp_level':
+          cmp = a._order - b._order;
+          break;
+        case 'redScore':
+          cmp = a.alliances.red.score - b.alliances.red.score;
+          break;
+        default:
+          cmp = a._order - b._order;
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [sortedMatches, sortColumn, sortDirection]);
+
+  const matchColumns = useMemo<ColumnDef<MatchRow>[]>(
+    () => [
+      {
+        key: '_order',
+        header: 'Match',
+        sortable: true,
+        render: (row) => <span className="font-mono">{matchLabel(row)}</span>,
+      },
+      {
+        key: 'comp_level',
+        header: 'Phase',
+        sortable: true,
+        render: (row) => compLevelName(row.comp_level),
+      },
+      {
+        key: 'redAlliance',
+        header: <span className="text-red-600">Red Alliance</span>,
+        render: (row) => (
+          <>
+            {row.alliances.red.team_keys.map((t) => (
+              <span
+                key={t}
+                className={`inline-block mr-2 ${
+                  t === myTeamKey
+                    ? 'font-bold text-primary-600'
+                    : 'text-red-700 dark:text-red-400'
+                }`}
+              >
+                {teamDisplay(t)}
+              </span>
+            ))}
+          </>
+        ),
+      },
+      {
+        key: 'blueAlliance',
+        header: <span className="text-blue-600">Blue Alliance</span>,
+        render: (row) => (
+          <>
+            {row.alliances.blue.team_keys.map((t) => (
+              <span
+                key={t}
+                className={`inline-block mr-2 ${
+                  t === myTeamKey
+                    ? 'font-bold text-primary-600'
+                    : 'text-blue-700 dark:text-blue-400'
+                }`}
+              >
+                {teamDisplay(t)}
+              </span>
+            ))}
+          </>
+        ),
+      },
+      {
+        key: 'redScore',
+        header: 'Score',
+        sortable: true,
+        render: (row) => (
+          <span className="font-mono">
+            {row.alliances.red.score >= 0
+              ? `${row.alliances.red.score} - ${row.alliances.blue.score}`
+              : '—'}
+          </span>
+        ),
+      },
+    ],
+    [myTeamKey],
+  );
 
   const teamEventKeys = useMemo(
     () => new Set(teamEvents?.map((e) => e.key)),
@@ -100,7 +209,7 @@ export default function EventPage() {
           </div>
 
           {(showAllEvents && allEventsLoading) && (
-            <p className="text-sm text-gray-500">Loading all events...</p>
+            <LoadingSpinner message="Loading all events..." />
           )}
 
           {displayEvents && displayEvents.length > 0 && (
@@ -153,72 +262,25 @@ export default function EventPage() {
         </p>
       )}
 
-      {matchesLoading && <p className="text-gray-500">Loading matches...</p>}
+      {matchesLoading && <LoadingSpinner message="Loading matches..." />}
 
-      {matchGroups.length > 0 && matchGroups.map(([compLevel, phaseMatches]) => (
-        <div key={compLevel} className="space-y-2">
-          <h3 className="text-lg font-semibold">
-            {compLevelName(compLevel)} ({phaseMatches.length} {phaseMatches.length === 1 ? 'match' : 'matches'})
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
-                  <th className="py-2 px-3">Match</th>
-                  <th className="py-2 px-3 text-red-600">Red Alliance</th>
-                  <th className="py-2 px-3 text-blue-600">Blue Alliance</th>
-                  <th className="py-2 px-3">Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {phaseMatches.map((match) => {
-                  const isMyMatch =
-                    match.alliances.red.team_keys.includes(myTeamKey) ||
-                    match.alliances.blue.team_keys.includes(myTeamKey);
-                  return (
-                    <tr
-                      key={match.key}
-                      className={`border-b border-gray-100 dark:border-gray-800 ${isMyMatch ? 'bg-primary-50 dark:bg-primary-950' : ''
-                        }`}
-                    >
-                      <td className="py-2 px-3 font-mono">{matchLabel(match)}</td>
-                      <td className="py-2 px-3">
-                        {match.alliances.red.team_keys.map((t) => (
-                          <span
-                            key={t}
-                            className={`inline-block mr-2 ${t === myTeamKey ? 'font-bold text-primary-600' : 'text-red-700 dark:text-red-400'
-                              }`}
-                          >
-                            {teamDisplay(t)}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="py-2 px-3">
-                        {match.alliances.blue.team_keys.map((t) => (
-                          <span
-                            key={t}
-                            className={`inline-block mr-2 ${t === myTeamKey ? 'font-bold text-primary-600' : 'text-blue-700 dark:text-blue-400'
-                              }`}
-                          >
-                            {teamDisplay(t)}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="py-2 px-3 font-mono">
-                        {match.alliances.red.score >= 0
-                          ? `${match.alliances.red.score} - ${match.alliances.blue.score}`
-                          : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
+      {displayMatches.length > 0 && (
+        <DataTable
+          data={displayMatches}
+          columns={matchColumns}
+          keyExtractor={(row) => row.key}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          isRowHighlighted={(row) =>
+            row.alliances.red.team_keys.includes(myTeamKey) ||
+            row.alliances.blue.team_keys.includes(myTeamKey)
+          }
+          emptyMessage="No matches found."
+        />
+      )}
 
-      {eventKey && !matchesLoading && matchGroups.length === 0 && (
+      {eventKey && !matchesLoading && displayMatches.length === 0 && (
         <p className="text-gray-500">No matches found for this event.</p>
       )}
     </div>

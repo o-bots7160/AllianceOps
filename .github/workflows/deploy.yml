@@ -41,7 +41,7 @@ jobs:
             apps/api/prisma
             apps/api/host.json
             apps/api/package.json
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v4
         with:
@@ -60,11 +60,15 @@ jobs:
       - name: Set Deployment Name
         run: echo "DEPLOY_NAME=aop-${{ github.run_number }}-${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      # Detect whether infra/ files changed to skip expensive Bicep deploy
+      # Detect whether infra/ files changed across the full push range
       - name: Check for Infrastructure Changes
         id: infra-check
         run: |
-          if git diff --name-only HEAD~1 -- infra/ 2>/dev/null | grep -q .; then
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "New branch or missing base — will deploy Bicep"
+          elif git diff --name-only "$BASE" HEAD -- infra/ | grep -q .; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Infrastructure files changed — will deploy Bicep"
           else

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@allianceops/shared": "workspace:*",
+    "@microsoft/signalr": "^8.0.0",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "next": "^15.1.0",

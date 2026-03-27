@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '../components/use-auth';
 import { FeatureCarousel } from '../components/feature-carousel';
+import { LoadingSpinner } from '../components/loading-spinner';
 
 const FEATURES = [
   {
@@ -184,7 +185,7 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 dark:text-gray-400">Loading…</p>
+        <LoadingSpinner />
       ) : !user ? (
         <>
           <LoginCTA />
