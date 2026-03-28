@@ -149,11 +149,10 @@ export default function EventPage() {
             {row.alliances.red.team_keys.map((t) => (
               <span
                 key={t}
-                className={`inline-block mr-2 ${
-                  t === myTeamKey
+                className={`inline-block mr-2 ${t === myTeamKey
                     ? 'font-bold text-primary-600'
                     : 'text-red-700 dark:text-red-400'
-                }`}
+                  }`}
               >
                 {teamDisplay(t)}
               </span>
@@ -169,11 +168,10 @@ export default function EventPage() {
             {row.alliances.blue.team_keys.map((t) => (
               <span
                 key={t}
-                className={`inline-block mr-2 ${
-                  t === myTeamKey
+                className={`inline-block mr-2 ${t === myTeamKey
                     ? 'font-bold text-primary-600'
                     : 'text-blue-700 dark:text-blue-400'
-                }`}
+                  }`}
               >
                 {teamDisplay(t)}
               </span>
@@ -278,8 +276,8 @@ export default function EventPage() {
                     key={ev.key}
                     onClick={() => setEventKey(ev.key)}
                     className={`text-left rounded-lg border p-3 text-sm transition-colors ${isSelected
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
                       }`}
                   >
                     <div className="font-medium flex items-center gap-2">

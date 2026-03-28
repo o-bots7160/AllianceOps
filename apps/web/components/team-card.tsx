@@ -52,9 +52,16 @@ export function StrengthBar({ value, label }: { value: number; label: string }) 
   const barWidth = Math.abs(pct - midpoint);
   const color = value >= 1 ? 'bg-green-500' : 'bg-red-500';
 
+  const diffPct = Math.abs((value - 1) * 100).toFixed(0);
+  const aboveBelow = value >= 1 ? 'above' : 'below';
+  const tooltip =
+    value === 1
+      ? `${label} averaged exactly the field average EPA`
+      : `${label} averaged ${diffPct}% ${aboveBelow} the field average EPA (${value.toFixed(2)}× field avg)`;
+
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="w-[5.5rem] shrink-0 text-gray-500 dark:text-gray-400">{label}</span>
       <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
         <div
           className="absolute top-0 h-2 w-px bg-gray-400 dark:bg-gray-500"
@@ -65,7 +72,12 @@ export function StrengthBar({ value, label }: { value: number; label: string }) 
           style={{ left: `${barLeft}%`, width: `${barWidth}%` }}
         />
       </div>
-      <span className="w-10 text-right font-medium">{value.toFixed(2)}×</span>
+      <span
+        className="w-10 shrink-0 text-right font-medium tabular-nums cursor-help"
+        title={tooltip}
+      >
+        {value.toFixed(2)}×
+      </span>
     </div>
   );
 }
@@ -187,7 +199,7 @@ export function TeamCard({
             </span>
           </button>
           {rankExpanded && (
-            <div className="space-y-2 text-xs mt-2">
+            <div className="space-y-3 text-xs mt-3">
               {allRankAnalyses && allRankAnalyses.length > 0 ? (
                 <RankDeltaScale
                   analysis={rankAnalysis}
@@ -279,6 +291,26 @@ export function TeamCard({
       ) : (
         <p className="text-xs text-gray-400">No EPA data</p>
       )}
+
+      {/* External links footer */}
+      <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs">
+        <a
+          href={`https://www.thebluealliance.com/team/${num}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          The Blue Alliance ↗
+        </a>
+        <a
+          href={`https://www.statbotics.io/team/${num}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          Statbotics ↗
+        </a>
+      </div>
     </div>
   );
 }
