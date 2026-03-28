@@ -153,9 +153,9 @@ The shared package must build before api and web can typecheck. Turborepo handle
 
 ### Exports
 
-- Built with tsup, outputs ESM (`.mjs` + `.d.mts`)
+- Built with tsup, outputs ESM (`.js` + `.d.ts`)
 - All public API is exported from `src/index.ts` (barrel file)
-- Package.json exports must use `.mjs`/`.d.mts` extensions to match tsup output
+- Package.json exports use `.js`/`.d.ts` extensions (correct for `"type": "module"` + tsup ESM output)
 - When adding new modules, update both `src/index.ts` and `package.json` exports
 
 ### GameDefinition Adapters

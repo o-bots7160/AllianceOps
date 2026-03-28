@@ -12,8 +12,9 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/copilot-cli:latest": {}
   },
-  "postCreateCommand": "sudo corepack enable && corepack install && pnpm install && sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true && pnpm db:generate && pnpm db:migrate && cp -n apps/api/local.settings.json.example apps/api/local.settings.json 2>/dev/null; true",
-  "postStartCommand": "if [ -f /signalr-shared/connection-string ]; then CS=$(cat /signalr-shared/connection-string); node -e \"const fs=require('fs');const p='apps/api/local.settings.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.Values.AzureSignalRConnectionString=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\\n');\" \"$CS\" && echo \"SignalR connection string synced: $CS\"; fi",
+  "initializeCommand": "docker --version > /dev/null 2>&1 || (echo 'ERROR: Docker is required but not found.' && exit 1); [ -f .env ] || echo 'WARNING: .env file not found — copy .env.example and fill in values.'",
+  "postCreateCommand": "bash scripts/devcontainer-setup.sh",
+  "postStartCommand": "bash scripts/devcontainer-start.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -36,41 +37,23 @@
       "mcpServers": {
         "tba": {
           "command": "npx",
-          "args": [
-            "-y",
-            "@withinfocus/tba-mcp-server"
-          ],
+          "args": ["-y", "@withinfocus/tba-mcp-server"],
           "env": {
             "TBA_API_KEY": "${localEnv:TBA_API_KEY}"
           }
         },
         "tailwindcss": {
           "command": "npx",
-          "args": [
-            "-y",
-            "tailwindcss-mcp-server"
-          ]
+          "args": ["-y", "tailwindcss-mcp-server"]
         },
         "prisma": {
           "command": "npx",
-          "args": [
-            "prisma",
-            "mcp"
-          ]
+          "args": ["prisma", "mcp"]
         }
       }
     }
   },
-  "forwardPorts": [
-    3000,
-    4280,
-    7071,
-    5432,
-    8888,
-    10000,
-    10001,
-    10002
-  ],
+  "forwardPorts": [3000, 4280, 7071, 5432, 8888, 10000, 10001, 10002],
   "portsAttributes": {
     "3000": {
       "label": "Next.js Web",

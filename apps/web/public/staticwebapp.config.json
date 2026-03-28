@@ -1,7 +1,7 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/_next/*"]
+    "exclude": ["/api/*", "/_next/*", "*.ico", "*.png", "*.jpg", "*.svg"]
   },
   "routes": [
     {
@@ -18,6 +18,22 @@
     },
     {
       "route": "/images/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "*.ico",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "*.png",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "*.jpg",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "*.svg",
       "allowedRoles": ["anonymous"]
     },
     {

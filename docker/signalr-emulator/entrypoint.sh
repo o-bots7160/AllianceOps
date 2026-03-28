@@ -17,7 +17,8 @@ for i in $(seq 1 60); do
 done
 
 # Extract the connection string and write it to the shared volume.
-cs=$(grep -o 'Endpoint=[^ ]*' /tmp/emulator.log | head -1 | tr -d '[:space:]')
+# Replace 0.0.0.0 with the Docker Compose service name so other containers can reach us.
+cs=$(grep -o 'Endpoint=[^ ]*' /tmp/emulator.log | head -1 | tr -d '[:space:]' | sed 's|0\.0\.0\.0|signalr-emulator|g')
 if [ -n "$cs" ]; then
   mkdir -p /shared
   printf '%s' "$cs" > /shared/connection-string
