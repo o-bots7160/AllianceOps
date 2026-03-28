@@ -6,8 +6,41 @@ import { AppHeader } from '../components/app-header';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://allianceops.io'),
   title: 'AllianceOps',
   description: 'FRC match strategy dashboard — powered by TBA and Statbotics',
+  applicationName: 'AllianceOps',
+  appleWebApp: {
+    capable: true,
+    title: 'AllianceOps',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'AllianceOps',
+    description: 'FRC match strategy dashboard — powered by TBA and Statbotics',
+    url: 'https://allianceops.io',
+    siteName: 'AllianceOps',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AllianceOps — FRC Match Strategy Dashboard',
+      },
+    ],
+    type: 'website',
+  },
+  manifest: '/site.webmanifest',
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AllianceOps',
+    description: 'FRC match strategy dashboard — powered by TBA and Statbotics',
+    images: ['/opengraph-image.png'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
