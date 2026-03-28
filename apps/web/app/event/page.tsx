@@ -64,14 +64,26 @@ export default function EventPage() {
 
   const handleSort = useCallback(
     (column: string) => {
-      if (sortColumn === column) {
+      if (column === 'redScore') {
+        if (sortColumn === 'redScore') {
+          if (sortDirection === 'asc') {
+            setSortDirection('desc');
+          } else {
+            setScoreAllianceFilter((a) => (a === 'red' ? 'blue' : 'red'));
+            setSortDirection('asc');
+          }
+        } else {
+          setSortColumn('redScore');
+          setSortDirection('asc');
+        }
+      } else if (sortColumn === column) {
         setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
       } else {
         setSortColumn(column);
         setSortDirection('asc');
       }
     },
-    [sortColumn],
+    [sortColumn, sortDirection],
   );
 
   const displayMatches = useMemo<MatchRow[]>(() => {
@@ -173,6 +185,10 @@ export default function EventPage() {
         key: 'redScore',
         header: 'Score',
         sortable: true,
+        sortIndicatorClassName:
+          scoreAllianceFilter === 'red'
+            ? 'text-red-500'
+            : 'text-blue-500',
         render: (row) => (
           <span className="font-mono">
             {row.alliances.red.score >= 0
@@ -196,13 +212,13 @@ export default function EventPage() {
               : 'text-blue-600 dark:text-blue-400';
           return (
             <span className={`font-mono ${colorClass}`}>
-              {diff > 0 ? `+${diff}` : `${diff}`}
+              {Math.abs(diff)}
             </span>
           );
         },
       },
     ],
-    [myTeamKey],
+    [myTeamKey, scoreAllianceFilter],
   );
 
   const teamEventKeys = useMemo(
@@ -305,47 +321,19 @@ export default function EventPage() {
       {matchesLoading && <LoadingSpinner message="Loading matches..." />}
 
       {displayMatches.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Sort scores by:</span>
-            <div className="inline-flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-xs">
-              <button
-                onClick={() => setScoreAllianceFilter('red')}
-                className={`px-3 py-1 transition-colors ${
-                  scoreAllianceFilter === 'red'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950'
-                }`}
-              >
-                Red
-              </button>
-              <button
-                onClick={() => setScoreAllianceFilter('blue')}
-                className={`px-3 py-1 transition-colors ${
-                  scoreAllianceFilter === 'blue'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950'
-                }`}
-              >
-                Blue
-              </button>
-            </div>
-          </div>
-
-          <DataTable
-            data={displayMatches}
-            columns={matchColumns}
-            keyExtractor={(row) => row.key}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            isRowHighlighted={(row) =>
-              row.alliances.red.team_keys.includes(myTeamKey) ||
-              row.alliances.blue.team_keys.includes(myTeamKey)
-            }
-            emptyMessage="No matches found."
-          />
-        </div>
+        <DataTable
+          data={displayMatches}
+          columns={matchColumns}
+          keyExtractor={(row) => row.key}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          isRowHighlighted={(row) =>
+            row.alliances.red.team_keys.includes(myTeamKey) ||
+            row.alliances.blue.team_keys.includes(myTeamKey)
+          }
+          emptyMessage="No matches found."
+        />
       )}
 
       {eventKey && !matchesLoading && displayMatches.length === 0 && (

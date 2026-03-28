@@ -8,6 +8,7 @@ export interface ColumnDef<T> {
   render?: (row: T, index: number) => ReactNode;
   sortable?: boolean;
   className?: string;
+  sortIndicatorClassName?: string;
 }
 
 export interface DataTableProps<T> {
@@ -27,16 +28,18 @@ function SortIndicator({
   column,
   sortColumn,
   sortDirection,
+  className,
 }: {
   column: string;
   sortColumn?: string;
   sortDirection?: 'asc' | 'desc';
+  className?: string;
 }) {
   if (column !== sortColumn) {
     return <span className="ml-1 text-gray-400 dark:text-gray-600">↕</span>;
   }
   return (
-    <span className="ml-1">
+    <span className={`ml-1${className ? ` ${className}` : ''}`}>
       {sortDirection === 'asc' ? '↑' : '↓'}
     </span>
   );
@@ -103,6 +106,7 @@ export function DataTable<T>({
                         column={String(col.key)}
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
+                        className={col.sortIndicatorClassName}
                       />
                     )}
                   </span>
