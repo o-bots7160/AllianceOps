@@ -32,7 +32,7 @@ A new `diagnosticLevel` parameter (`'full'` | `'essential'`) controls diagnostic
 
 The Log Analytics workspace configuration is now parameterized:
 
-- **Dev/test:** 7-day retention, 0.5 GB daily ingestion cap
+- **Dev/test:** 30-day retention (minimum for PerGB2018 SKU), 0.5 GB daily ingestion cap
 - **Prod:** 30-day retention, 1 GB daily ingestion cap (unchanged)
 
 ### 4. Application Insights Sampling for Dev

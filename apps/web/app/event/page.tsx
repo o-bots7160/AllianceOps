@@ -43,7 +43,7 @@ export default function EventPage() {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [sortColumn, setSortColumn] = useState('_order');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [scoreAllianceFilter, setScoreAllianceFilter] = useState<'red' | 'blue'>('red');
+  const [scoreSortAlliance, setScoreSortAlliance] = useState<'red' | 'blue'>('red');
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
@@ -69,7 +69,7 @@ export default function EventPage() {
           if (sortDirection === 'asc') {
             setSortDirection('desc');
           } else {
-            setScoreAllianceFilter((a) => (a === 'red' ? 'blue' : 'red'));
+            setScoreSortAlliance((a) => (a === 'red' ? 'blue' : 'red'));
             setSortDirection('asc');
           }
         } else {
@@ -99,8 +99,8 @@ export default function EventPage() {
           cmp = a._order - b._order;
           break;
         case 'redScore': {
-          const aScore = a.alliances[scoreAllianceFilter].score;
-          const bScore = b.alliances[scoreAllianceFilter].score;
+          const aScore = a.alliances[scoreSortAlliance].score;
+          const bScore = b.alliances[scoreSortAlliance].score;
           cmp = aScore - bScore;
           break;
         }
@@ -125,7 +125,7 @@ export default function EventPage() {
       }
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [sortedMatches, sortColumn, sortDirection, scoreAllianceFilter]);
+  }, [sortedMatches, sortColumn, sortDirection, scoreSortAlliance]);
 
   const matchColumns = useMemo<ColumnDef<MatchRow>[]>(
     () => [
@@ -184,7 +184,7 @@ export default function EventPage() {
         header: 'Score',
         sortable: true,
         sortIndicatorClassName:
-          scoreAllianceFilter === 'red'
+          scoreSortAlliance === 'red'
             ? 'text-red-500'
             : 'text-blue-500',
         render: (row) => (
@@ -216,7 +216,7 @@ export default function EventPage() {
         },
       },
     ],
-    [myTeamKey, scoreAllianceFilter],
+    [myTeamKey, scoreSortAlliance],
   );
 
   const teamEventKeys = useMemo(
