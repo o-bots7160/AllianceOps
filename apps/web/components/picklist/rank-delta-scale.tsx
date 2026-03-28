@@ -54,18 +54,20 @@ export function RankDeltaScale({ analysis, allAnalyses, showLabels = true }: Ran
 
   return (
     <div className="w-full space-y-1">
-      {/* Determination badge + delta stat */}
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${detLabel?.color ?? ''}`}
-        >
-          {detLabel?.label ?? analysis.determination}
-        </span>
-        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+      {/* Determination badge (centered) + rank stats (right-aligned) */}
+      <div className="space-y-1">
+        <div className="text-center">
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${detLabel?.color ?? ''}`}
+          >
+            {detLabel?.label ?? analysis.determination}
+          </span>
+        </div>
+        <div className="text-right text-[10px] text-gray-500 dark:text-gray-400 font-mono">
           TBA #{analysis.tbaRank} · EPA #{analysis.epaRank} · Δ
           {analysis.rankDelta > 0 ? '+' : ''}
           {analysis.rankDelta}
-        </span>
+        </div>
       </div>
 
       {/* Scale track */}
