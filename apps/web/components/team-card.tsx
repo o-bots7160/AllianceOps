@@ -219,23 +219,23 @@ export function TeamCard({
               {(rankAnalysis.strongPartnerRecord.wins + rankAnalysis.strongPartnerRecord.losses >
                 0 ||
                 rankAnalysis.weakPartnerRecord.wins + rankAnalysis.weakPartnerRecord.losses >
-                  0) && (
-                <div className="flex gap-3 text-gray-500 dark:text-gray-400">
-                  <span>
-                    Strong partners:{' '}
-                    <span className="font-medium text-gray-700 dark:text-gray-200">
-                      {rankAnalysis.strongPartnerRecord.wins}-
-                      {rankAnalysis.strongPartnerRecord.losses}
+                0) && (
+                  <div className="flex gap-3 text-gray-500 dark:text-gray-400">
+                    <span>
+                      Strong partners:{' '}
+                      <span className="font-medium text-gray-700 dark:text-gray-200">
+                        {rankAnalysis.strongPartnerRecord.wins}-
+                        {rankAnalysis.strongPartnerRecord.losses}
+                      </span>
                     </span>
-                  </span>
-                  <span>
-                    Weak partners:{' '}
-                    <span className="font-medium text-gray-700 dark:text-gray-200">
-                      {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
+                    <span>
+                      Weak partners:{' '}
+                      <span className="font-medium text-gray-700 dark:text-gray-200">
+                        {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
+                      </span>
                     </span>
-                  </span>
-                </div>
-              )}
+                  </div>
+                )}
               <p className="text-gray-500 dark:text-gray-400 leading-snug">
                 {rankAnalysis.explanation}
               </p>

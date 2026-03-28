@@ -10,6 +10,7 @@ import { InfoBox } from '../../components/info-box';
 import { StatusBanner } from '../../components/status-banner';
 import { DataTable, type ColumnDef } from '../../components/data-table';
 import { PageGuard } from '../../components/page-guard';
+import { HoverPopover } from '../../components/hover-popover';
 
 interface TBAMatch {
   key: string;
@@ -232,7 +233,20 @@ export default function PathPage() {
         sortable: true,
         render: (row) => {
           const diff = difficultyLabel(row.difficultyScore);
-          return <span className={`font-medium ${diff.color}`}>{diff.label}</span>;
+          return (
+            <HoverPopover
+              trigger={<span className={`font-medium ${diff.color}`}>{diff.label}</span>}
+              width="w-56"
+            >
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                Opp avg EPA {row.oppAvgEpa.toFixed(1)} ÷ field avg {fieldAvg.toFixed(1)} ={' '}
+                <span className={diff.color}>{row.difficultyScore.toFixed(2)}</span>
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                {'> 1.3 = Very Hard, > 1.1 = Hard, > 0.9 = Moderate, ≤ 0.9 = Easy'}
+              </p>
+            </HoverPopover>
+          );
         },
       },
       {
@@ -307,14 +321,38 @@ export default function PathPage() {
               <p className="text-2xl font-bold">{analyzed.length}</p>
               <p className="text-xs text-gray-500">Total Matches</p>
             </div>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-              <p className="text-2xl font-bold">{avgDiff.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">Avg Difficulty</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-              <p className="text-2xl font-bold">{swingCount}</p>
-              <p className="text-xs text-gray-500">Swing Matches</p>
-            </div>
+            <HoverPopover
+              trigger={
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
+                  <p className="text-2xl font-bold">{avgDiff.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">Avg Difficulty</p>
+                </div>
+              }
+              width="w-64"
+            >
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                Opponent avg EPA ÷ field avg EPA, averaged across all matches.
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                Above 1.0 = harder-than-average schedule. Below 1.0 = easier.
+              </p>
+            </HoverPopover>
+            <HoverPopover
+              trigger={
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
+                  <p className="text-2xl font-bold">{swingCount}</p>
+                  <p className="text-xs text-gray-500">Swing Matches</p>
+                </div>
+              }
+              width="w-64"
+            >
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                Matches predicted within 10 points.
+              </p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
+                These are where preparation and execution matter most.
+              </p>
+            </HoverPopover>
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
               <p className="text-2xl font-bold">
                 {analyzed.filter((m) => m.won === true).length}-
