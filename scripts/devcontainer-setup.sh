@@ -15,6 +15,9 @@ fail()  { echo -e "  \033[0;31m✖ $*\033[0m"; exit 1; }
 # ---------------------------------------------------------------------------
 info "Enabling corepack and installing package manager"
 sudo corepack enable || fail "corepack enable failed"
+# Ensure pnpm store dir is writable by the node user (Docker layers may create it as root)
+sudo mkdir -p /home/node/.local/share/pnpm
+sudo chown -R node:node /home/node/.local/share/pnpm
 corepack install     || fail "corepack install failed"
 ok "pnpm $(pnpm --version) ready"
 
