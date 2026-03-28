@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from './use-auth';
 import { GlobalControls } from './global-controls';
 import { NavLinks } from './nav-links';
+import { LOGIN_PROVIDERS } from './login-providers';
 
 function UserMenu({ displayLabel }: { displayLabel: string }) {
   const [open, setOpen] = useState(false);
@@ -65,8 +66,8 @@ function UserMenu({ displayLabel }: { displayLabel: string }) {
               href="/admin/"
               onClick={close}
               className={`block px-4 py-2 text-sm ${adminActive
-                  ? 'text-primary-600 dark:text-primary-400 font-semibold'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
             >
               Admin
@@ -87,6 +88,64 @@ function UserMenu({ displayLabel }: { displayLabel: string }) {
           >
             Log Out
           </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoginMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') close();
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [close]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
+      >
+        Log In
+        <svg
+          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2 z-50">
+          <p className="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">
+            Log in to access match briefings, strategy tools, and team management.
+          </p>
+          {LOGIN_PROVIDERS.map((provider) => (
+            <a
+              key={provider.id}
+              href={provider.href}
+              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              {provider.icon}
+              Log in with {provider.label}
+            </a>
+          ))}
         </div>
       )}
     </div>
@@ -130,12 +189,7 @@ export function AppHeader() {
               {user ? (
                 <UserMenu displayLabel={userLabel} />
               ) : (
-                <a
-                  href="/"
-                  className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-                >
-                  Log In
-                </a>
+                <LoginMenu />
               )}
             </div>
           )}
@@ -221,13 +275,22 @@ export function AppHeader() {
                 </a>
               </>
             ) : (
-              <a
-                href="/"
-                onClick={() => setMobileOpen(false)}
-                className="text-primary-600 dark:text-primary-400 font-medium hover:text-primary-700"
-              >
-                Log In
-              </a>
+              <div className="flex flex-col gap-1">
+                <p className="py-1 text-xs text-gray-500 dark:text-gray-400">
+                  Log in to access match briefings, strategy tools, and team management.
+                </p>
+                {LOGIN_PROVIDERS.map((provider) => (
+                  <a
+                    key={provider.id}
+                    href={provider.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 py-2 text-base text-gray-600 dark:text-gray-400 hover:text-primary-600"
+                  >
+                    {provider.icon}
+                    Log in with {provider.label}
+                  </a>
+                ))}
+              </div>
             )}
           </div>
         </div>

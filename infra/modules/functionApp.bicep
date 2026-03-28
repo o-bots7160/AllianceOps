@@ -28,6 +28,15 @@ param alwaysReadyCount int = 0
 @minValue(1)
 param httpConcurrency int = 16
 
+@description('Diagnostic verbosity level: full = all diagnostics, essential = only critical diagnostics')
+@allowed(['full', 'essential'])
+param diagnosticLevel string = 'full'
+
+@description('Application Insights sampling percentage (1-100). Lower values reduce telemetry volume and cost.')
+@minValue(1)
+@maxValue(100)
+param appInsightsSamplingPercentage int = 100
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
@@ -107,6 +116,10 @@ var aiAppSettings = !empty(appInsightsConnectionString)
       {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
         value: appInsightsConnectionString
+      }
+      {
+        name: 'APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE'
+        value: string(appInsightsSamplingPercentage)
       }
     ]
   : []
@@ -196,8 +209,8 @@ resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-0
   }
 }
 
-// Diagnostic settings: Storage Account blob metrics → Log Analytics
-resource storageBlobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+// Diagnostic settings: Storage Account blob metrics → Log Analytics (full diagnostics only)
+resource storageBlobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId) && diagnosticLevel == 'full') {
   name: 'diag-${storageAccountName}-blob'
   scope: blobService
   properties: {

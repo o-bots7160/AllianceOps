@@ -314,8 +314,8 @@ export function usePicklistData() {
       return true;
     });
 
-    return [...filteredEntries].sort((a, b) => compareEntries(a, b, sortState));
-  }, [entries, search, tagFilters, sortState, hideExcluded]);
+    return [...filteredEntries].sort((a, b) => compareEntries(a, b, sortState, rankAnalysisMap));
+  }, [entries, search, tagFilters, sortState, hideExcluded, rankAnalysisMap]);
 
   const onSort = useCallback((key: SortKey) => {
     setSortState((prev) => {

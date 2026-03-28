@@ -18,6 +18,10 @@ param corsAllowedOrigins array = []
 @description('Log Analytics Workspace resource ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
+@description('Diagnostic verbosity level: full = all diagnostics, essential = only critical diagnostics')
+@allowed(['full', 'essential'])
+param diagnosticLevel string = 'full'
+
 resource signalR 'Microsoft.SignalRService/signalR@2024-03-01' = {
   name: name
   location: location
@@ -55,8 +59,8 @@ output connectionString string = signalR.listKeys().primaryConnectionString
 output hostname string = signalR.properties.hostName
 output resourceId string = signalR.id
 
-// Diagnostic settings: SignalR logs → Log Analytics
-resource signalRDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+// Diagnostic settings: SignalR logs → Log Analytics (full diagnostics only)
+resource signalRDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId) && diagnosticLevel == 'full') {
   name: 'diag-${name}'
   scope: signalR
   properties: {

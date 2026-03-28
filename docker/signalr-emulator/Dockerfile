@@ -5,7 +5,13 @@
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine
 
-RUN dotnet tool install --global Microsoft.Azure.SignalR.Emulator
+# Disable NuGet signature verification — avoids timeouts reaching the
+# repository-signatures endpoint on Linux/Alpine Docker builds.
+ENV DOTNET_NUGET_SIGNATURE_VERIFICATION=false
+
+RUN dotnet tool install --global Microsoft.Azure.SignalR.Emulator \
+    || (echo "Retry 1..." && sleep 5 && dotnet tool install --global Microsoft.Azure.SignalR.Emulator) \
+    || (echo "Retry 2..." && sleep 10 && dotnet tool install --global Microsoft.Azure.SignalR.Emulator)
 
 ENV PATH="/root/.dotnet/tools:${PATH}"
 

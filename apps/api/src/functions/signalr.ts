@@ -74,8 +74,9 @@ function parseConnectionString(): ParsedConnectionString | null {
   const portMatch = cs.match(/Port=(\d+)/i);
   if (!endpointMatch || !keyMatch) return null;
   let endpoint = endpointMatch[1].replace(/\/$/, '');
-  // The emulator's connection string may use 0.0.0.0 (bind-all) which isn't
-  // routable from the Functions container. Rewrite to the Docker service name.
+  // Safety net: the emulator's connection string may still contain 0.0.0.0 if
+  // the shared volume wasn't rewritten by entrypoint.sh. In production, the
+  // endpoint is a public Azure URL and this replace is a no-op.
   endpoint = endpoint.replace('0.0.0.0', 'signalr-emulator');
   if (portMatch) {
     endpoint = `${endpoint}:${portMatch[1]}`;

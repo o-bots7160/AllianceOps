@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback } from 'react';
-import { DETERMINATION_LABELS } from '@/components/team-card';
+import { useCallback, useMemo } from 'react';
 import { TagDropdown } from './tag-filter-control';
+import { RankDeltaPopover } from './rank-delta-popover';
 import type { PicklistEntry, SortKey, SortState } from './types';
 import type { TeamRankAnalysis } from '@allianceops/shared';
 
@@ -47,6 +47,11 @@ export function PicklistTable({
     [sortState],
   );
 
+  const allAnalyses = useMemo(
+    () => Array.from(rankAnalysisMap.values()),
+    [rankAnalysisMap],
+  );
+
   return (
     <div>
       <table className="w-full text-sm">
@@ -79,8 +84,17 @@ export function PicklistTable({
                 TBA Rank{sortLabelFor('tbaRank')}
               </button>
             </th>
-            <th className="hidden lg:table-cell py-2 px-2">
-              <span className="font-semibold">Analysis</span>
+            <th
+              className="hidden lg:table-cell py-2 px-2"
+              aria-sort={ariaSortFor('analysis')}
+            >
+              <button
+                type="button"
+                onClick={() => onSort('analysis')}
+                className="font-semibold"
+              >
+                Analysis{sortLabelFor('analysis')}
+              </button>
             </th>
             <th className="py-2 px-2 text-center" aria-sort={ariaSortFor('epaRank')}>
               <button type="button" onClick={() => onSort('epaRank')} className="font-semibold">
@@ -200,23 +214,11 @@ export function PicklistTable({
                 <td className="py-2 px-2 font-mono text-center">{entry.tbaRank ?? '-'}</td>
                 <td className="hidden lg:table-cell py-2 px-2 text-center">
                   {analysis && (
-                    <button
-                      type="button"
+                    <RankDeltaPopover
+                      analysis={analysis}
+                      allAnalyses={allAnalyses}
                       onClick={() => onTeamClick(entry.teamNumber)}
-                      className={`text-[10px] font-semibold leading-tight cursor-pointer hover:underline ${
-                        analysis.determination === 'accurate'
-                          ? 'text-green-600 dark:text-green-400'
-                          : analysis.determination === 'carried' ||
-                              analysis.determination === 'easy_schedule' ||
-                              analysis.determination === 'favorable'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-blue-600 dark:text-blue-400'
-                      }`}
-                      title={analysis.explanation}
-                    >
-                      {DETERMINATION_LABELS[analysis.determination]?.label ??
-                        analysis.determination}
-                    </button>
+                    />
                   )}
                 </td>
                 <td className="py-2 px-2 font-mono text-center">{entry.epaRank}</td>

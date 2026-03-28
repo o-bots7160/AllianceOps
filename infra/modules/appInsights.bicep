@@ -7,6 +7,14 @@ param logAnalyticsName string
 @description('Azure region')
 param location string
 
+@description('Log Analytics data retention in days (minimum 30 for PerGB2018 SKU)')
+@minValue(30)
+@maxValue(730)
+param retentionInDays int = 30
+
+@description('Log Analytics daily ingestion cap in GB (string to support decimal values like "0.5")')
+param dailyQuotaGb string = '1'
+
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsName
   location: location
@@ -14,9 +22,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     sku: {
       name: 'PerGB2018'
     }
-    retentionInDays: 30
+    retentionInDays: retentionInDays
     workspaceCapping: {
-      dailyQuotaGb: 1
+      dailyQuotaGb: json(dailyQuotaGb)
     }
   }
 }

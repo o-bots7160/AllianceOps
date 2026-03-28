@@ -1,0 +1,20 @@
+# Build outputs
+dist/
+out/
+.next/
+.turbo/
+
+# Dependencies
+node_modules/
+
+# Lock files
+pnpm-lock.yaml
+
+# Prisma migrations (auto-generated SQL, do not reformat)
+apps/api/prisma/migrations/
+
+# Bicep compiled output
+infra/main.json
+
+# Deploy simulation staging
+.deploy-staging/

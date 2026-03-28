@@ -13,3 +13,7 @@ param customDomains = [
 param functionAlwaysReadyCount = 1
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 param tbaApiKey = readEnvironmentVariable('TBA_API_KEY', '')
+param diagnosticLevel = 'full'
+param logRetentionDays = 30
+param logDailyCapGb = '1'
+param appInsightsSamplingPercentage = 100

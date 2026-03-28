@@ -43,6 +43,7 @@ export default function EventPage() {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [sortColumn, setSortColumn] = useState('_order');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [scoreSortAlliance, setScoreSortAlliance] = useState<'red' | 'blue'>('red');
 
   const { data: teamEvents } = useApi<TBAEvent[]>(
     teamNumber && year ? `team/${teamNumber}/events?year=${year}` : null,
@@ -63,14 +64,26 @@ export default function EventPage() {
 
   const handleSort = useCallback(
     (column: string) => {
-      if (sortColumn === column) {
+      if (column === 'redScore') {
+        if (sortColumn === 'redScore') {
+          if (sortDirection === 'asc') {
+            setSortDirection('desc');
+          } else {
+            setScoreSortAlliance((a) => (a === 'red' ? 'blue' : 'red'));
+            setSortDirection('asc');
+          }
+        } else {
+          setSortColumn('redScore');
+          setSortDirection('asc');
+        }
+      } else if (sortColumn === column) {
         setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
       } else {
         setSortColumn(column);
         setSortDirection('asc');
       }
     },
-    [sortColumn],
+    [sortColumn, sortDirection],
   );
 
   const displayMatches = useMemo<MatchRow[]>(() => {
@@ -85,15 +98,34 @@ export default function EventPage() {
         case 'comp_level':
           cmp = a._order - b._order;
           break;
-        case 'redScore':
-          cmp = a.alliances.red.score - b.alliances.red.score;
+        case 'redScore': {
+          const aScore = a.alliances[scoreSortAlliance].score;
+          const bScore = b.alliances[scoreSortAlliance].score;
+          cmp = aScore - bScore;
           break;
+        }
+        case 'margin': {
+          const aPlayed = a.alliances.red.score >= 0;
+          const bPlayed = b.alliances.red.score >= 0;
+          if (!aPlayed && !bPlayed) {
+            cmp = 0;
+          } else if (!aPlayed) {
+            cmp = -1;
+          } else if (!bPlayed) {
+            cmp = 1;
+          } else {
+            const aMargin = Math.abs(a.alliances.red.score - a.alliances.blue.score);
+            const bMargin = Math.abs(b.alliances.red.score - b.alliances.blue.score);
+            cmp = aMargin - bMargin;
+          }
+          break;
+        }
         default:
           cmp = a._order - b._order;
       }
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [sortedMatches, sortColumn, sortDirection]);
+  }, [sortedMatches, sortColumn, sortDirection, scoreSortAlliance]);
 
   const matchColumns = useMemo<ColumnDef<MatchRow>[]>(
     () => [
@@ -117,11 +149,10 @@ export default function EventPage() {
             {row.alliances.red.team_keys.map((t) => (
               <span
                 key={t}
-                className={`inline-block mr-2 ${
-                  t === myTeamKey
+                className={`inline-block mr-2 ${t === myTeamKey
                     ? 'font-bold text-primary-600'
                     : 'text-red-700 dark:text-red-400'
-                }`}
+                  }`}
               >
                 {teamDisplay(t)}
               </span>
@@ -137,11 +168,10 @@ export default function EventPage() {
             {row.alliances.blue.team_keys.map((t) => (
               <span
                 key={t}
-                className={`inline-block mr-2 ${
-                  t === myTeamKey
+                className={`inline-block mr-2 ${t === myTeamKey
                     ? 'font-bold text-primary-600'
                     : 'text-blue-700 dark:text-blue-400'
-                }`}
+                  }`}
               >
                 {teamDisplay(t)}
               </span>
@@ -153,6 +183,10 @@ export default function EventPage() {
         key: 'redScore',
         header: 'Score',
         sortable: true,
+        sortIndicatorClassName:
+          scoreSortAlliance === 'red'
+            ? 'text-red-500'
+            : 'text-blue-500',
         render: (row) => (
           <span className="font-mono">
             {row.alliances.red.score >= 0
@@ -161,8 +195,28 @@ export default function EventPage() {
           </span>
         ),
       },
+      {
+        key: 'margin',
+        header: 'Margin',
+        sortable: true,
+        render: (row) => {
+          if (row.alliances.red.score < 0) return <span className="font-mono">—</span>;
+          const diff = row.alliances.red.score - row.alliances.blue.score;
+          if (diff === 0) return <span className="font-mono text-gray-500">0</span>;
+          const winner = diff > 0 ? 'red' : 'blue';
+          const colorClass =
+            winner === 'red'
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-blue-600 dark:text-blue-400';
+          return (
+            <span className={`font-mono ${colorClass}`}>
+              {Math.abs(diff)}
+            </span>
+          );
+        },
+      },
     ],
-    [myTeamKey],
+    [myTeamKey, scoreSortAlliance],
   );
 
   const teamEventKeys = useMemo(
@@ -222,8 +276,8 @@ export default function EventPage() {
                     key={ev.key}
                     onClick={() => setEventKey(ev.key)}
                     className={`text-left rounded-lg border p-3 text-sm transition-colors ${isSelected
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
                       }`}
                   >
                     <div className="font-medium flex items-center gap-2">

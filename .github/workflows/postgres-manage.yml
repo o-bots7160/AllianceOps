@@ -1,0 +1,96 @@
+# Manage PostgreSQL Flexible Server start/stop to save costs on dev.
+#
+# - Nightly schedule stops the dev server (it's only needed during deployments)
+# - Manual dispatch allows starting/stopping any environment
+# - The deploy workflow auto-starts the server before migrations, so no
+#   manual intervention is needed for deployments.
+name: PostgreSQL Manage
+
+on:
+  schedule:
+    # Every night at 4:00 AM UTC — stop the dev server
+    - cron: '0 4 * * *'
+
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Action to perform
+        required: true
+        type: choice
+        options:
+          - start
+          - stop
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        default: dev
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: postgres-manage-${{ inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  manage:
+    name: ${{ github.event_name == 'schedule' && 'Stop dev' || format('{0} {1}', inputs.action, inputs.environment) }} PostgreSQL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Scheduled runs always stop the dev server
+      - name: Stop Dev PostgreSQL (scheduled)
+        if: github.event_name == 'schedule'
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            echo "Stopping psql-aops-dev..."
+            az postgres flexible-server stop \
+              --resource-group rg-aops-dev \
+              --name psql-aops-dev \
+              --only-show-errors || echo "::warning::Stop command failed — server may already be stopped"
+
+      # Manual dispatch: start or stop the chosen environment
+      - name: ${{ inputs.action == 'start' && 'Start' || 'Stop' }} PostgreSQL (manual)
+        if: github.event_name == 'workflow_dispatch'
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            SERVER="psql-aops-${{ inputs.environment }}"
+            RG="rg-aops-${{ inputs.environment }}"
+            ACTION="${{ inputs.action }}"
+
+            echo "${ACTION^}ing ${SERVER}..."
+            az postgres flexible-server $ACTION \
+              --resource-group $RG \
+              --name $SERVER \
+              --only-show-errors || echo "::warning::${ACTION^} command failed — server may already be in desired state"
+
+            # For start: verify the server is ready
+            if [ "$ACTION" = "start" ]; then
+              echo "Verifying server state..."
+              STATE=$(az postgres flexible-server show \
+                --resource-group $RG \
+                --name $SERVER \
+                --query state -o tsv \
+                --only-show-errors)
+              echo "Server state: $STATE"
+              if [ "$STATE" != "Ready" ]; then
+                echo "::error::Server is not in Ready state after start (state: $STATE)"
+                exit 1
+              fi
+            fi
