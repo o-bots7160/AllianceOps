@@ -12,6 +12,7 @@ import { LoadingSpinner } from '../../components/loading-spinner';
 import { PageGuard } from '../../components/page-guard';
 import { StatusBanner } from '../../components/status-banner';
 import { TeamCard } from '../../components/team-card';
+import { useScoutingSummaries } from '../../hooks/use-scouting-summaries';
 import { getAdapter, analyzeAllRankDiscrepancies } from '@allianceops/shared';
 import type { EnrichedTeam } from '../../lib/types';
 
@@ -42,6 +43,9 @@ export default function BriefingPage() {
     (adapter?.gameSpecificMetrics ?? []).filter(
       (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
     );
+  const scoutingFields = adapter?.scoutingFields ?? [];
+
+  const { summaryMap: scoutingSummaryMap } = useScoutingSummaries(eventKey);
 
   const { data: rawMatches, loading: matchesLoading, error: matchesError } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
@@ -213,6 +217,8 @@ export default function BriefingPage() {
                 epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
                 rankAnalysis={rankAnalysisMap.get(t)}
+                scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
+                scoutingFields={scoutingFields}
               />
             ))}
           </div>
@@ -231,6 +237,8 @@ export default function BriefingPage() {
                 epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
                 record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
                 rankAnalysis={rankAnalysisMap.get(t)}
+                scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
+                scoutingFields={scoutingFields}
               />
             ))}
           </div>

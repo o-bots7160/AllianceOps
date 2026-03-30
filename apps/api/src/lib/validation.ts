@@ -13,14 +13,12 @@ export const UpsertMatchPlanSchema = z.object({
   ),
 });
 
-
 export const UpsertPicklistSchema = z.object({
   entries: z.array(
     z.object({
       teamNumber: z.int().positive(),
       rank: z.int().nonnegative(),
       tags: z.array(z.string()),
-      notes: z.string(),
       excluded: z.boolean(),
     }),
   ),
@@ -52,6 +50,15 @@ export const ChangeMemberRoleSchema = z.object({
 export const TeamSiteBatchSchema = z.object({
   teamNumbers: z.array(z.int().positive()).min(1).max(10),
   year: z.int().positive(),
+});
+
+export const UpsertScoutingNoteSchema = z.object({
+  notes: z.string(),
+  data: z.record(z.string(), z.unknown()),
+});
+
+export const UpdateTeamTagsSchema = z.object({
+  tags: z.array(z.string()),
 });
 
 // ─── Validation Helpers ──────────────────────────────────
@@ -129,8 +136,6 @@ export function requiredNumericParam(
 }
 
 /** Type guard: check if requiredNumericParam result is an error response. */
-export function isNumericParamError(
-  result: number | HttpResponseInit,
-): result is HttpResponseInit {
+export function isNumericParamError(result: number | HttpResponseInit): result is HttpResponseInit {
   return typeof result !== 'number';
 }

@@ -18,14 +18,12 @@ export interface PicklistEntry {
   rank: number;
   excluded: boolean;
   tags: string[];
-  notes: string;
 }
 
 export interface SavedPicklistEntry {
   teamNumber: number;
   rank: number;
   tags: string[] | string;
-  notes: string | null;
   excluded: boolean;
 }
 
@@ -54,7 +52,6 @@ export type SortKey =
   | 'epaTeleop'
   | 'epaEndgame'
   | 'tags'
-  | 'notes'
   | 'excluded';
 
 export interface SortState {

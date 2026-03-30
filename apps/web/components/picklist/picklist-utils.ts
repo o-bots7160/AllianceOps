@@ -29,7 +29,6 @@ export function generatePicklist(teams: EnrichedTeam[]): PicklistEntry[] {
       rank: 0,
       excluded: false,
       tags: [] as string[],
-      notes: '',
     }))
     .sort((a, b) => b.score - a.score || a.teamNumber - b.teamNumber)
     .map((t, i) => ({ ...t, rank: i + 1, epaRank: i + 1 }));
@@ -49,7 +48,6 @@ export function defaultDirectionForKey(key: SortKey): SortDirection {
     case 'epaEndgame':
       return 'desc';
     case 'tags':
-    case 'notes':
     case 'excluded':
       return 'asc';
     default:
@@ -117,11 +115,6 @@ export function compareEntries(
       if (cmp !== 0) return cmp * textFactor;
       return a.teamNumber - b.teamNumber;
     }
-    case 'notes': {
-      const cmp = a.notes.localeCompare(b.notes);
-      if (cmp !== 0) return cmp * textFactor;
-      return a.teamNumber - b.teamNumber;
-    }
     case 'excluded': {
       const aValue = a.excluded ? 1 : 0;
       const bValue = b.excluded ? 1 : 0;
@@ -144,7 +137,7 @@ export function mergePicklist(
     const s = savedMap.get(entry.teamNumber);
     if (!s) return entry;
     const tags = Array.isArray(s.tags) ? s.tags : [];
-    return { ...entry, rank: s.rank, excluded: s.excluded, tags, notes: s.notes ?? '' };
+    return { ...entry, rank: s.rank, excluded: s.excluded, tags };
   });
   // Re-sort by saved rank
   merged.sort((a, b) => a.rank - b.rank);

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { GameMetricDefinition, TeamRankAnalysis } from '@allianceops/shared';
+import Link from 'next/link';
+import type { GameMetricDefinition, TeamRankAnalysis, ScoutingSummary, ScoutingFieldDefinition } from '@allianceops/shared';
 import type { EnrichedTeam } from '../lib/types';
 import { EpaBreakdown } from './team-card/epa-breakdown';
 import { GameBreakdown } from './team-card/game-breakdown';
@@ -56,6 +57,7 @@ export interface SectionExpandState {
   rank: boolean;
   epa: boolean;
   game: boolean;
+  scouting: boolean;
 }
 
 export function TeamCard({
@@ -69,6 +71,8 @@ export function TeamCard({
   allRankAnalyses,
   sectionState,
   onSectionToggle,
+  scoutingSummary,
+  scoutingFields,
 }: {
   teamKey: string;
   epaMap: Map<number, EnrichedTeam>;
@@ -80,6 +84,8 @@ export function TeamCard({
   allRankAnalyses?: TeamRankAnalysis[];
   sectionState?: SectionExpandState;
   onSectionToggle?: (section: keyof SectionExpandState) => void;
+  scoutingSummary?: ScoutingSummary | null;
+  scoutingFields?: ScoutingFieldDefinition[];
 }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
@@ -92,10 +98,12 @@ export function TeamCard({
   const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
   const [localRankExpanded, setLocalRankExpanded] = useState(defaultExpanded);
   const [localEpaExpanded, setLocalEpaExpanded] = useState(defaultExpanded);
+  const [localScoutingExpanded, setLocalScoutingExpanded] = useState(false);
 
   const expanded = sectionState ? sectionState.game : localExpanded;
   const rankExpanded = sectionState ? sectionState.rank : localRankExpanded;
   const epaExpanded = sectionState ? sectionState.epa : localEpaExpanded;
+  const scoutingExpanded = sectionState ? sectionState.scouting : localScoutingExpanded;
 
   const toggleExpanded = () =>
     onSectionToggle ? onSectionToggle('game') : setLocalExpanded((v) => !v);
@@ -103,9 +111,12 @@ export function TeamCard({
     onSectionToggle ? onSectionToggle('rank') : setLocalRankExpanded((v) => !v);
   const toggleEpaExpanded = () =>
     onSectionToggle ? onSectionToggle('epa') : setLocalEpaExpanded((v) => !v);
+  const toggleScoutingExpanded = () =>
+    onSectionToggle ? onSectionToggle('scouting') : setLocalScoutingExpanded((v) => !v);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-5">
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col h-full">
+      <div className="space-y-5 flex-1">
       {/* Header: team number + nickname */}
       <div className="flex justify-between items-center">
         <span className="font-bold text-lg">{num}</span>
@@ -253,8 +264,81 @@ export function TeamCard({
         <p className="text-xs text-gray-400">No EPA data</p>
       )}
 
-      {/* External links footer */}
-      <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs">
+      {/* Scouting section — always shown when scoutingFields provided */}
+      {scoutingFields && scoutingFields.length > 0 && (
+        <div className="text-xs">
+          <button
+            type="button"
+            onClick={toggleScoutingExpanded}
+            className="flex items-center gap-1 w-full text-left"
+          >
+            <svg
+              className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${scoutingExpanded ? 'rotate-90' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="font-medium text-gray-500 dark:text-gray-400">Scouting</span>
+          </button>
+          {scoutingExpanded && (
+            <div className="mt-2 space-y-2 pl-4">
+              {scoutingSummary?.hasScouting ? (
+                <>
+                  {scoutingSummary.notePreview && (
+                    <p className="text-gray-600 dark:text-gray-300 leading-snug italic">
+                      &ldquo;{scoutingSummary.notePreview}&rdquo;
+                    </p>
+                  )}
+                  {scoutingSummary.data && (
+                    <div className="space-y-1">
+                      {scoutingFields
+                        .filter((f) => {
+                          const v = scoutingSummary.data[f.key];
+                          if (v == null) return false;
+                          if (Array.isArray(v)) return v.length > 0;
+                          if (typeof v === 'string') return v.length > 0;
+                          return true;
+                        })
+                        .map((f) => {
+                          const v = scoutingSummary.data[f.key];
+                          const display = Array.isArray(v) ? (v as string[]).join(', ') : String(v);
+                          return (
+                            <div key={f.key} className="flex gap-1.5">
+                              <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                                {f.label}:
+                              </span>
+                              <span className="text-gray-700 dark:text-gray-200 font-medium">
+                                {display}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">
+                  Scouting has not been completed for this team.
+                </p>
+              )}
+              <Link
+                href={`/scouting/${num}/`}
+                className="mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {scoutingSummary?.hasScouting ? 'View Full Analysis →' : 'Start Scouting →'}
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      </div>
+
+      {/* External links footer — pinned to bottom */}
+      <div className="flex items-center gap-3 pt-2 mt-5 border-t border-gray-200 dark:border-gray-700 text-xs">
         <a
           href={`https://www.thebluealliance.com/team/${num}`}
           target="_blank"

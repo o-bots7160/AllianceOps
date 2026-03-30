@@ -201,4 +201,56 @@ describe('2026 REBUILT adapter', () => {
       }
     });
   });
+
+  describe('scoutingFields', () => {
+    const fields = adapter.scoutingFields ?? [];
+
+    it('defines scouting fields', () => {
+      expect(fields.length).toBeGreaterThan(0);
+    });
+
+    it('has unique field keys', () => {
+      const keys = fields.map((f) => f.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('every field has label and description', () => {
+      for (const f of fields) {
+        expect(f.label).toBeTruthy();
+        expect(f.description).toBeTruthy();
+      }
+    });
+
+    it('covers auto, teleop, and endgame categories', () => {
+      const categories = new Set(fields.map((f) => f.category));
+      expect(categories).toContain('auto');
+      expect(categories).toContain('teleop');
+      expect(categories).toContain('endgame');
+    });
+
+    it('select fields have options defined', () => {
+      const selectFields = fields.filter((f) => f.type === 'select');
+      expect(selectFields.length).toBeGreaterThan(0);
+      for (const f of selectFields) {
+        expect(f.options).toBeDefined();
+        expect(f.options!.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('epaKey references match gameSpecificMetrics keys', () => {
+      const metricKeys = new Set((adapter.gameSpecificMetrics ?? []).map((m) => m.key));
+      const fieldsWithEpa = fields.filter((f) => f.epaKey);
+      expect(fieldsWithEpa.length).toBeGreaterThan(0);
+      for (const f of fieldsWithEpa) {
+        expect(metricKeys.has(f.epaKey!)).toBe(true);
+      }
+    });
+
+    it('has field types that are valid', () => {
+      const validTypes = ['number', 'boolean', 'select', 'text'];
+      for (const f of fields) {
+        expect(validTypes).toContain(f.type);
+      }
+    });
+  });
 });

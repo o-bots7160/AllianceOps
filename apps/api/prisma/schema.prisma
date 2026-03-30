@@ -63,6 +63,7 @@ model Team {
   joinRequests JoinRequest[]
   matchPlans   MatchPlan[]
   picklists    Picklist[]
+  scoutingNotes ScoutingNote[]
 }
 
 model TeamMember {
@@ -175,11 +176,30 @@ model PicklistEntry {
   teamNumber Int
   rank       Int
   tags       Json    @default("[]")
-  notes      String?
   excluded   Boolean @default(false)
 
   picklist Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
 
   @@unique([picklistId, teamNumber])
   @@index([picklistId, rank])
+}
+
+// ─── Scouting Notes ──────────────────────────────────────
+
+model ScoutingNote {
+  id               String   @id @default(cuid())
+  teamId           String
+  eventKey         String
+  targetTeamNumber Int
+  notes            String   @default("")
+  data             Json     @default("{}")
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, eventKey, targetTeamNumber])
+  @@index([eventKey])
+  @@index([teamId])
 }

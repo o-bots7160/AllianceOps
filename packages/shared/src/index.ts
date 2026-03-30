@@ -25,7 +25,9 @@ export type {
   DutyTemplate,
   DutyTemplateSlot,
   GameMetricDefinition,
+  ScoutingFieldDefinition,
 } from './types/game-definition.js';
+export type { ScoutingEntry, ScoutingSummary } from './types/scouting.js';
 export type {
   AdminStats,
   AdminUserListItem,
@@ -57,10 +59,7 @@ export { generatePicklist } from './strategy/picklist.js';
 export type { PicklistTeam, PicklistSignals, PicklistWeights } from './strategy/picklist.js';
 export { analyzeRankDiscrepancy, analyzeAllRankDiscrepancies } from './strategy/rank-analysis.js';
 export type { TeamRankAnalysis, RankDetermination } from './strategy/rank-analysis.js';
-export {
-  computeAllianceStrength,
-  computeFieldAvgEpa,
-} from './strategy/analysis-utils.js';
+export { computeAllianceStrength, computeFieldAvgEpa } from './strategy/analysis-utils.js';
 
 // Auth
 export type { AuthUser, UserRole, AuthProvider, SWAAuthProviderOptions } from './auth/index.js';

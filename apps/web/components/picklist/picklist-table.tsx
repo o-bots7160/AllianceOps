@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { TagDropdown } from './tag-filter-control';
 import { RankDeltaPopover } from './rank-delta-popover';
 import type { PicklistEntry, SortKey, SortState } from './types';
-import type { TeamRankAnalysis } from '@allianceops/shared';
+import type { TeamRankAnalysis, ScoutingSummary } from '@allianceops/shared';
 
 interface PicklistTableProps {
   entries: PicklistEntry[];
@@ -14,6 +15,7 @@ interface PicklistTableProps {
   teamNumber: number;
   allTags: string[];
   rankAnalysisMap: Map<string, TeamRankAnalysis>;
+  scoutingSummaryMap: Map<number, ScoutingSummary>;
   updateEntries: (updater: (prev: PicklistEntry[]) => PicklistEntry[]) => void;
   setSortState: (state: SortState) => void;
   onTeamClick: (teamNumber: number) => void;
@@ -27,6 +29,7 @@ export function PicklistTable({
   teamNumber,
   allTags,
   rankAnalysisMap,
+  scoutingSummaryMap,
   updateEntries,
   setSortState,
   onTeamClick,
@@ -142,10 +145,8 @@ export function PicklistTable({
                 Tags{sortLabelFor('tags')}
               </button>
             </th>
-            <th className="hidden lg:table-cell py-2 px-2" aria-sort={ariaSortFor('notes')}>
-              <button type="button" onClick={() => onSort('notes')} className="font-semibold">
-                Notes{sortLabelFor('notes')}
-              </button>
+            <th className="py-2 px-2 text-center">
+              <span className="font-semibold">Scouted</span>
             </th>
           </tr>
         </thead>
@@ -235,36 +236,36 @@ export function PicklistTable({
                   {entry.epaEndgame.toFixed(1)}
                 </td>
                 <td className="py-2 px-2">
-                  <TagDropdown
-                    tags={entry.tags}
-                    allTags={allTags}
-                    disabled={!canEdit}
-                    onChange={(newTags) =>
-                      updateEntries((prev) =>
-                        prev.map((p) =>
-                          p.teamNumber === entry.teamNumber ? { ...p, tags: newTags } : p,
-                        ),
-                      )
-                    }
-                  />
+                  <div className="flex flex-wrap items-center gap-1">
+                    <TagDropdown
+                      tags={entry.tags}
+                      allTags={allTags}
+                      disabled={!canEdit}
+                      onChange={(newTags) =>
+                        updateEntries((prev) =>
+                          prev.map((p) =>
+                            p.teamNumber === entry.teamNumber ? { ...p, tags: newTags } : p,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
                 </td>
-                <td className="hidden lg:table-cell py-2 px-2">
-                  <input
-                    type="text"
-                    placeholder="Notes..."
-                    value={entry.notes}
-                    onChange={(e) =>
-                      updateEntries((prev) =>
-                        prev.map((p) =>
-                          p.teamNumber === entry.teamNumber
-                            ? { ...p, notes: e.target.value }
-                            : p,
-                        ),
-                      )
-                    }
-                    disabled={!canEdit}
-                    className="w-32 rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1 py-0.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+                <td className="py-2 px-2 text-center">
+                  <Link
+                    href={`/scouting/${entry.teamNumber}/`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {scoutingSummaryMap.has(entry.teamNumber) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 text-xs font-medium hover:bg-green-200 dark:hover:bg-green-900/60 transition-colors">
+                        ✓ Scouted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        —
+                      </span>
+                    )}
+                  </Link>
                 </td>
               </tr>
             );

@@ -68,6 +68,24 @@ export interface GameMetricDefinition {
   higherIsBetter: boolean;
 }
 
+/** A scouting form field defined by the adapter for manual observation capture */
+export interface ScoutingFieldDefinition {
+  /** Unique key for this field (used as JSON key in stored data) */
+  key: string;
+  /** Human-readable label */
+  label: string;
+  /** Tooltip or helper text */
+  description: string;
+  /** Input type */
+  type: 'number' | 'boolean' | 'select' | 'multi-select' | 'text';
+  /** Options for 'select' type fields */
+  options?: string[];
+  /** Phase/section grouping for form layout */
+  category: 'auto' | 'teleop' | 'endgame';
+  /** Link to an EPA breakdown key (for cross-referencing observed vs computed) */
+  epaKey?: string;
+}
+
 /** Per-season game definition adapter */
 export interface GameDefinition {
   year: number;
@@ -84,4 +102,7 @@ export interface GameDefinition {
 
   /** Optional game-specific metrics beyond the generic buckets */
   gameSpecificMetrics?: GameMetricDefinition[];
+
+  /** Optional scouting form fields for manual team analysis */
+  scoutingFields?: ScoutingFieldDefinition[];
 }

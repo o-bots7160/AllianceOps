@@ -145,7 +145,25 @@ export default function Home() {
           FRC Match Strategy Dashboard
         </p>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-          Powered by The Blue Alliance &amp; Statbotics — zero scouting required
+          Data at your fingertips in the pit and on the field — powered by{' '}
+          <a
+            href="https://www.thebluealliance.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-gray-300"
+          >
+            The Blue Alliance
+          </a>{' '}
+          &amp;{' '}
+          <a
+            href="https://www.statbotics.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-gray-300"
+          >
+            Statbotics
+          </a>
+          .
         </p>
       </div>
 
