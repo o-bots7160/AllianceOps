@@ -247,7 +247,7 @@ describe('2026 REBUILT adapter', () => {
     });
 
     it('has field types that are valid', () => {
-      const validTypes = ['number', 'boolean', 'select', 'text'];
+      const validTypes = ['number', 'boolean', 'select', 'multi-select', 'text'];
       for (const f of fields) {
         expect(validTypes).toContain(f.type);
       }
