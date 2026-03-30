@@ -255,7 +255,18 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     } catch {
       setSaveStatus('error');
     }
-  }, [selectedTeamNumber, teamId, eventKey, canEdit, notes, data, tags, tagsDirty, API_BASE, loadSummaries]);
+  }, [
+    selectedTeamNumber,
+    teamId,
+    eventKey,
+    canEdit,
+    notes,
+    data,
+    tags,
+    tagsDirty,
+    API_BASE,
+    loadSummaries,
+  ]);
 
   // --- SignalR ---
   const signalR = useSignalR(isOwnTeam);
@@ -310,7 +321,17 @@ export function useScoutingData(selectedTeamNumber: number | null) {
       signalR.off('scouting-updated', handler);
       signalR.off('picklist-updated', picklistHandler);
     };
-  }, [signalR, eventKey, user, selectedTeamNumber, dirty, tagsDirty, loadSummaries, loadNote, loadTags]);
+  }, [
+    signalR,
+    eventKey,
+    user,
+    selectedTeamNumber,
+    dirty,
+    tagsDirty,
+    loadSummaries,
+    loadNote,
+    loadTags,
+  ]);
 
   // --- Autosave ---
   const { autosaveEnabled, toggleAutosave } = useAutosave({

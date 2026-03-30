@@ -117,223 +117,223 @@ export function TeamCard({
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col h-full">
       <div className="space-y-5 flex-1">
-      {/* Header: team number + nickname */}
-      <div className="flex justify-between items-center">
-        <span className="font-bold text-lg">{num}</span>
-        {data?.nickname && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
-            {data.nickname}
-          </span>
-        )}
-      </div>
-
-      {/* Metadata: rank, EPA rank, W-L record — collapsible when analysis available */}
-      {rankAnalysis ? (
-        <div className="text-xs">
-          <button
-            type="button"
-            onClick={toggleRankExpanded}
-            className="flex items-center gap-1 w-full text-left"
-          >
-            <svg
-              className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${rankExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium text-gray-500 dark:text-gray-400">Rank Analysis</span>
-            <RankStats
-              tbaRank={data?.tbaRank}
-              epaRank={epaRank}
-              rankDelta={rankAnalysis.rankDelta}
-              className="ml-auto"
-            >
-              {displayRecord && (
-                <span>
-                  <span className="text-green-600 dark:text-green-400 font-medium">
-                    {displayRecord.wins}W
-                  </span>{' '}
-                  <span className="text-red-600 dark:text-red-400 font-medium">
-                    {displayRecord.losses}L
-                  </span>
-                  {displayRecord.ties > 0 && (
-                    <>
-                      {' '}
-                      <span className="font-medium">{displayRecord.ties}T</span>
-                    </>
-                  )}
-                  {!record && data?.winrate != null && (
-                    <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
-                  )}
-                </span>
-              )}
-            </RankStats>
-          </button>
-          {rankExpanded && (
-            <div className="space-y-3 text-xs mt-3">
-              {allRankAnalyses && allRankAnalyses.length > 0 ? (
-                <RankDeltaScale
-                  analysis={rankAnalysis}
-                  allAnalyses={allRankAnalyses}
-                  showRankStats={false}
-                  alignBadgeToScale
-                />
-              ) : (
-                <DeterminationBadge determination={rankAnalysis.determination} />
-              )}
-              <div className="space-y-1">
-                <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />
-                <StrengthBar value={rankAnalysis.opponentStrength} label="Opponents" />
-              </div>
-              {(rankAnalysis.strongPartnerRecord.wins + rankAnalysis.strongPartnerRecord.losses >
-                0 ||
-                rankAnalysis.weakPartnerRecord.wins + rankAnalysis.weakPartnerRecord.losses >
-                0) && (
-                  <div className="flex gap-3 text-gray-500 dark:text-gray-400">
-                    <span>
-                      Strong partners:{' '}
-                      <span className="font-medium text-gray-700 dark:text-gray-200">
-                        {rankAnalysis.strongPartnerRecord.wins}-
-                        {rankAnalysis.strongPartnerRecord.losses}
-                      </span>
-                    </span>
-                    <span>
-                      Weak partners:{' '}
-                      <span className="font-medium text-gray-700 dark:text-gray-200">
-                        {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              <p className="text-gray-500 dark:text-gray-400 leading-snug">
-                {rankAnalysis.explanation}
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          {data?.tbaRank != null && <span>Rank #{data.tbaRank}</span>}
-          {epaRank != null && <span>EPA #{epaRank}</span>}
-          {displayRecord && (
-            <span>
-              <span className="text-green-600 dark:text-green-400 font-medium">
-                {displayRecord.wins}W
-              </span>{' '}
-              <span className="text-red-600 dark:text-red-400 font-medium">
-                {displayRecord.losses}L
-              </span>
-              {displayRecord.ties > 0 && (
-                <>
-                  {' '}
-                  <span className="font-medium">{displayRecord.ties}T</span>
-                </>
-              )}
-              {!record && data?.winrate != null && (
-                <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
-              )}
+        {/* Header: team number + nickname */}
+        <div className="flex justify-between items-center">
+          <span className="font-bold text-lg">{num}</span>
+          {data?.nickname && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
+              {data.nickname}
             </span>
           )}
         </div>
-      )}
 
-      {/* EPA + Game Breakdowns */}
-      {data?.epa?.total != null ? (
-        <>
-          <EpaBreakdown
-            total={data.epa.total}
-            auto={data.epa.auto ?? null}
-            teleop={data.epa.teleop ?? null}
-            endgame={data.epa.endgame ?? null}
-            expanded={epaExpanded}
-            onToggle={toggleEpaExpanded}
-          />
-          {hasBreakdown && (
-            <GameBreakdown
-              metrics={metrics!}
-              breakdown={bd!}
-              expanded={expanded}
-              onToggle={toggleExpanded}
-            />
-          )}
-        </>
-      ) : (
-        <p className="text-xs text-gray-400">No EPA data</p>
-      )}
-
-      {/* Scouting section — always shown when scoutingFields provided */}
-      {scoutingFields && scoutingFields.length > 0 && (
-        <div className="text-xs">
-          <button
-            type="button"
-            onClick={toggleScoutingExpanded}
-            className="flex items-center gap-1 w-full text-left"
-          >
-            <svg
-              className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${scoutingExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+        {/* Metadata: rank, EPA rank, W-L record — collapsible when analysis available */}
+        {rankAnalysis ? (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={toggleRankExpanded}
+              className="flex items-center gap-1 w-full text-left"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium text-gray-500 dark:text-gray-400">Scouting</span>
-          </button>
-          {scoutingExpanded && (
-            <div className="mt-2 space-y-2 pl-4">
-              {scoutingSummary?.hasScouting ? (
-                <>
-                  {scoutingSummary.notePreview && (
-                    <p className="text-gray-600 dark:text-gray-300 leading-snug italic">
-                      &ldquo;{scoutingSummary.notePreview}&rdquo;
-                    </p>
-                  )}
-                  {scoutingSummary.data && (
-                    <div className="space-y-1">
-                      {scoutingFields
-                        .filter((f) => {
-                          const v = scoutingSummary.data[f.key];
-                          if (v == null) return false;
-                          if (Array.isArray(v)) return v.length > 0;
-                          if (typeof v === 'string') return v.length > 0;
-                          return true;
-                        })
-                        .map((f) => {
-                          const v = scoutingSummary.data[f.key];
-                          const display = Array.isArray(v) ? (v as string[]).join(', ') : String(v);
-                          return (
-                            <div key={f.key} className="flex gap-1.5">
-                              <span className="text-gray-500 dark:text-gray-400 shrink-0">
-                                {f.label}:
-                              </span>
-                              <span className="text-gray-700 dark:text-gray-200 font-medium">
-                                {display}
-                              </span>
-                            </div>
-                          );
-                        })}
+              <svg
+                className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${rankExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="font-medium text-gray-500 dark:text-gray-400">Rank Analysis</span>
+              <RankStats
+                tbaRank={data?.tbaRank}
+                epaRank={epaRank}
+                rankDelta={rankAnalysis.rankDelta}
+                className="ml-auto"
+              >
+                {displayRecord && (
+                  <span>
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      {displayRecord.wins}W
+                    </span>{' '}
+                    <span className="text-red-600 dark:text-red-400 font-medium">
+                      {displayRecord.losses}L
+                    </span>
+                    {displayRecord.ties > 0 && (
+                      <>
+                        {' '}
+                        <span className="font-medium">{displayRecord.ties}T</span>
+                      </>
+                    )}
+                    {!record && data?.winrate != null && (
+                      <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
+                    )}
+                  </span>
+                )}
+              </RankStats>
+            </button>
+            {rankExpanded && (
+              <div className="space-y-3 text-xs mt-3">
+                {allRankAnalyses && allRankAnalyses.length > 0 ? (
+                  <RankDeltaScale
+                    analysis={rankAnalysis}
+                    allAnalyses={allRankAnalyses}
+                    showRankStats={false}
+                    alignBadgeToScale
+                  />
+                ) : (
+                  <DeterminationBadge determination={rankAnalysis.determination} />
+                )}
+                <div className="space-y-1">
+                  <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />
+                  <StrengthBar value={rankAnalysis.opponentStrength} label="Opponents" />
+                </div>
+                {(rankAnalysis.strongPartnerRecord.wins + rankAnalysis.strongPartnerRecord.losses >
+                  0 ||
+                  rankAnalysis.weakPartnerRecord.wins + rankAnalysis.weakPartnerRecord.losses >
+                  0) && (
+                    <div className="flex gap-3 text-gray-500 dark:text-gray-400">
+                      <span>
+                        Strong partners:{' '}
+                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                          {rankAnalysis.strongPartnerRecord.wins}-
+                          {rankAnalysis.strongPartnerRecord.losses}
+                        </span>
+                      </span>
+                      <span>
+                        Weak partners:{' '}
+                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                          {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
+                        </span>
+                      </span>
                     </div>
                   )}
-                </>
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400">
-                  Scouting has not been completed for this team.
+                <p className="text-gray-500 dark:text-gray-400 leading-snug">
+                  {rankAnalysis.explanation}
                 </p>
-              )}
-              <Link
-                href={`/scouting/${num}/`}
-                className="mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            {data?.tbaRank != null && <span>Rank #{data.tbaRank}</span>}
+            {epaRank != null && <span>EPA #{epaRank}</span>}
+            {displayRecord && (
+              <span>
+                <span className="text-green-600 dark:text-green-400 font-medium">
+                  {displayRecord.wins}W
+                </span>{' '}
+                <span className="text-red-600 dark:text-red-400 font-medium">
+                  {displayRecord.losses}L
+                </span>
+                {displayRecord.ties > 0 && (
+                  <>
+                    {' '}
+                    <span className="font-medium">{displayRecord.ties}T</span>
+                  </>
+                )}
+                {!record && data?.winrate != null && (
+                  <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* EPA + Game Breakdowns */}
+        {data?.epa?.total != null ? (
+          <>
+            <EpaBreakdown
+              total={data.epa.total}
+              auto={data.epa.auto ?? null}
+              teleop={data.epa.teleop ?? null}
+              endgame={data.epa.endgame ?? null}
+              expanded={epaExpanded}
+              onToggle={toggleEpaExpanded}
+            />
+            {hasBreakdown && (
+              <GameBreakdown
+                metrics={metrics!}
+                breakdown={bd!}
+                expanded={expanded}
+                onToggle={toggleExpanded}
+              />
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-gray-400">No EPA data</p>
+        )}
+
+        {/* Scouting section — always shown when scoutingFields provided */}
+        {scoutingFields && scoutingFields.length > 0 && (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={toggleScoutingExpanded}
+              className="flex items-center gap-1 w-full text-left"
+            >
+              <svg
+                className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${scoutingExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
               >
-                {scoutingSummary?.hasScouting ? 'View Full Analysis →' : 'Start Scouting →'}
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="font-medium text-gray-500 dark:text-gray-400">Scouting</span>
+            </button>
+            {scoutingExpanded && (
+              <div className="mt-2 space-y-2 pl-4">
+                {scoutingSummary?.hasScouting ? (
+                  <>
+                    {scoutingSummary.notePreview && (
+                      <p className="text-gray-600 dark:text-gray-300 leading-snug italic">
+                        &ldquo;{scoutingSummary.notePreview}&rdquo;
+                      </p>
+                    )}
+                    {scoutingSummary.data && (
+                      <div className="space-y-1">
+                        {scoutingFields
+                          .filter((f) => {
+                            const v = scoutingSummary.data[f.key];
+                            if (v == null) return false;
+                            if (Array.isArray(v)) return v.length > 0;
+                            if (typeof v === 'string') return v.length > 0;
+                            return true;
+                          })
+                          .map((f) => {
+                            const v = scoutingSummary.data[f.key];
+                            const display = Array.isArray(v) ? (v as string[]).join(', ') : String(v);
+                            return (
+                              <div key={f.key} className="flex gap-1.5">
+                                <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                                  {f.label}:
+                                </span>
+                                <span className="text-gray-700 dark:text-gray-200 font-medium">
+                                  {display}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Scouting has not been completed for this team.
+                  </p>
+                )}
+                <Link
+                  href={`/scouting/${num}/`}
+                  className="mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {scoutingSummary?.hasScouting ? 'View Full Analysis →' : 'Start Scouting →'}
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 

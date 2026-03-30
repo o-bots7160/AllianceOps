@@ -128,10 +128,7 @@ export function compareEntries(
 }
 
 /** Merge saved annotations onto EPA-generated entries. */
-export function mergePicklist(
-  base: PicklistEntry[],
-  saved: SavedPicklistEntry[],
-): PicklistEntry[] {
+export function mergePicklist(base: PicklistEntry[], saved: SavedPicklistEntry[]): PicklistEntry[] {
   const savedMap = new Map(saved.map((s) => [s.teamNumber, s]));
   const merged = base.map((entry) => {
     const s = savedMap.get(entry.teamNumber);

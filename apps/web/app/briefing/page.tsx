@@ -140,17 +140,17 @@ export default function BriefingPage() {
   const ourAvgEpa =
     ourTeams.length > 0
       ? ourTeams.reduce((sum, t) => {
-          const num = parseInt(t.replace('frc', ''), 10);
-          return sum + (epaMap.get(num)?.epa?.total ?? 0);
-        }, 0) / ourTeams.length
+        const num = parseInt(t.replace('frc', ''), 10);
+        return sum + (epaMap.get(num)?.epa?.total ?? 0);
+      }, 0) / ourTeams.length
       : 0;
 
   const oppAvgEpa =
     oppTeams.length > 0
       ? oppTeams.reduce((sum, t) => {
-          const num = parseInt(t.replace('frc', ''), 10);
-          return sum + (epaMap.get(num)?.epa?.total ?? 0);
-        }, 0) / oppTeams.length
+        const num = parseInt(t.replace('frc', ''), 10);
+        return sum + (epaMap.get(num)?.epa?.total ?? 0);
+      }, 0) / oppTeams.length
       : 0;
 
   const epaDiff = ourAvgEpa - oppAvgEpa;
@@ -164,118 +164,118 @@ export default function BriefingPage() {
       ) : !currentMatch ? (
         <p className="text-gray-500">No matches found for your team at this event.</p>
       ) : (
-    <div className="space-y-6">
-      <InfoBox
-        heading={`Match Briefing — ${matchLabel(currentMatch)}`}
-        headingExtra={
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
-              ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-              : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-              }`}
+        <div className="space-y-6">
+          <InfoBox
+            heading={`Match Briefing — ${matchLabel(currentMatch)}`}
+            headingExtra={
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                  }`}
+              >
+                {isRed ? 'Red' : 'Blue'} Alliance
+              </span>
+            }
           >
-            {isRed ? 'Red' : 'Blue'} Alliance
-          </span>
-        }
-      >
-        <p>
-          <strong>Match Briefing</strong> shows a head-to-head breakdown for your next upcoming match.
-          Each team card displays <strong>EPA</strong> (Expected Points Added) from Statbotics — a
-          statistical rating of how many points a team contributes per match across auto, teleop, and endgame.
-        </p>
-        <p>
-          <strong>Win Conditions</strong> highlight areas where your alliance has an advantage (e.g., auto
-          scoring edge). <strong>Risks</strong> flag opponent strengths or areas of concern. Use these to
-          decide match strategy before you queue.
-        </p>
-        <p>
-          The briefing automatically advances to the next unplayed match. When simulation mode is active,
-          it shows the next unplayed match at the cursor position.
-        </p>
-      </InfoBox>
+            <p>
+              <strong>Match Briefing</strong> shows a head-to-head breakdown for your next upcoming match.
+              Each team card displays <strong>EPA</strong> (Expected Points Added) from Statbotics — a
+              statistical rating of how many points a team contributes per match across auto, teleop, and endgame.
+            </p>
+            <p>
+              <strong>Win Conditions</strong> highlight areas where your alliance has an advantage (e.g., auto
+              scoring edge). <strong>Risks</strong> flag opponent strengths or areas of concern. Use these to
+              decide match strategy before you queue.
+            </p>
+            <p>
+              The briefing automatically advances to the next unplayed match. When simulation mode is active,
+              it shows the next unplayed match at the cursor position.
+            </p>
+          </InfoBox>
 
-      {activeCursor !== null && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to match {activeCursor}.
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-3">
-            Our Alliance
-          </h3>
-          <div className="space-y-3">
-            {ourTeams.map((t) => (
-              <TeamCard
-                key={t}
-                teamKey={t}
-                epaMap={epaMap}
-                metrics={cardMetrics}
-                epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
-                record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
-                rankAnalysis={rankAnalysisMap.get(t)}
-                scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
-                scoutingFields={scoutingFields}
-              />
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-3">
-            Opponents
-          </h3>
-          <div className="space-y-3">
-            {oppTeams.map((t) => (
-              <TeamCard
-                key={t}
-                teamKey={t}
-                epaMap={epaMap}
-                metrics={cardMetrics}
-                epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
-                record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
-                rankAnalysis={rankAnalysisMap.get(t)}
-                scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
-                scoutingFields={scoutingFields}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-green-200 dark:border-green-800 p-4">
-          <h4 className="font-semibold text-green-700 dark:text-green-400 mb-2">
-            Win Conditions
-          </h4>
-          {epaDiff > 3 && (
-            <div className="mb-2 text-sm">
-              <span className="font-medium">EPA Advantage:</span> +{epaDiff.toFixed(1)} avg EPA
+          {activeCursor !== null && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                📊 Simulation active — EPA values reflect pre-event estimates. W-L records filtered to match {activeCursor}.
+              </p>
             </div>
           )}
-          {ourAvgEpa > 0 && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Our avg EPA: {ourAvgEpa.toFixed(1)} vs Opp: {oppAvgEpa.toFixed(1)}
-            </p>
-          )}
-        </div>
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 p-4">
-          <h4 className="font-semibold text-amber-700 dark:text-amber-400 mb-2">Risks</h4>
-          {epaDiff < -3 && (
-            <div className="mb-2 text-sm">
-              <span className="font-medium">EPA Deficit:</span> {epaDiff.toFixed(1)} avg EPA
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-3">
+                Our Alliance
+              </h3>
+              <div className="space-y-3">
+                {ourTeams.map((t) => (
+                  <TeamCard
+                    key={t}
+                    teamKey={t}
+                    epaMap={epaMap}
+                    metrics={cardMetrics}
+                    epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
+                    record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                    rankAnalysis={rankAnalysisMap.get(t)}
+                    scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
+                    scoutingFields={scoutingFields}
+                  />
+                ))}
+              </div>
             </div>
-          )}
-          {Math.abs(epaDiff) <= 3 && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Evenly matched — execution will decide this one
-            </p>
-          )}
+            <div>
+              <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-3">
+                Opponents
+              </h3>
+              <div className="space-y-3">
+                {oppTeams.map((t) => (
+                  <TeamCard
+                    key={t}
+                    teamKey={t}
+                    epaMap={epaMap}
+                    metrics={cardMetrics}
+                    epaRank={epaRankMap.get(parseInt(t.replace('frc', ''), 10))}
+                    record={activeCursor !== null && matches ? getTeamRecord(matches, t, activeCursor) : undefined}
+                    rankAnalysis={rankAnalysisMap.get(t)}
+                    scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
+                    scoutingFields={scoutingFields}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-green-200 dark:border-green-800 p-4">
+              <h4 className="font-semibold text-green-700 dark:text-green-400 mb-2">
+                Win Conditions
+              </h4>
+              {epaDiff > 3 && (
+                <div className="mb-2 text-sm">
+                  <span className="font-medium">EPA Advantage:</span> +{epaDiff.toFixed(1)} avg EPA
+                </div>
+              )}
+              {ourAvgEpa > 0 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Our avg EPA: {ourAvgEpa.toFixed(1)} vs Opp: {oppAvgEpa.toFixed(1)}
+                </p>
+              )}
+            </div>
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 p-4">
+              <h4 className="font-semibold text-amber-700 dark:text-amber-400 mb-2">Risks</h4>
+              {epaDiff < -3 && (
+                <div className="mb-2 text-sm">
+                  <span className="font-medium">EPA Deficit:</span> {epaDiff.toFixed(1)} avg EPA
+                </div>
+              )}
+              {Math.abs(epaDiff) <= 3 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Evenly matched — execution will decide this one
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
       )}
     </PageGuard>
   );
