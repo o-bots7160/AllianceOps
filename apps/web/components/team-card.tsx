@@ -325,7 +325,7 @@ export function TeamCard({
                   </p>
                 )}
                 <Link
-                  href={`/scouting/${num}/`}
+                  href={`/scouting/?team=${num}`}
                   className="mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   {scoutingSummary?.hasScouting ? 'View Full Analysis →' : 'Start Scouting →'}

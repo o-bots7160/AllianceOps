@@ -253,7 +253,7 @@ export function PicklistTable({
                 </td>
                 <td className="py-2 px-2 text-center">
                   <Link
-                    href={`/scouting/${entry.teamNumber}/`}
+                    href={`/scouting/?team=${entry.teamNumber}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {scoutingSummaryMap.has(entry.teamNumber) ? (
