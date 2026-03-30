@@ -1,7 +1,8 @@
 'use client';
 
 import type { TeamRankAnalysis } from '@allianceops/shared';
-import { DETERMINATION_LABELS } from '@/components/team-card';
+import { DeterminationBadge } from '@/components/rank-analysis';
+import { RankStats } from '@/components/rank-analysis';
 
 interface RankDeltaScaleProps {
   /** The team to highlight on the scale. */
@@ -10,6 +11,10 @@ interface RankDeltaScaleProps {
   allAnalyses: TeamRankAnalysis[];
   /** Whether to show legend labels beneath the scale. */
   showLabels?: boolean;
+  /** Whether to show the rank stats line (TBA/EPA/Δ). Defaults to true. */
+  showRankStats?: boolean;
+  /** Position the badge horizontally to align with the team dot on the scale. */
+  alignBadgeToScale?: boolean;
 }
 
 /** Map determination → dot color class. */
@@ -24,6 +29,18 @@ function dotColor(determination: string): string {
   return 'bg-blue-500';
 }
 
+/** Map determination → CSS color for the tail arrow. */
+function arrowColor(determination: string): string {
+  if (determination === 'accurate') return 'rgb(34 197 94)';
+  if (
+    determination === 'carried' ||
+    determination === 'easy_schedule' ||
+    determination === 'favorable'
+  )
+    return 'rgb(245 158 11)';
+  return 'rgb(59 130 246)';
+}
+
 /**
  * Horizontal linear scale showing where a team sits among all teams by rankDelta.
  *
@@ -31,7 +48,7 @@ function dotColor(determination: string): string {
  *   negative → overperforming (TBA rank better than EPA predicts)
  *   positive → underperforming (TBA rank worse than EPA predicts)
  */
-export function RankDeltaScale({ analysis, allAnalyses, showLabels = true }: RankDeltaScaleProps) {
+export function RankDeltaScale({ analysis, allAnalyses, showLabels = true, showRankStats = true, alignBadgeToScale = false }: RankDeltaScaleProps) {
   if (allAnalyses.length === 0) return null;
 
   const deltas = allAnalyses.map((a) => a.rankDelta);
@@ -50,23 +67,52 @@ export function RankDeltaScale({ analysis, allAnalyses, showLabels = true }: Ran
   const accurateWidthPct = accurateRightPct - accurateLeftPct;
   const zeroPct = toPercent(0);
 
-  const detLabel = DETERMINATION_LABELS[analysis.determination];
+  // For alignBadgeToScale: shift translateX from 0% (left edge) to -100% (right edge)
+  const badgePct = toPercent(analysis.rankDelta);
+  const badgeTx = -(badgePct / 100) * 100;
 
   return (
     <div className="w-full space-y-1">
-      {/* Determination badge + delta stat */}
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${detLabel?.color ?? ''}`}
-        >
-          {detLabel?.label ?? analysis.determination}
-        </span>
-        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
-          TBA #{analysis.tbaRank} · EPA #{analysis.epaRank} · Δ
-          {analysis.rankDelta > 0 ? '+' : ''}
-          {analysis.rankDelta}
-        </span>
-      </div>
+      {/* Determination badge + optional rank stats */}
+      {alignBadgeToScale ? (
+        <div className="relative" style={{ height: '1.875rem' }}>
+          <div
+            className="absolute whitespace-nowrap"
+            style={{
+              left: `${badgePct}%`,
+              transform: `translateX(${badgeTx}%)`,
+            }}
+          >
+            <DeterminationBadge determination={analysis.determination} />
+          </div>
+          {/* Tail arrow pointing down to the dot */}
+          <div
+            className="absolute -translate-x-1/2"
+            style={{ left: `${badgePct}%`, bottom: 0 }}
+          >
+            <div
+              className="w-0 h-0 mx-auto"
+              style={{
+                borderLeft: '4px solid transparent',
+                borderRight: '4px solid transparent',
+                borderTop: `5px solid ${arrowColor(analysis.determination)}`,
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center">
+          <DeterminationBadge determination={analysis.determination} />
+          {showRankStats && (
+            <RankStats
+              tbaRank={analysis.tbaRank}
+              epaRank={analysis.epaRank}
+              rankDelta={analysis.rankDelta}
+              className="ml-auto"
+            />
+          )}
+        </div>
+      )}
 
       {/* Scale track */}
       <div className="relative h-6">

@@ -40,24 +40,24 @@ export function EpaBreakdown({
       {expanded && (
         <div className="mt-2.5 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="w-16">Total</span>
+            <span className="w-24 shrink-0">Total</span>
             <EpaBar value={total} max={MAX_EPA} color="bg-primary-500" />
-            <span className="w-8 text-right">{total.toFixed(1)}</span>
+            <span className="w-12 shrink-0 text-right">{total.toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-16">Auto</span>
+            <span className="w-24 shrink-0">Auto</span>
             <EpaBar value={auto ?? 0} max={MAX_EPA / 2} color="bg-green-500" />
-            <span className="w-8 text-right">{(auto ?? 0).toFixed(1)}</span>
+            <span className="w-12 shrink-0 text-right">{(auto ?? 0).toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-16">Teleop</span>
+            <span className="w-24 shrink-0">Teleop</span>
             <EpaBar value={teleop ?? 0} max={MAX_EPA / 2} color="bg-blue-500" />
-            <span className="w-8 text-right">{(teleop ?? 0).toFixed(1)}</span>
+            <span className="w-12 shrink-0 text-right">{(teleop ?? 0).toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-16">Endgame</span>
+            <span className="w-24 shrink-0">Endgame</span>
             <EpaBar value={endgame ?? 0} max={MAX_EPA / 3} color="bg-purple-500" />
-            <span className="w-8 text-right">{(endgame ?? 0).toFixed(1)}</span>
+            <span className="w-12 shrink-0 text-right">{(endgame ?? 0).toFixed(1)}</span>
           </div>
         </div>
       )}

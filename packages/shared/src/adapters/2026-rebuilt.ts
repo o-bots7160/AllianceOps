@@ -4,6 +4,7 @@ import type {
   DutySlotDefinition,
   DutyTemplate,
   GameMetricDefinition,
+  ScoutingFieldDefinition,
 } from '../types/game-definition.js';
 import type { TBAScoreBreakdown } from '../types/tba.js';
 import { registerAdapter } from './registry.js';
@@ -470,6 +471,81 @@ const gameSpecificMetrics: GameMetricDefinition[] = [
   },
 ];
 
+const scoutingFields: ScoutingFieldDefinition[] = [
+  // Auto
+  {
+    key: 'auto_fuel_observed',
+    label: 'Auton # Fuel',
+    description: 'Number of fuel scored during autonomous',
+    type: 'number',
+    category: 'auto',
+    epaKey: 'auto_fuel',
+  },
+  {
+    key: 'drives_neutral',
+    label: 'Drives into Neutral Zone?',
+    description: 'Does the robot drive into the neutral zone during auton?',
+    type: 'select',
+    options: ['Yes', 'No'],
+    category: 'auto',
+  },
+  {
+    key: 'preferred_auton_route',
+    label: 'Preferred Auton Route',
+    description: 'Observed autonomous routines',
+    type: 'multi-select',
+    options: [
+      'Right side under trench',
+      'Right side over bump',
+      'Left side under trench',
+      'Left side over bump',
+      'Moves to output',
+      'Moves to depot',
+      'Autoshoots',
+      'Multiple gathering phases',
+      'Sit and shoot',
+      'Climbs',
+    ],
+    category: 'auto',
+  },
+  // Teleop
+  {
+    key: 'teleop_fuel_observed',
+    label: '# of Fuel During Teleop',
+    description: 'Number of fuel scored during teleop',
+    type: 'number',
+    category: 'teleop',
+    epaKey: 'teleop_fuel',
+  },
+  {
+    key: 'fuel_source',
+    label: 'Where is Fuel Acquired?',
+    description: 'Zones where the robot collects fuel',
+    type: 'multi-select',
+    options: ['Neutral Zone', 'Alliance Zone'],
+    category: 'teleop',
+  },
+  // Endgame
+  {
+    key: 'robot_climb',
+    label: 'Robot Climb?',
+    description: 'Does the robot climb the tower?',
+    type: 'select',
+    options: ['Yes', 'No', 'Maybe'],
+    category: 'endgame',
+    epaKey: 'total_tower',
+  },
+  {
+    key: 'climb_level',
+    label: 'Climb Level',
+    description: 'Highest tower level reached if climbing',
+    type: 'select',
+    options: ['Level 1', 'Level 2', 'Level 3'],
+    category: 'endgame',
+    epaKey: 'total_tower',
+  },
+];
+
 const rebuilt2026: GameDefinition = {
   year: 2026,
   gameName: 'REBUILT',
@@ -502,6 +578,7 @@ const rebuilt2026: GameDefinition = {
   dutySlots,
   dutyTemplates,
   gameSpecificMetrics,
+  scoutingFields,
 };
 
 registerAdapter(rebuilt2026);

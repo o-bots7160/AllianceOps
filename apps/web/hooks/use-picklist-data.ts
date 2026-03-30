@@ -95,6 +95,14 @@ export function usePicklistData() {
     );
   }, [year]);
 
+  const scoutingFields = useMemo(() => {
+    try {
+      return getAdapter(year)?.scoutingFields ?? [];
+    } catch {
+      return [];
+    }
+  }, [year]);
+
   // Compute team records from matches
   const teamRecords = useMemo(() => {
     const records = new Map<number, { wins: number; losses: number; ties: number }>();
@@ -259,7 +267,6 @@ export function usePicklistData() {
         teamNumber: e.teamNumber,
         rank: e.rank,
         tags: e.tags,
-        notes: e.notes,
         excluded: e.excluded,
       }));
       const res = await fetch(`${API_BASE}/teams/${teamId}/event/${eventKey}/picklist`, {
@@ -421,6 +428,7 @@ export function usePicklistData() {
     rankAnalysisMap,
     teamRecords,
     cardMetrics,
+    scoutingFields,
 
     // SignalR
     signalRState: signalR.state,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { TeamCard } from '@/components/team-card';
 import type { EnrichedTeam } from './types';
-import type { TeamRankAnalysis, GameMetricDefinition } from '@allianceops/shared';
+import type { TeamRankAnalysis, GameMetricDefinition, ScoutingSummary, ScoutingFieldDefinition } from '@allianceops/shared';
 
 export function TeamDetailModal({
   teamNumber,
@@ -13,6 +13,8 @@ export function TeamDetailModal({
   rankAnalysisMap,
   teamRecords,
   cardMetrics,
+  scoutingSummary,
+  scoutingFields,
   onClose,
 }: {
   teamNumber: number;
@@ -21,6 +23,8 @@ export function TeamDetailModal({
   rankAnalysisMap: Map<string, TeamRankAnalysis>;
   teamRecords: Map<number, { wins: number; losses: number; ties: number }>;
   cardMetrics: GameMetricDefinition[];
+  scoutingSummary?: ScoutingSummary | null;
+  scoutingFields?: ScoutingFieldDefinition[];
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -74,6 +78,8 @@ export function TeamDetailModal({
             record={teamRecords.get(teamNumber)}
             rankAnalysis={rankAnalysisMap.get(teamKey)}
             allRankAnalyses={allRankAnalyses}
+            scoutingSummary={scoutingSummary}
+            scoutingFields={scoutingFields}
             defaultExpanded
           />
         ) : (

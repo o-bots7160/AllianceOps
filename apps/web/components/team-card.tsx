@@ -1,49 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import type { GameMetricDefinition, TeamRankAnalysis } from '@allianceops/shared';
+import Link from 'next/link';
+import type { GameMetricDefinition, TeamRankAnalysis, ScoutingSummary, ScoutingFieldDefinition } from '@allianceops/shared';
 import type { EnrichedTeam } from '../lib/types';
 import { EpaBreakdown } from './team-card/epa-breakdown';
 import { GameBreakdown } from './team-card/game-breakdown';
 import { RankDeltaScale } from './picklist/rank-delta-scale';
+import {
+  DETERMINATION_LABELS,
+  deltaColor,
+  DeterminationBadge,
+  RankStats,
+} from './rank-analysis';
 
-export const DETERMINATION_LABELS: Record<string, { label: string; color: string }> = {
-  accurate: {
-    label: 'Accurate',
-    color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  },
-  carried: {
-    label: 'Carried by Partners',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  easy_schedule: {
-    label: 'Easy Schedule',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  favorable: {
-    label: 'Favorable Outcomes',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  underrated: {
-    label: 'Underrated',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-  tough_schedule: {
-    label: 'Tough Schedule',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-  unlucky: {
-    label: 'Unlucky',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-};
-
-export function deltaColor(delta: number): string {
-  const abs = Math.abs(delta);
-  if (abs <= 3) return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-  if (abs <= 6) return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300';
-  return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
-}
+export { DETERMINATION_LABELS, deltaColor };
 
 export function StrengthBar({ value, label }: { value: number; label: string }) {
   const pct = Math.min(Math.max(value / 2, 0), 1) * 100;
@@ -86,6 +57,7 @@ export interface SectionExpandState {
   rank: boolean;
   epa: boolean;
   game: boolean;
+  scouting: boolean;
 }
 
 export function TeamCard({
@@ -99,6 +71,8 @@ export function TeamCard({
   allRankAnalyses,
   sectionState,
   onSectionToggle,
+  scoutingSummary,
+  scoutingFields,
 }: {
   teamKey: string;
   epaMap: Map<number, EnrichedTeam>;
@@ -110,6 +84,8 @@ export function TeamCard({
   allRankAnalyses?: TeamRankAnalysis[];
   sectionState?: SectionExpandState;
   onSectionToggle?: (section: keyof SectionExpandState) => void;
+  scoutingSummary?: ScoutingSummary | null;
+  scoutingFields?: ScoutingFieldDefinition[];
 }) {
   const num = parseInt(teamKey.replace('frc', ''), 10);
   const data = epaMap.get(num);
@@ -122,10 +98,12 @@ export function TeamCard({
   const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
   const [localRankExpanded, setLocalRankExpanded] = useState(defaultExpanded);
   const [localEpaExpanded, setLocalEpaExpanded] = useState(defaultExpanded);
+  const [localScoutingExpanded, setLocalScoutingExpanded] = useState(false);
 
   const expanded = sectionState ? sectionState.game : localExpanded;
   const rankExpanded = sectionState ? sectionState.rank : localRankExpanded;
   const epaExpanded = sectionState ? sectionState.epa : localEpaExpanded;
+  const scoutingExpanded = sectionState ? sectionState.scouting : localScoutingExpanded;
 
   const toggleExpanded = () =>
     onSectionToggle ? onSectionToggle('game') : setLocalExpanded((v) => !v);
@@ -133,167 +111,234 @@ export function TeamCard({
     onSectionToggle ? onSectionToggle('rank') : setLocalRankExpanded((v) => !v);
   const toggleEpaExpanded = () =>
     onSectionToggle ? onSectionToggle('epa') : setLocalEpaExpanded((v) => !v);
+  const toggleScoutingExpanded = () =>
+    onSectionToggle ? onSectionToggle('scouting') : setLocalScoutingExpanded((v) => !v);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-5">
-      {/* Header: team number + nickname */}
-      <div className="flex justify-between items-center">
-        <span className="font-bold text-lg">{num}</span>
-        {data?.nickname && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
-            {data.nickname}
-          </span>
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col h-full">
+      <div className="space-y-5 flex-1">
+        {/* Header: team number + nickname */}
+        <div className="flex justify-between items-center">
+          <span className="font-bold text-lg">{num}</span>
+          {data?.nickname && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 truncate ml-2">
+              {data.nickname}
+            </span>
+          )}
+        </div>
+
+        {/* Metadata: rank, EPA rank, W-L record — collapsible when analysis available */}
+        {rankAnalysis ? (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={toggleRankExpanded}
+              className="flex items-center gap-1 w-full text-left"
+            >
+              <svg
+                className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${rankExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="font-medium text-gray-500 dark:text-gray-400">Rank Analysis</span>
+              <RankStats
+                tbaRank={data?.tbaRank}
+                epaRank={epaRank}
+                rankDelta={rankAnalysis.rankDelta}
+                className="ml-auto"
+              >
+                {displayRecord && (
+                  <span>
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      {displayRecord.wins}W
+                    </span>{' '}
+                    <span className="text-red-600 dark:text-red-400 font-medium">
+                      {displayRecord.losses}L
+                    </span>
+                    {displayRecord.ties > 0 && (
+                      <>
+                        {' '}
+                        <span className="font-medium">{displayRecord.ties}T</span>
+                      </>
+                    )}
+                    {!record && data?.winrate != null && (
+                      <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
+                    )}
+                  </span>
+                )}
+              </RankStats>
+            </button>
+            {rankExpanded && (
+              <div className="space-y-3 text-xs mt-3">
+                {allRankAnalyses && allRankAnalyses.length > 0 ? (
+                  <RankDeltaScale
+                    analysis={rankAnalysis}
+                    allAnalyses={allRankAnalyses}
+                    showRankStats={false}
+                    alignBadgeToScale
+                  />
+                ) : (
+                  <DeterminationBadge determination={rankAnalysis.determination} />
+                )}
+                <div className="space-y-1">
+                  <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />
+                  <StrengthBar value={rankAnalysis.opponentStrength} label="Opponents" />
+                </div>
+                {(rankAnalysis.strongPartnerRecord.wins + rankAnalysis.strongPartnerRecord.losses >
+                  0 ||
+                  rankAnalysis.weakPartnerRecord.wins + rankAnalysis.weakPartnerRecord.losses >
+                  0) && (
+                    <div className="flex gap-3 text-gray-500 dark:text-gray-400">
+                      <span>
+                        Strong partners:{' '}
+                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                          {rankAnalysis.strongPartnerRecord.wins}-
+                          {rankAnalysis.strongPartnerRecord.losses}
+                        </span>
+                      </span>
+                      <span>
+                        Weak partners:{' '}
+                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                          {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                <p className="text-gray-500 dark:text-gray-400 leading-snug">
+                  {rankAnalysis.explanation}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            {data?.tbaRank != null && <span>Rank #{data.tbaRank}</span>}
+            {epaRank != null && <span>EPA #{epaRank}</span>}
+            {displayRecord && (
+              <span>
+                <span className="text-green-600 dark:text-green-400 font-medium">
+                  {displayRecord.wins}W
+                </span>{' '}
+                <span className="text-red-600 dark:text-red-400 font-medium">
+                  {displayRecord.losses}L
+                </span>
+                {displayRecord.ties > 0 && (
+                  <>
+                    {' '}
+                    <span className="font-medium">{displayRecord.ties}T</span>
+                  </>
+                )}
+                {!record && data?.winrate != null && (
+                  <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
+                )}
+              </span>
+            )}
+          </div>
         )}
+
+        {/* EPA + Game Breakdowns */}
+        {data?.epa?.total != null ? (
+          <>
+            <EpaBreakdown
+              total={data.epa.total}
+              auto={data.epa.auto ?? null}
+              teleop={data.epa.teleop ?? null}
+              endgame={data.epa.endgame ?? null}
+              expanded={epaExpanded}
+              onToggle={toggleEpaExpanded}
+            />
+            {hasBreakdown && (
+              <GameBreakdown
+                metrics={metrics!}
+                breakdown={bd!}
+                expanded={expanded}
+                onToggle={toggleExpanded}
+              />
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-gray-400">No EPA data</p>
+        )}
+
+        {/* Scouting section — always shown when scoutingFields provided */}
+        {scoutingFields && scoutingFields.length > 0 && (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={toggleScoutingExpanded}
+              className="flex items-center gap-1 w-full text-left"
+            >
+              <svg
+                className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${scoutingExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="font-medium text-gray-500 dark:text-gray-400">Scouting</span>
+            </button>
+            {scoutingExpanded && (
+              <div className="mt-2 space-y-2 pl-4">
+                {scoutingSummary?.hasScouting ? (
+                  <>
+                    {scoutingSummary.notePreview && (
+                      <p className="text-gray-600 dark:text-gray-300 leading-snug italic">
+                        &ldquo;{scoutingSummary.notePreview}&rdquo;
+                      </p>
+                    )}
+                    {scoutingSummary.data && (
+                      <div className="space-y-1">
+                        {scoutingFields
+                          .filter((f) => {
+                            const v = scoutingSummary.data[f.key];
+                            if (v == null) return false;
+                            if (Array.isArray(v)) return v.length > 0;
+                            if (typeof v === 'string') return v.length > 0;
+                            return true;
+                          })
+                          .map((f) => {
+                            const v = scoutingSummary.data[f.key];
+                            const display = Array.isArray(v) ? (v as string[]).join(', ') : String(v);
+                            return (
+                              <div key={f.key} className="flex gap-1.5">
+                                <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                                  {f.label}:
+                                </span>
+                                <span className="text-gray-700 dark:text-gray-200 font-medium">
+                                  {display}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Scouting has not been completed for this team.
+                  </p>
+                )}
+                <Link
+                  href={`/scouting/?team=${num}`}
+                  className="mt-1 inline-block text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {scoutingSummary?.hasScouting ? 'View Full Analysis →' : 'Start Scouting →'}
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
-      {/* Metadata: rank, EPA rank, W-L record — collapsible when analysis available */}
-      {rankAnalysis ? (
-        <div className="text-xs">
-          <button
-            type="button"
-            onClick={toggleRankExpanded}
-            className="flex items-center gap-1 w-full text-left"
-          >
-            <svg
-              className={`h-3 w-3 text-gray-400 transition-transform shrink-0 ${rankExpanded ? 'rotate-90' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium text-gray-500 dark:text-gray-400">Rank Analysis</span>
-            <span className="ml-auto flex items-center gap-1.5">
-              <span className="text-gray-400 dark:text-gray-500">
-                {data?.tbaRank != null && <>#{data.tbaRank}</>}
-                {epaRank != null && <> · EPA #{epaRank}</>}
-              </span>
-              {rankAnalysis.rankDelta !== 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${deltaColor(rankAnalysis.rankDelta)}`}
-                >
-                  Δ{rankAnalysis.rankDelta > 0 ? '+' : ''}
-                  {rankAnalysis.rankDelta}
-                </span>
-              )}
-              {displayRecord && (
-                <span>
-                  <span className="text-green-600 dark:text-green-400 font-medium">
-                    {displayRecord.wins}W
-                  </span>{' '}
-                  <span className="text-red-600 dark:text-red-400 font-medium">
-                    {displayRecord.losses}L
-                  </span>
-                  {displayRecord.ties > 0 && (
-                    <>
-                      {' '}
-                      <span className="font-medium">{displayRecord.ties}T</span>
-                    </>
-                  )}
-                  {!record && data?.winrate != null && (
-                    <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
-                  )}
-                </span>
-              )}
-            </span>
-          </button>
-          {rankExpanded && (
-            <div className="space-y-3 text-xs mt-3">
-              {allRankAnalyses && allRankAnalyses.length > 0 ? (
-                <RankDeltaScale
-                  analysis={rankAnalysis}
-                  allAnalyses={allRankAnalyses}
-                />
-              ) : (
-                <span
-                  className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${DETERMINATION_LABELS[rankAnalysis.determination]?.color}`}
-                >
-                  {DETERMINATION_LABELS[rankAnalysis.determination]?.label}
-                </span>
-              )}
-              <div className="space-y-1">
-                <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />
-                <StrengthBar value={rankAnalysis.opponentStrength} label="Opponents" />
-              </div>
-              {(rankAnalysis.strongPartnerRecord.wins + rankAnalysis.strongPartnerRecord.losses >
-                0 ||
-                rankAnalysis.weakPartnerRecord.wins + rankAnalysis.weakPartnerRecord.losses >
-                0) && (
-                  <div className="flex gap-3 text-gray-500 dark:text-gray-400">
-                    <span>
-                      Strong partners:{' '}
-                      <span className="font-medium text-gray-700 dark:text-gray-200">
-                        {rankAnalysis.strongPartnerRecord.wins}-
-                        {rankAnalysis.strongPartnerRecord.losses}
-                      </span>
-                    </span>
-                    <span>
-                      Weak partners:{' '}
-                      <span className="font-medium text-gray-700 dark:text-gray-200">
-                        {rankAnalysis.weakPartnerRecord.wins}-{rankAnalysis.weakPartnerRecord.losses}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              <p className="text-gray-500 dark:text-gray-400 leading-snug">
-                {rankAnalysis.explanation}
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          {data?.tbaRank != null && <span>Rank #{data.tbaRank}</span>}
-          {epaRank != null && <span>EPA #{epaRank}</span>}
-          {displayRecord && (
-            <span>
-              <span className="text-green-600 dark:text-green-400 font-medium">
-                {displayRecord.wins}W
-              </span>{' '}
-              <span className="text-red-600 dark:text-red-400 font-medium">
-                {displayRecord.losses}L
-              </span>
-              {displayRecord.ties > 0 && (
-                <>
-                  {' '}
-                  <span className="font-medium">{displayRecord.ties}T</span>
-                </>
-              )}
-              {!record && data?.winrate != null && (
-                <span className="text-gray-500"> ({(data.winrate * 100).toFixed(0)}%)</span>
-              )}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* EPA + Game Breakdowns */}
-      {data?.epa?.total != null ? (
-        <>
-          <EpaBreakdown
-            total={data.epa.total}
-            auto={data.epa.auto ?? null}
-            teleop={data.epa.teleop ?? null}
-            endgame={data.epa.endgame ?? null}
-            expanded={epaExpanded}
-            onToggle={toggleEpaExpanded}
-          />
-          {hasBreakdown && (
-            <GameBreakdown
-              metrics={metrics!}
-              breakdown={bd!}
-              expanded={expanded}
-              onToggle={toggleExpanded}
-            />
-          )}
-        </>
-      ) : (
-        <p className="text-xs text-gray-400">No EPA data</p>
-      )}
-
-      {/* External links footer */}
-      <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs">
+      {/* External links footer — pinned to bottom */}
+      <div className="flex items-center gap-3 pt-2 mt-5 border-t border-gray-200 dark:border-gray-700 text-xs">
         <a
           href={`https://www.thebluealliance.com/team/${num}`}
           target="_blank"

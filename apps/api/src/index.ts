@@ -34,3 +34,4 @@ import './functions/team-info.js';
 import './functions/me.js';
 import './functions/admin.js';
 import './functions/signalr.js';
+import './functions/scouting.js';

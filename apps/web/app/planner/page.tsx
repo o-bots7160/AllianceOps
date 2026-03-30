@@ -13,6 +13,7 @@ import { PageGuard } from '../../components/page-guard';
 import { StatusBanner } from '../../components/status-banner';
 import { SaveStatusBar } from '../../components/save-status-bar';
 import { TeamCard, type SectionExpandState } from '../../components/team-card';
+import { useScoutingSummaries } from '../../hooks/use-scouting-summaries';
 import { MatchSelector } from '../../components/planner/match-selector';
 import { DutySlotEditor } from '../../components/planner/duty-slot-editor';
 import { useMatchPlan } from '../../hooks/use-match-plan';
@@ -52,6 +53,9 @@ export default function PlannerPage() {
   const cardMetrics = (adapter?.gameSpecificMetrics ?? []).filter(
     (m) => m.renderLocation === 'team_card' || m.renderLocation === 'all',
   );
+  const scoutingFields = adapter?.scoutingFields ?? [];
+
+  const { summaryMap: scoutingSummaryMap } = useScoutingSummaries(eventKey);
 
   const { data: rawMatches, loading: matchesLoading } = useApi<TBAMatch[]>(
     eventKey ? `event/${eventKey}/matches` : null,
@@ -160,6 +164,7 @@ export default function PlannerPage() {
     rank: true,
     epa: true,
     game: true,
+    scouting: false,
   });
   const handleSectionToggle = useCallback((section: keyof SectionExpandState) => {
     setSectionState((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -191,8 +196,8 @@ export default function PlannerPage() {
               {currentMatch && (
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${isRed
-                      ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                     }`}
                 >
                   {isRed ? 'Red' : 'Blue'} Alliance
@@ -294,6 +299,8 @@ export default function PlannerPage() {
                     rankAnalysis={rankAnalysisMap.get(t)}
                     sectionState={sectionState}
                     onSectionToggle={handleSectionToggle}
+                    scoutingSummary={scoutingSummaryMap.get(parseInt(t.replace('frc', ''), 10)) ?? null}
+                    scoutingFields={scoutingFields}
                   />
                 ))}
               </div>

@@ -9,12 +9,19 @@ import { SaveComboButton } from '@/components/save-combo-button';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { usePicklistData } from '@/hooks/use-picklist-data';
+import { useScoutingSummaries } from '@/hooks/use-scouting-summaries';
+import { useEventSetup } from '@/components/use-event-setup';
 import { TagFilterControl } from '@/components/picklist/tag-filter-control';
 import { PicklistTable } from '@/components/picklist/picklist-table';
 import { TeamDetailModal } from '@/components/picklist/team-detail-modal';
 import { RANK_BY_OPTIONS, type RankByOption } from '@/components/picklist/types';
 
 export default function PicklistPage() {
+  const { eventKey: setupEventKey } = useEventSetup();
+
+  // Scouting summaries for TeamCard in modal
+  const { summaryMap: scoutingSummaryMap } = useScoutingSummaries(setupEventKey);
+
   const {
     eventKey,
     teamNumber,
@@ -49,6 +56,7 @@ export default function PicklistPage() {
     rankAnalysisMap,
     teamRecords,
     cardMetrics,
+    scoutingFields,
     lastUpdatedBy,
     autosaveEnabled,
     toggleAutosave,
@@ -79,9 +87,9 @@ export default function PicklistPage() {
           </p>
           <p>
             <strong>Tags</strong> let you categorize teams (e.g., &quot;strong auto&quot;,
-            &quot;good defense&quot;). <strong>Notes</strong> are free-form observations.{' '}
-            <strong>Exclude</strong> teams you don&apos;t want to consider. Changes are shared with
-            your team when you save.
+            &quot;good defense&quot;). <strong>Exclude</strong> teams you don&apos;t want to
+            consider. Use the <strong>Scouting</strong> page for detailed notes on each team.
+            Changes are shared with your team when you save.
           </p>
           <p>
             Search by team number or name, and filter by tag. Click any table header to sort by that
@@ -164,6 +172,7 @@ export default function PicklistPage() {
           teamNumber={teamNumber}
           allTags={allTags}
           rankAnalysisMap={rankAnalysisMap}
+          scoutingSummaryMap={scoutingSummaryMap}
           updateEntries={updateEntries}
           setSortState={setSortState}
           onTeamClick={setModalTeam}
@@ -177,6 +186,8 @@ export default function PicklistPage() {
             rankAnalysisMap={rankAnalysisMap}
             teamRecords={teamRecords}
             cardMetrics={cardMetrics}
+            scoutingSummary={scoutingSummaryMap.get(modalTeam) ?? null}
+            scoutingFields={scoutingFields}
             onClose={() => setModalTeam(null)}
           />
         )}
