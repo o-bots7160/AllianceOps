@@ -228,8 +228,8 @@ describe('2026 REBUILT adapter', () => {
       expect(categories).toContain('endgame');
     });
 
-    it('select fields have options defined', () => {
-      const selectFields = fields.filter((f) => f.type === 'select');
+    it('select and multi-select fields have options defined', () => {
+      const selectFields = fields.filter((f) => f.type === 'select' || f.type === 'multi-select');
       expect(selectFields.length).toBeGreaterThan(0);
       for (const f of selectFields) {
         expect(f.options).toBeDefined();

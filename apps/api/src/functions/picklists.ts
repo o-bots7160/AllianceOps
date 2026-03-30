@@ -259,6 +259,14 @@ app.http('updateTeamTags', {
         update: {},
       });
 
+      // Determine the next rank (max + 1) so a tag-only entry doesn't sort to the top
+      const maxEntry = await prisma.picklistEntry.findFirst({
+        where: { picklistId: picklist.id },
+        orderBy: { rank: 'desc' },
+        select: { rank: true },
+      });
+      const nextRank = (maxEntry?.rank ?? 0) + 1;
+
       // Upsert the single entry's tags
       await prisma.picklistEntry.upsert({
         where: {
@@ -267,7 +275,7 @@ app.http('updateTeamTags', {
         create: {
           picklistId: picklist.id,
           teamNumber: targetTeamNumber,
-          rank: 0,
+          rank: nextRank,
           tags: body.tags,
           excluded: false,
         },

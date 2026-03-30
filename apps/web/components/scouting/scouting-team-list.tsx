@@ -34,8 +34,7 @@ export function ScoutingTeamList({
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
-        (t) =>
-          String(t.team_number).includes(q) || t.nickname?.toLowerCase().includes(q),
+        (t) => String(t.team_number).includes(q) || t.nickname?.toLowerCase().includes(q),
       );
     }
 
@@ -47,11 +46,11 @@ export function ScoutingTeamList({
         case 'tbaRank':
           return ((a.tbaRank ?? 999) - (b.tbaRank ?? 999)) * dir;
         case 'epaTotal':
-          return ((b.epa?.total ?? 0) - (a.epa?.total ?? 0)) * dir;
+          return ((a.epa?.total ?? 0) - (b.epa?.total ?? 0)) * dir;
         case 'status': {
           const aS = summaryMap.has(a.team_number) ? 0 : 1;
           const bS = summaryMap.has(b.team_number) ? 0 : 1;
-          return (aS - bS) * dir || (a.team_number - b.team_number);
+          return (aS - bS) * dir || a.team_number - b.team_number;
         }
         default:
           return 0;

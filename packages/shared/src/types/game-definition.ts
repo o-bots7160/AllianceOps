@@ -78,7 +78,7 @@ export interface ScoutingFieldDefinition {
   description: string;
   /** Input type */
   type: 'number' | 'boolean' | 'select' | 'multi-select' | 'text';
-  /** Options for 'select' type fields */
+  /** Options for 'select' and 'multi-select' type fields */
   options?: string[];
   /** Phase/section grouping for form layout */
   category: 'auto' | 'teleop' | 'endgame';

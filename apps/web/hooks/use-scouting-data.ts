@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useEventSetup } from '@/components/use-event-setup';
 import { useAuth } from '@/components/use-auth';
 import { useSignalR } from '@/hooks/use-signalr';
@@ -344,10 +344,13 @@ export function useScoutingData(selectedTeamNumber: number | null) {
   });
 
   // Summaries as a map for easy lookup
-  const summaryMap = new Map<number, ScoutingSummary>();
-  for (const s of summaries) {
-    summaryMap.set(s.targetTeamNumber, s);
-  }
+  const summaryMap = useMemo(() => {
+    const map = new Map<number, ScoutingSummary>();
+    for (const s of summaries) {
+      map.set(s.targetTeamNumber, s);
+    }
+    return map;
+  }, [summaries]);
 
   return {
     // Context

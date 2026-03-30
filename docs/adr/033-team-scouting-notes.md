@@ -20,15 +20,15 @@ We needed a system that:
 
 - **One scouting record per analyzed team per event** (aggregate, not per-match). The `ScoutingNote` Prisma model stores team-scoped observations with:
   - `teamId` + `eventKey` + `targetTeamNumber` as unique key
-  - `tags` (JSON array of strings)
   - `notes` (freeform text)
   - `data` (JSON object keyed by `ScoutingFieldDefinition.key`)
+- Tags are managed separately via `PicklistEntry.tags` — the scouting UI reads/writes them through the picklist tags API.
 - JSON `data` column allows game-specific fields without schema migrations each season.
 
 ### Adapter-Driven Form Fields
 
 - Added `ScoutingFieldDefinition` type and optional `scoutingFields` array to the `GameDefinition` interface.
-- Each field has a `key`, `label`, `type` ('number' | 'boolean' | 'select' | 'text'), `category` ('auto' | 'teleop' | 'endgame' | 'general'), and optional `epaKey` for cross-referencing with EPA breakdown values.
+- Each field has a `key`, `label`, `type` ('number' | 'boolean' | 'select' | 'multi-select' | 'text'), `category` ('auto' | 'teleop' | 'endgame'), and optional `epaKey` for cross-referencing with EPA breakdown values.
 - The 2026 REBUILT adapter defines scouting fields aligned to its EPA metrics: auto fuel, teleop fuel, neutral zone driving, fuel source, climb level, etc.
 - The scouting form component renders fields dynamically from the adapter, grouped by category.
 
