@@ -6,44 +6,14 @@ import type { EnrichedTeam } from '../lib/types';
 import { EpaBreakdown } from './team-card/epa-breakdown';
 import { GameBreakdown } from './team-card/game-breakdown';
 import { RankDeltaScale } from './picklist/rank-delta-scale';
+import {
+  DETERMINATION_LABELS,
+  deltaColor,
+  DeterminationBadge,
+  RankStats,
+} from './rank-analysis';
 
-export const DETERMINATION_LABELS: Record<string, { label: string; color: string }> = {
-  accurate: {
-    label: 'Accurate',
-    color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  },
-  carried: {
-    label: 'Carried by Partners',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  easy_schedule: {
-    label: 'Easy Schedule',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  favorable: {
-    label: 'Favorable Outcomes',
-    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-  },
-  underrated: {
-    label: 'Underrated',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-  tough_schedule: {
-    label: 'Tough Schedule',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-  unlucky: {
-    label: 'Unlucky',
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  },
-};
-
-export function deltaColor(delta: number): string {
-  const abs = Math.abs(delta);
-  if (abs <= 3) return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-  if (abs <= 6) return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300';
-  return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
-}
+export { DETERMINATION_LABELS, deltaColor };
 
 export function StrengthBar({ value, label }: { value: number; label: string }) {
   const pct = Math.min(Math.max(value / 2, 0), 1) * 100;
@@ -164,19 +134,12 @@ export function TeamCard({
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
             <span className="font-medium text-gray-500 dark:text-gray-400">Rank Analysis</span>
-            <span className="ml-auto flex items-center gap-1.5">
-              <span className="text-gray-400 dark:text-gray-500">
-                {data?.tbaRank != null && <>#{data.tbaRank}</>}
-                {epaRank != null && <> · EPA #{epaRank}</>}
-              </span>
-              {rankAnalysis.rankDelta !== 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${deltaColor(rankAnalysis.rankDelta)}`}
-                >
-                  Δ{rankAnalysis.rankDelta > 0 ? '+' : ''}
-                  {rankAnalysis.rankDelta}
-                </span>
-              )}
+            <RankStats
+              tbaRank={data?.tbaRank}
+              epaRank={epaRank}
+              rankDelta={rankAnalysis.rankDelta}
+              className="ml-auto"
+            >
               {displayRecord && (
                 <span>
                   <span className="text-green-600 dark:text-green-400 font-medium">
@@ -196,7 +159,7 @@ export function TeamCard({
                   )}
                 </span>
               )}
-            </span>
+            </RankStats>
           </button>
           {rankExpanded && (
             <div className="space-y-3 text-xs mt-3">
@@ -204,13 +167,11 @@ export function TeamCard({
                 <RankDeltaScale
                   analysis={rankAnalysis}
                   allAnalyses={allRankAnalyses}
+                  showRankStats={false}
+                  alignBadgeToScale
                 />
               ) : (
-                <span
-                  className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${DETERMINATION_LABELS[rankAnalysis.determination]?.color}`}
-                >
-                  {DETERMINATION_LABELS[rankAnalysis.determination]?.label}
-                </span>
+                <DeterminationBadge determination={rankAnalysis.determination} />
               )}
               <div className="space-y-1">
                 <StrengthBar value={rankAnalysis.partnerStrength} label="Partners" />

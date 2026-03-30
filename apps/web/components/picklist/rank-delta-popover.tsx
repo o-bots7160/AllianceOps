@@ -1,7 +1,7 @@
 'use client';
 
 import type { TeamRankAnalysis } from '@allianceops/shared';
-import { DETERMINATION_LABELS } from '@/components/team-card';
+import { DETERMINATION_LABELS } from '@/components/rank-analysis';
 import { HoverPopover } from '@/components/hover-popover';
 import { RankDeltaScale } from './rank-delta-scale';
 
@@ -40,7 +40,7 @@ export function RankDeltaPopover({ analysis, allAnalyses, onClick }: RankDeltaPo
   );
 
   return (
-    <HoverPopover trigger={triggerContent}>
+    <HoverPopover trigger={triggerContent} width="w-80">
       <RankDeltaScale analysis={analysis} allAnalyses={allAnalyses} />
       <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug">
         {analysis.explanation}
