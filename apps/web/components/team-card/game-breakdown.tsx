@@ -35,11 +35,11 @@ export function GameBreakdown({ metrics, breakdown, expanded, onToggle }: GameBr
             (m) =>
               breakdown[m.key] != null && (
                 <div key={m.key} className="flex items-center gap-2">
-                  <span className="w-16 truncate" title={m.description}>
+                  <span className="w-24 shrink-0 truncate" title={m.description}>
                     {m.label}
                   </span>
                   <EpaBar value={Math.abs(breakdown[m.key])} max={6} color={METRIC_COLOR} />
-                  <span className="w-8 text-right">{breakdown[m.key].toFixed(1)}</span>
+                  <span className="w-12 shrink-0 text-right">{breakdown[m.key].toFixed(1)}</span>
                 </div>
               ),
           )}
