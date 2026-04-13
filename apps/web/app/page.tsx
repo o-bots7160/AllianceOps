@@ -83,16 +83,17 @@ const FEATURES = [
 
 function LoginCTA() {
   return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
+    <div className="flex flex-col items-center gap-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 p-6 max-w-md shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Log In</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
         Log in to access match briefings, strategy tools, and team management for your FRC team.
       </p>
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-3">
         {LOGIN_PROVIDERS.map((provider) => (
           <a
             key={provider.id}
             href={provider.href}
-            className="inline-flex items-center justify-center w-11 h-11 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+            className="inline-flex items-center justify-center w-11 h-11 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
             aria-label={`Log in with ${provider.label}`}
             title={provider.label}
           >

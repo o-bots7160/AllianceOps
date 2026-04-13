@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { prisma } from '../lib/prisma.js';
-import { requireUser, isAuthError } from '../lib/auth.js';
+import { resolveUser } from '../lib/auth.js';
 import { trackException } from '../lib/telemetry.js';
 
 app.http('getMe', {
@@ -8,8 +8,10 @@ app.http('getMe', {
   authLevel: 'anonymous',
   route: 'me',
   handler: async (request: HttpRequest, _context: InvocationContext): Promise<HttpResponseInit> => {
-    const auth = await requireUser(request);
-    if (isAuthError(auth)) return auth;
+    const auth = await resolveUser(request);
+    if (!auth) {
+      return { status: 200, jsonBody: { data: null } };
+    }
 
     let user;
     let isAdmin = false;
@@ -24,9 +26,7 @@ app.http('getMe', {
             },
           },
         }),
-        prisma.adminUser
-          .findUnique({ where: { userId: auth.id } })
-          .then((r) => r !== null),
+        prisma.adminUser.findUnique({ where: { userId: auth.id } }).then((r) => r !== null),
       ]);
     } catch (err) {
       trackException(err instanceof Error ? err : new Error(String(err)), {
