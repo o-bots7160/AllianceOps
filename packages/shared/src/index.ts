@@ -27,7 +27,8 @@ export type {
   GameMetricDefinition,
   ScoutingFieldDefinition,
 } from './types/game-definition.js';
-export type { ScoutingEntry, ScoutingSummary } from './types/scouting.js';
+export type { ScoutingEntry, ScoutingSummary, ScoutingStatus } from './types/scouting.js';
+export { SCOUTING_STATUS_OPTIONS } from './types/scouting.js';
 export type {
   AdminStats,
   AdminUserListItem,

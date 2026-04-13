@@ -117,9 +117,19 @@ export function ScoutingTeamList({
                   <td className="px-3 py-2 tabular-nums">{t.epa?.total?.toFixed(1) ?? '—'}</td>
                   <td className="px-3 py-2">
                     {summary ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 text-xs font-medium">
-                        ✓ Scouted
-                      </span>
+                      summary.scoutingStatus === 'scouted' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 text-xs font-medium">
+                          ✓ Scouted
+                        </span>
+                      ) : summary.scoutingStatus === 'in_progress' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 text-xs font-medium">
+                          ◑ In Progress
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-xs font-medium">
+                          ○ Not Scouted
+                        </span>
+                      )
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 text-xs">
                         —

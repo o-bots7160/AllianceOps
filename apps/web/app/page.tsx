@@ -53,6 +53,15 @@ const FEATURES = [
       'Build your alliance selection picklist using multiple ranking signals — EPA, component scores, compatibility, and more. Filter and weight the signals that matter most to your strategy, and share the list with your drive team in real time.',
   },
   {
+    title: 'Scouting',
+    desc: 'Collect match and pit observations',
+    icon: '🔍',
+    image: '/images/aop-product-scouting.png',
+    href: '/scouting/',
+    detail:
+      'Record match and pit scouting observations during events. Capture game-specific data defined by the season adapter, add notes, and share with your team — all from your phone or tablet in the stands.',
+  },
+  {
     title: 'Simulation',
     desc: 'Replay past events match by match',
     icon: '🔄',

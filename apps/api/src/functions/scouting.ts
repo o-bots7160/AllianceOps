@@ -105,6 +105,7 @@ app.http('listScoutingNotes', {
           targetTeamNumber: true,
           notes: true,
           data: true,
+          scoutingStatus: true,
         },
       });
 
@@ -116,6 +117,7 @@ app.http('listScoutingNotes', {
             ? n.notes.slice(0, NOTE_PREVIEW_LENGTH) + '…'
             : (n.notes ?? ''),
         data: typeof n.data === 'object' && n.data !== null ? n.data : {},
+        scoutingStatus: n.scoutingStatus,
       }));
 
       return { status: 200, jsonBody: { data: summaries } };
@@ -153,12 +155,23 @@ app.http('getScoutingNote', {
         select: {
           notes: true,
           data: true,
+          scoutingStatus: true,
           updatedAt: true,
+          updatedBy: true,
         },
       });
 
       if (!note) {
         return { status: 200, jsonBody: { data: null } };
+      }
+
+      let updatedByName: string | undefined;
+      if (note.updatedBy) {
+        const updater = await prisma.user.findUnique({
+          where: { id: note.updatedBy },
+          select: { displayName: true },
+        });
+        updatedByName = updater?.displayName ?? undefined;
       }
 
       return {
@@ -167,7 +180,9 @@ app.http('getScoutingNote', {
           data: {
             notes: note.notes,
             data: typeof note.data === 'object' && note.data !== null ? note.data : {},
+            scoutingStatus: note.scoutingStatus,
             updatedAt: note.updatedAt.toISOString(),
+            updatedByName,
           },
         },
       };
@@ -203,6 +218,7 @@ app.http('upsertScoutingNote', {
 
     try {
       const jsonData = body.data as Prisma.InputJsonValue;
+      const scoutingStatus = body.scoutingStatus ?? 'not_scouted';
       const note = await prisma.scoutingNote.upsert({
         where: {
           teamId_eventKey_targetTeamNumber: { teamId, eventKey, targetTeamNumber },
@@ -213,15 +229,20 @@ app.http('upsertScoutingNote', {
           targetTeamNumber,
           notes: body.notes,
           data: jsonData,
+          scoutingStatus,
           createdBy: auth.user.id,
+          updatedBy: auth.user.id,
         },
         update: {
           notes: body.notes,
           data: jsonData,
+          scoutingStatus,
+          updatedBy: auth.user.id,
         },
         select: {
           notes: true,
           data: true,
+          scoutingStatus: true,
           updatedAt: true,
         },
       });
@@ -248,7 +269,9 @@ app.http('upsertScoutingNote', {
           data: {
             notes: note.notes,
             data: typeof note.data === 'object' && note.data !== null ? note.data : {},
+            scoutingStatus: note.scoutingStatus,
             updatedAt: note.updatedAt.toISOString(),
+            updatedByName: auth.user.displayName ?? undefined,
           },
         },
       };

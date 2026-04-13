@@ -6,8 +6,9 @@ import type { ScoutingFieldDefinition } from '@allianceops/shared';
 import { ScoutingField } from './scouting-field';
 import { TagDropdown } from '../picklist/tag-filter-control';
 
-const CATEGORIES = ['auto', 'teleop', 'endgame'] as const;
+const CATEGORIES = ['general', 'auto', 'teleop', 'endgame'] as const;
 const CATEGORY_LABELS: Record<string, string> = {
+  general: 'General',
   auto: 'Autonomous',
   teleop: 'Teleop',
   endgame: 'Endgame',

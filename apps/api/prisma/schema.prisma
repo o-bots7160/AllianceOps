@@ -193,7 +193,9 @@ model ScoutingNote {
   targetTeamNumber Int
   notes            String   @default("")
   data             Json     @default("{}")
+  scoutingStatus   String   @default("not_scouted")
   createdBy        String
+  updatedBy        String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

@@ -472,11 +472,78 @@ const gameSpecificMetrics: GameMetricDefinition[] = [
 ];
 
 const scoutingFields: ScoutingFieldDefinition[] = [
+  // General (robot characteristics)
+  {
+    key: 'robot_weight',
+    label: 'Robot Weight (lbs)',
+    description:
+      'Record the total robot weight in pounds. Ask the team or check their pit display — weight affects pushing power and traction.',
+    type: 'number',
+    category: 'general',
+  },
+  {
+    key: 'drive_system',
+    label: 'Drive System',
+    description:
+      'Identify the drivetrain type by looking at the wheels and movement. Swerve robots can strafe sideways; tank drives only go forward/back and turn.',
+    type: 'select',
+    options: [
+      'Swerve / Holonomic',
+      'West Coast',
+      'East Coast',
+      'Tank',
+      'Mecanum',
+      'H-Drive',
+      'Butterfly / Switchable',
+      'Other',
+    ],
+    category: 'general',
+  },
+  {
+    key: 'tuning_practices',
+    label: 'Tuning Practices',
+    description:
+      'Ask the team how they tune their robot controls. Select all methods they mention — this tells us how refined their driving is.',
+    type: 'multi-select',
+    options: ['SysId', 'PID', 'Feed Forward', 'Manual'],
+    category: 'general',
+  },
+  {
+    key: 'vision_system',
+    label: 'Robot Vision System',
+    description:
+      'Note any cameras or vision processing on the robot. More cameras and odometry mean better autonomous accuracy and field awareness.',
+    type: 'multi-select',
+    options: [
+      'None',
+      'One Camera',
+      'Multiple Cameras',
+      'Odometry-Based',
+      'Custom Calibrated AprilTags',
+    ],
+    category: 'general',
+  },
+  {
+    key: 'defense_options',
+    label: 'Defense Options',
+    description:
+      'Select all zones where this robot could play defense. "Defense Only" means they primarily block; "Last Resort" means defense only if scoring isn\'t working.',
+    type: 'multi-select',
+    options: [
+      'Neutral Zone',
+      'Own Alliance',
+      'Opposing Alliance',
+      'Defense Only',
+      'Last Resort',
+    ],
+    category: 'general',
+  },
   // Auto
   {
     key: 'auto_fuel_observed',
     label: 'Auton # Fuel',
-    description: 'Number of fuel scored during autonomous',
+    description:
+      'Count the number of fuel pieces scored during autonomous. Watch closely — auton is fast and easy to miss.',
     type: 'number',
     category: 'auto',
     epaKey: 'auto_fuel',
@@ -484,7 +551,8 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   {
     key: 'drives_neutral',
     label: 'Drives into Neutral Zone?',
-    description: 'Does the robot drive into the neutral zone during auton?',
+    description:
+      'Does the robot cross into the neutral zone during autonomous? This shows how aggressive their auton routine is.',
     type: 'select',
     options: ['Yes', 'No'],
     category: 'auto',
@@ -492,7 +560,8 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   {
     key: 'preferred_auton_route',
     label: 'Preferred Auton Route',
-    description: 'Observed autonomous routines',
+    description:
+      'Select all autonomous routines you observe across matches. Knowing their routes helps us avoid path conflicts with alliance partners.',
     type: 'multi-select',
     options: [
       'Right side under trench',
@@ -512,7 +581,8 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   {
     key: 'teleop_fuel_observed',
     label: '# of Fuel During Teleop',
-    description: 'Number of fuel scored during teleop',
+    description:
+      'Average number of fuel pieces scored during teleop. Try to count across multiple matches for a reliable estimate.',
     type: 'number',
     category: 'teleop',
     epaKey: 'teleop_fuel',
@@ -520,16 +590,35 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   {
     key: 'fuel_source',
     label: 'Where is Fuel Acquired?',
-    description: 'Zones where the robot collects fuel',
+    description:
+      'Note which zones the robot collects fuel from. This helps plan who gathers from where during alliance strategy.',
     type: 'multi-select',
     options: ['Neutral Zone', 'Alliance Zone'],
+    category: 'teleop',
+  },
+  {
+    key: 'teleop_autonomous_actions',
+    label: 'Autonomous Actions (Teleop)',
+    description:
+      'Select any automated behaviors the robot uses during teleop. These indicate software sophistication and reduce driver workload.',
+    type: 'multi-select',
+    options: [
+      'Automated Driving / Drive Locations',
+      'Automated Intake / Shooting Cycle',
+      'Turret Tracking',
+      'Distance Tracking for Shooting',
+      'Auto-Alignment to Target',
+      'Path Planning / Obstacle Avoidance',
+      'Automated Defense Positioning',
+    ],
     category: 'teleop',
   },
   // Endgame
   {
     key: 'robot_climb',
     label: 'Robot Climb?',
-    description: 'Does the robot climb the tower?',
+    description:
+      'Can this robot climb the tower at end of match? "Maybe" means they attempted but weren\'t consistent.',
     type: 'select',
     options: ['Yes', 'No', 'Maybe'],
     category: 'endgame',
@@ -538,11 +627,21 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   {
     key: 'climb_level',
     label: 'Climb Level',
-    description: 'Highest tower level reached if climbing',
+    description:
+      'Record the highest tower level they successfully reached. Only count levels they fully completed, not attempts.',
     type: 'select',
     options: ['Level 1', 'Level 2', 'Level 3'],
     category: 'endgame',
     epaKey: 'total_tower',
+  },
+  {
+    key: 'endgame_strategy',
+    label: 'Endgame Strategy',
+    description:
+      'What does this robot typically do in the last 30 seconds? Pick the primary strategy you observe across matches.',
+    type: 'select',
+    options: ['Climb', 'Shoot Fuel', 'Defense / Guard'],
+    category: 'endgame',
   },
 ];
 

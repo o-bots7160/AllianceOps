@@ -55,6 +55,7 @@ export const TeamSiteBatchSchema = z.object({
 export const UpsertScoutingNoteSchema = z.object({
   notes: z.string(),
   data: z.record(z.string(), z.unknown()),
+  scoutingStatus: z.enum(['not_scouted', 'in_progress', 'scouted']).optional(),
 });
 
 export const UpdateTeamTagsSchema = z.object({

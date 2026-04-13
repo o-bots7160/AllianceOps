@@ -2,6 +2,11 @@
 
 import type { ScoutingFieldDefinition } from '@allianceops/shared';
 
+function FieldDescription({ text }: { text?: string }) {
+  if (!text) return null;
+  return <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">{text}</p>;
+}
+
 export function ScoutingField({
   field,
   value,
@@ -20,12 +25,12 @@ export function ScoutingField({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {field.label}
           </label>
+          <FieldDescription text={field.description} />
           <input
             type="number"
             value={typeof value === 'number' ? value : ''}
             disabled={disabled}
             onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-            placeholder={field.description}
             className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50"
           />
         </div>
@@ -58,6 +63,7 @@ export function ScoutingField({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {field.label}
           </label>
+          <FieldDescription text={field.description} />
           <div className="flex flex-wrap gap-2">
             {(field.options ?? []).map((option) => (
               <label
@@ -97,6 +103,7 @@ export function ScoutingField({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {field.label}
           </label>
+          <FieldDescription text={field.description} />
           <div className="flex flex-wrap gap-2">
             {(field.options ?? []).map((option) => (
               <label
@@ -127,6 +134,7 @@ export function ScoutingField({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {field.label}
           </label>
+          <FieldDescription text={field.description} />
           <textarea
             value={typeof value === 'string' ? value : ''}
             disabled={disabled}
