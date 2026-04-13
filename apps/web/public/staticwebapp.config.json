@@ -41,7 +41,11 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/privacy/",
+      "route": "/privacy",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/privacy/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
@@ -49,31 +53,59 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/event/",
+      "route": "/event",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/briefing/",
+      "route": "/event/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/path/",
+      "route": "/briefing",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/scouting/",
+      "route": "/briefing/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/simulation/",
+      "route": "/path",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/picklist/",
+      "route": "/path/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/planner/",
+      "route": "/scouting",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/scouting/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/simulation",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/simulation/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/picklist",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/picklist/*",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/planner",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/planner/*",
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
