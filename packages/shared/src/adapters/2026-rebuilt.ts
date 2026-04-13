@@ -529,13 +529,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     description:
       'Select all zones where this robot could play defense. "Defense Only" means they primarily block; "Last Resort" means defense only if scoring isn\'t working.',
     type: 'multi-select',
-    options: [
-      'Neutral Zone',
-      'Own Alliance',
-      'Opposing Alliance',
-      'Defense Only',
-      'Last Resort',
-    ],
+    options: ['Neutral Zone', 'Own Alliance', 'Opposing Alliance', 'Defense Only', 'Last Resort'],
     category: 'general',
   },
   // Auto
