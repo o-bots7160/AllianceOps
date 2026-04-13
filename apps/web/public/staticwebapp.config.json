@@ -37,6 +37,10 @@
       "allowedRoles": ["anonymous"]
     },
     {
+      "route": "*.webmanifest",
+      "allowedRoles": ["anonymous"]
+    },
+    {
       "route": "/privacy/",
       "allowedRoles": ["anonymous", "authenticated"]
     },
@@ -45,8 +49,36 @@
       "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/*",
+      "route": "/event/",
       "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/briefing/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/path/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/scouting/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/simulation/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/picklist/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/planner/",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
+      "route": "/*",
+      "allowedRoles": ["authenticated"]
     }
   ],
 
