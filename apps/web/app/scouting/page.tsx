@@ -13,8 +13,12 @@ import { useEventSetup } from '@/components/use-event-setup';
 import { useAuth } from '@/components/use-auth';
 import { useApi } from '@/components/use-api';
 import { useScoutingData } from '@/hooks/use-scouting-data';
-import { getAdapter } from '@allianceops/shared';
-import type { ScoutingFieldDefinition, GameMetricDefinition } from '@allianceops/shared';
+import { getAdapter, SCOUTING_STATUS_OPTIONS } from '@allianceops/shared';
+import type {
+  ScoutingFieldDefinition,
+  GameMetricDefinition,
+  ScoutingStatus,
+} from '@allianceops/shared';
 import type { EnrichedTeam } from '@/lib/types';
 import { TeamCard } from '@/components/team-card';
 import { ScoutingForm } from '@/components/scouting/scouting-form';
@@ -51,12 +55,16 @@ function ScoutingContent() {
     summaryMap,
     notes,
     data,
+    scoutingStatus,
     updateNotes,
     updateField,
+    updateScoutingStatus,
     tags,
     allTags,
     updateTags,
     noteLoading,
+    noteUpdatedAt,
+    noteUpdatedByName,
     dirty,
     saveStatus,
     lastSavedAt,
@@ -177,6 +185,42 @@ function ScoutingContent() {
                   label="Save"
                 />
               </div>
+            </div>
+
+            {/* Status + last updated row */}
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="scouting-status"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Status
+                </label>
+                <select
+                  id="scouting-status"
+                  value={scoutingStatus}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    updateScoutingStatus(e.target.value as ScoutingStatus)
+                  }
+                  className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50"
+                >
+                  {SCOUTING_STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {noteUpdatedAt && (
+                <div className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                  Last updated{' '}
+                  {new Date(noteUpdatedAt).toLocaleString()}
+                  {noteUpdatedByName && (
+                    <span> by {noteUpdatedByName}</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {noteLoading ? (

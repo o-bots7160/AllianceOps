@@ -44,6 +44,7 @@ jobs:
   manage:
     name: ${{ github.event_name == 'schedule' && 'Stop dev' || format('{0} {1}', inputs.action, inputs.environment) }} PostgreSQL
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'schedule' && 'dev' || (inputs.environment == 'prod' && 'production' || 'dev') }}
     steps:
       - name: Azure Login (OIDC)
         uses: azure/login@v2

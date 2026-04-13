@@ -6,7 +6,7 @@ import { useAuth } from '@/components/use-auth';
 import { useSignalR } from '@/hooks/use-signalr';
 import { useAutosave } from '@/hooks/use-autosave';
 import { getApiBase } from '@/lib/api-base';
-import type { ScoutingEntry, ScoutingSummary } from '@allianceops/shared';
+import type { ScoutingEntry, ScoutingSummary, ScoutingStatus } from '@allianceops/shared';
 
 export interface PastScoutingNote {
   eventKey: string;
@@ -33,11 +33,14 @@ export function useScoutingData(selectedTeamNumber: number | null) {
   // Individual note state
   const [notes, setNotes] = useState('');
   const [data, setData] = useState<Record<string, unknown>>({});
+  const [scoutingStatus, setScoutingStatus] = useState<ScoutingStatus>('not_scouted');
   const [dirty, setDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('clean');
   const [lastSavedAt, setLastSavedAt] = useState<Date | undefined>();
   const [noteLoading, setNoteLoading] = useState(false);
   const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
+  const [noteUpdatedAt, setNoteUpdatedAt] = useState<string | null>(null);
+  const [noteUpdatedByName, setNoteUpdatedByName] = useState<string | null>(null);
 
   // Tag state (from picklist)
   const [tags, setTags] = useState<string[]>([]);
@@ -118,9 +121,15 @@ export function useScoutingData(selectedTeamNumber: number | null) {
           if (entry) {
             setNotes(entry.notes);
             setData(entry.data);
+            setScoutingStatus(entry.scoutingStatus ?? 'not_scouted');
+            setNoteUpdatedAt(entry.updatedAt ?? null);
+            setNoteUpdatedByName(entry.updatedByName ?? null);
           } else {
             setNotes('');
             setData({});
+            setScoutingStatus('not_scouted');
+            setNoteUpdatedAt(null);
+            setNoteUpdatedByName(null);
           }
         }
       } catch {
@@ -182,18 +191,27 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     } else {
       setNotes('');
       setData({});
+      setScoutingStatus('not_scouted');
       setTags([]);
       setTagsDirty(false);
       setDirty(false);
       setSaveStatus('clean');
       setPastNote(null);
       setPastNoteChecked(false);
+      setNoteUpdatedAt(null);
+      setNoteUpdatedByName(null);
     }
   }, [selectedTeamNumber, loadNote, loadTags, checkPastNote]);
 
   // --- Mark dirty on changes ---
   const updateNotes = useCallback((newNotes: string) => {
     setNotes(newNotes);
+    setDirty(true);
+    setSaveStatus('dirty');
+  }, []);
+
+  const updateScoutingStatus = useCallback((status: ScoutingStatus) => {
+    setScoutingStatus(status);
     setDirty(true);
     setSaveStatus('dirty');
   }, []);
@@ -222,7 +240,7 @@ export function useScoutingData(selectedTeamNumber: number | null) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
-          body: JSON.stringify({ notes, data }),
+          body: JSON.stringify({ notes, data, scoutingStatus }),
         },
       );
 
@@ -245,6 +263,18 @@ export function useScoutingData(selectedTeamNumber: number | null) {
       const responses = await Promise.all(promises);
       if (responses.some((r) => !r.ok)) throw new Error('Save failed');
 
+      // Update metadata from save response
+      try {
+        const saveJson = await responses[0].clone().json();
+        const saved = saveJson?.data as ScoutingEntry | undefined;
+        if (saved) {
+          setNoteUpdatedAt(saved.updatedAt ?? null);
+          setNoteUpdatedByName(saved.updatedByName ?? null);
+        }
+      } catch {
+        // Non-critical — metadata will refresh on next load
+      }
+
       setDirty(false);
       setTagsDirty(false);
       setLastSavedAt(new Date());
@@ -262,6 +292,7 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     canEdit,
     notes,
     data,
+    scoutingStatus,
     tags,
     tagsDirty,
     API_BASE,
@@ -367,9 +398,13 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     // Individual note
     notes,
     data,
+    scoutingStatus,
     updateNotes,
     updateField,
+    updateScoutingStatus,
     noteLoading,
+    noteUpdatedAt,
+    noteUpdatedByName,
     // Tags
     tags,
     allTags,

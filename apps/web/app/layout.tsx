@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Providers } from '../components/providers';
 import { SimulationBar } from '../components/simulation-bar';
 import { AppHeader } from '../components/app-header';
+import { UnauthBanner } from '../components/unauth-banner';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased">
         <Providers>
           <AppHeader />
+          <UnauthBanner />
           <SimulationBar />
           <main className="max-w-7xl mx-auto px-4 py-8">{children}</main>
           <footer className="border-t border-gray-200 dark:border-gray-800 mt-12 py-6 text-center text-xs text-gray-500 dark:text-gray-500 space-y-2">

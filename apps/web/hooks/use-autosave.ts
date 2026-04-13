@@ -40,10 +40,7 @@ export function useAutosave({
   debounceMs = 2000,
   storageKey,
 }: UseAutosaveOptions): UseAutosaveReturn {
-  const [autosaveEnabled, setAutosaveEnabled] = usePersistentState(
-    `autosave:${storageKey}`,
-    false,
-  );
+  const [autosaveEnabled, setAutosaveEnabled] = usePersistentState(`autosave:${storageKey}`, true);
 
   const saveFnRef = useRef(saveFn);
   saveFnRef.current = saveFn;

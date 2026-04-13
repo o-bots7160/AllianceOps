@@ -25,6 +25,12 @@ enum RequestStatus {
   REJECTED
 }
 
+enum ScoutingStatus {
+  not_scouted
+  in_progress
+  scouted
+}
+
 // ─── User & Team ─────────────────────────────────────────
 
 model User {
@@ -193,7 +199,9 @@ model ScoutingNote {
   targetTeamNumber Int
   notes            String   @default("")
   data             Json     @default("{}")
+  scoutingStatus   ScoutingStatus @default(not_scouted)
   createdBy        String
+  updatedBy        String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

@@ -77,6 +77,8 @@ var suffix = '${namePrefix}-${environmentName}'
 var storageAccountName = 'st${namePrefix}${environmentName}'
 // Sub-deployment names inherit the parent deployment name for traceability
 var deployPrefix = deployment().name
+// Custom domain HTTPS origins for SignalR CORS (e.g. https://www.allianceops.io)
+var customDomainOrigins = [for domain in customDomains: 'https://${domain.name}']
 
 module appInsights 'modules/appInsights.bicep' = {
   name: '${deployPrefix}-appInsights'
@@ -161,10 +163,10 @@ module signalR 'modules/signalR.bicep' = {
     name: 'sigr-${suffix}'
     location: location
     skuName: signalRSkuName
-    corsAllowedOrigins: [
+    corsAllowedOrigins: concat([
       'https://${staticWebApp.outputs.defaultHostname}'
       'http://localhost:4280'
-    ]
+    ], customDomainOrigins)
     logAnalyticsWorkspaceId: appInsights.outputs.logAnalyticsWorkspaceId
     diagnosticLevel: diagnosticLevel
   }

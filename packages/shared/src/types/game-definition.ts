@@ -81,7 +81,7 @@ export interface ScoutingFieldDefinition {
   /** Options for 'select' and 'multi-select' type fields */
   options?: string[];
   /** Phase/section grouping for form layout */
-  category: 'auto' | 'teleop' | 'endgame';
+  category: 'general' | 'auto' | 'teleop' | 'endgame';
   /** Link to an EPA breakdown key (for cross-referencing observed vs computed) */
   epaKey?: string;
 }
