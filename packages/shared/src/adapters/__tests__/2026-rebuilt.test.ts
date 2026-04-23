@@ -247,10 +247,50 @@ describe('2026 REBUILT adapter', () => {
     });
 
     it('has field types that are valid', () => {
-      const validTypes = ['number', 'boolean', 'select', 'multi-select', 'text'];
+      const validTypes = [
+        'number',
+        'boolean',
+        'select',
+        'multi-select',
+        'text',
+        'per-match-number',
+      ];
       for (const f of fields) {
         expect(validTypes).toContain(f.type);
       }
+    });
+
+    describe('per-match fuel aggregation', () => {
+      it('marks auto_fuel_observed and teleop_fuel_observed as readOnly with derivedFromKey', () => {
+        const autoAvg = fields.find((f) => f.key === 'auto_fuel_observed');
+        const teleopAvg = fields.find((f) => f.key === 'teleop_fuel_observed');
+        expect(autoAvg).toBeDefined();
+        expect(teleopAvg).toBeDefined();
+        expect(autoAvg!.readOnly).toBe(true);
+        expect(teleopAvg!.readOnly).toBe(true);
+        expect(autoAvg!.derivedFromKey).toBe('auto_fuel_matches');
+        expect(teleopAvg!.derivedFromKey).toBe('teleop_fuel_matches');
+      });
+
+      it('declares matching per-match-number source fields', () => {
+        const autoMatches = fields.find((f) => f.key === 'auto_fuel_matches');
+        const teleopMatches = fields.find((f) => f.key === 'teleop_fuel_matches');
+        expect(autoMatches).toBeDefined();
+        expect(teleopMatches).toBeDefined();
+        expect(autoMatches!.type).toBe('per-match-number');
+        expect(teleopMatches!.type).toBe('per-match-number');
+        expect(autoMatches!.category).toBe('auto');
+        expect(teleopMatches!.category).toBe('teleop');
+      });
+
+      it('every derivedFromKey resolves to an existing field', () => {
+        const keys = new Set(fields.map((f) => f.key));
+        for (const f of fields) {
+          if (f.derivedFromKey) {
+            expect(keys.has(f.derivedFromKey)).toBe(true);
+          }
+        }
+      });
     });
   });
 });

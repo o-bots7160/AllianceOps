@@ -176,7 +176,7 @@ export function AppHeader() {
 
         {/* Desktop: centered controls */}
         {showControls && (
-          <div className="hidden md:flex items-center justify-center min-w-0 flex-1">
+          <div className="hidden lg:flex items-center justify-center min-w-0 flex-1">
             <GlobalControls />
           </div>
         )}
@@ -184,7 +184,7 @@ export function AppHeader() {
         {/* Desktop: nav + user menu together; Mobile: hamburger */}
         <div className="flex items-center gap-4 shrink-0">
           {showControls && (
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-4">
               <NavLinks />
               {user ? (
                 <UserMenu displayLabel={userLabel} />
@@ -198,7 +198,7 @@ export function AppHeader() {
           {showControls && (
             <button
               onClick={() => setMobileOpen((o) => !o)}
-              className="md:hidden p-1.5 text-gray-600 dark:text-gray-300 hover:text-primary-600"
+              className="lg:hidden p-1.5 text-gray-600 dark:text-gray-300 hover:text-primary-600"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
               {mobileOpen ? (
@@ -227,7 +227,7 @@ export function AppHeader() {
 
       {/* Mobile dropdown panel */}
       {mobileOpen && showControls && (
-        <div className="md:hidden border-t border-gray-200 dark:border-gray-800 px-4 py-4 space-y-4">
+        <div className="lg:hidden border-t border-gray-200 dark:border-gray-800 px-4 py-4 space-y-4">
           <GlobalControls />
           <NavLinks vertical onNavigate={() => setMobileOpen(false)} />
           <hr className="border-gray-200 dark:border-gray-700" />

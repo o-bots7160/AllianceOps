@@ -76,14 +76,45 @@ export interface ScoutingFieldDefinition {
   label: string;
   /** Tooltip or helper text */
   description: string;
-  /** Input type */
-  type: 'number' | 'boolean' | 'select' | 'multi-select' | 'text';
+  /**
+   * Input type.
+   *
+   * For `per-match-number`, the stored value is an object keyed by match key
+   * (e.g. `{ "2026misjo_qm12": 5 }`). These fields are rendered collectively in
+   * a per-match table rather than as an individual input.
+   */
+  type: 'number' | 'boolean' | 'select' | 'multi-select' | 'text' | 'per-match-number';
   /** Options for 'select' and 'multi-select' type fields */
   options?: string[];
   /** Phase/section grouping for form layout */
   category: 'general' | 'auto' | 'teleop' | 'endgame';
   /** Link to an EPA breakdown key (for cross-referencing observed vs computed) */
   epaKey?: string;
+  /**
+   * If true, the field is shown but not directly editable by the user.
+   * Typically used together with `derivedFromKey` to display a value computed
+   * client-side from another field (e.g. average of per-match entries).
+   */
+  readOnly?: boolean;
+  /**
+   * The key of another `ScoutingFieldDefinition` this field is derived from.
+   * When set, the scouting form recomputes this field's value whenever the
+   * referenced field changes (see `aggregation`).
+   */
+  derivedFromKey?: string;
+  /**
+   * How to aggregate the source field when this field is derived. Defaults to
+   * `'average'` when `derivedFromKey` is set. Blank entries are excluded.
+   */
+  aggregation?: 'average';
+  /**
+   * When true, surface this field in the quick-glance Scouting section of the
+   * team card. Intended for a small curated set of decision-driving fields;
+   * all fields remain available in the full scouting form regardless.
+   * `per-match-number` fields should generally keep this false and rely on
+   * their derived companion field for team-card display. Defaults to false.
+   */
+  showInTeamCard?: boolean;
 }
 
 /** Per-season game definition adapter */

@@ -498,6 +498,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
       'Other',
     ],
     category: 'general',
+    showInTeamCard: true,
   },
   {
     key: 'tuning_practices',
@@ -531,16 +532,62 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'multi-select',
     options: ['Neutral Zone', 'Own Alliance', 'Opposing Alliance', 'Defense Only', 'Last Resort'],
     category: 'general',
+    showInTeamCard: true,
+  },
+  {
+    key: 'mechanical_issues',
+    label: 'Mechanical Issues / Breakdowns',
+    description:
+      'Describe any mechanical issues or breakdowns observed during the competition — jammed intakes, drivetrain failures, disconnects, broken mechanisms, etc. Note frequency and severity.',
+    type: 'text',
+    category: 'general',
+    showInTeamCard: true,
+  },
+  {
+    key: 'practice_field_usage',
+    label: 'Practice Field Usage',
+    description:
+      "Ask the team whether they've used the practice field. If so, note how often they've been there and what they were testing or tuning. Capture specifics.",
+    type: 'text',
+    category: 'general',
+  },
+  {
+    key: 'practice_match_performance',
+    label: 'Practice Match Performance',
+    description:
+      'Note whether the team competed in any practice matches and, if so, how they performed — scoring, reliability, and any issues observed.',
+    type: 'text',
+    category: 'general',
+  },
+  {
+    key: 'social_media_presence',
+    label: 'Social Media Presence',
+    description:
+      'Record any social media presence (Chief Delphi, Instagram, X, YouTube, etc.) and anything noteworthy related to their performance or reputation.',
+    type: 'text',
+    category: 'general',
   },
   // Auto
   {
     key: 'auto_fuel_observed',
-    label: 'Auton # Fuel',
+    label: 'Auton # Fuel (avg)',
     description:
-      'Count the number of fuel pieces scored during autonomous. Watch closely — auton is fast and easy to miss.',
+      'Average fuel pieces scored during autonomous. Automatically computed from the per-match entries below — not directly editable.',
     type: 'number',
     category: 'auto',
     epaKey: 'auto_fuel',
+    readOnly: true,
+    derivedFromKey: 'auto_fuel_matches',
+    aggregation: 'average',
+    showInTeamCard: true,
+  },
+  {
+    key: 'auto_fuel_matches',
+    label: 'Auton Fuel (per match)',
+    description:
+      'Fuel scored during autonomous for each match. Enter counts per match; the average updates automatically.',
+    type: 'per-match-number',
+    category: 'auto',
   },
   {
     key: 'drives_neutral',
@@ -550,6 +597,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'select',
     options: ['Yes', 'No'],
     category: 'auto',
+    showInTeamCard: true,
   },
   {
     key: 'preferred_auton_route',
@@ -574,12 +622,24 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   // Teleop
   {
     key: 'teleop_fuel_observed',
-    label: '# of Fuel During Teleop',
+    label: '# of Fuel During Teleop (avg)',
     description:
-      'Average number of fuel pieces scored during teleop. Try to count across multiple matches for a reliable estimate.',
+      'Average fuel pieces scored during teleop. Automatically computed from the per-match entries below — not directly editable.',
     type: 'number',
     category: 'teleop',
     epaKey: 'teleop_fuel',
+    readOnly: true,
+    derivedFromKey: 'teleop_fuel_matches',
+    aggregation: 'average',
+    showInTeamCard: true,
+  },
+  {
+    key: 'teleop_fuel_matches',
+    label: 'Teleop Fuel (per match)',
+    description:
+      'Fuel scored during teleop for each match. Enter counts per match; the average updates automatically.',
+    type: 'per-match-number',
+    category: 'teleop',
   },
   {
     key: 'fuel_source',
@@ -589,6 +649,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'multi-select',
     options: ['Neutral Zone', 'Alliance Zone'],
     category: 'teleop',
+    showInTeamCard: true,
   },
   {
     key: 'teleop_autonomous_actions',
@@ -617,6 +678,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     options: ['Yes', 'No', 'Maybe'],
     category: 'endgame',
     epaKey: 'total_tower',
+    showInTeamCard: true,
   },
   {
     key: 'climb_level',
@@ -627,6 +689,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     options: ['Level 1', 'Level 2', 'Level 3'],
     category: 'endgame',
     epaKey: 'total_tower',
+    showInTeamCard: true,
   },
   {
     key: 'endgame_strategy',

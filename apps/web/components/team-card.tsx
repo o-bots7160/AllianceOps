@@ -295,22 +295,37 @@ export function TeamCard({
                     {scoutingSummary.data && (
                       <div className="space-y-1">
                         {scoutingFields
+                          .filter((f) => f.showInTeamCard === true)
                           .filter((f) => {
                             const v = scoutingSummary.data[f.key];
                             if (v == null) return false;
                             if (Array.isArray(v)) return v.length > 0;
                             if (typeof v === 'string') return v.length > 0;
+                            // Defensive: never render raw objects (e.g. legacy
+                            // per-match maps written under an aggregate key).
+                            if (typeof v === 'object') return false;
                             return true;
                           })
                           .map((f) => {
                             const v = scoutingSummary.data[f.key];
-                            const display = Array.isArray(v) ? (v as string[]).join(', ') : String(v);
+                            let display: string;
+                            if (Array.isArray(v)) {
+                              display = (v as string[]).join(', ');
+                            } else if (typeof v === 'number') {
+                              display = Number.isInteger(v) ? String(v) : v.toFixed(1);
+                            } else {
+                              display = String(v);
+                            }
+                            const stacked = f.type === 'text';
                             return (
-                              <div key={f.key} className="flex gap-1.5">
+                              <div
+                                key={f.key}
+                                className={stacked ? 'flex flex-col' : 'flex gap-1.5'}
+                              >
                                 <span className="text-gray-500 dark:text-gray-400 shrink-0">
                                   {f.label}:
                                 </span>
-                                <span className="text-gray-700 dark:text-gray-200 font-medium">
+                                <span className="text-gray-700 dark:text-gray-200 font-medium whitespace-pre-wrap break-words">
                                   {display}
                                 </span>
                               </div>
