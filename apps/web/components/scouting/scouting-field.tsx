@@ -19,7 +19,9 @@ export function ScoutingField({
   onChange: (value: unknown) => void;
 }) {
   switch (field.type) {
-    case 'number':
+    case 'number': {
+      const isReadOnly = field.readOnly === true;
+      const displayValue = typeof value === 'number' ? value : '';
       return (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -28,13 +30,23 @@ export function ScoutingField({
           <FieldDescription text={field.description} />
           <input
             type="number"
-            value={typeof value === 'number' ? value : ''}
-            disabled={disabled}
-            onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50"
+            value={displayValue}
+            disabled={disabled || isReadOnly}
+            readOnly={isReadOnly}
+            onChange={(e) => {
+              if (isReadOnly) return;
+              onChange(e.target.value === '' ? null : Number(e.target.value));
+            }}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50 read-only:bg-gray-100 dark:read-only:bg-gray-900 read-only:cursor-not-allowed"
           />
+          {isReadOnly && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+              Automatically averaged from per-match entries
+            </p>
+          )}
         </div>
       );
+    }
 
     case 'boolean':
       return (

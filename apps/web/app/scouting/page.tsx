@@ -24,6 +24,19 @@ import { TeamCard } from '@/components/team-card';
 import { ScoutingForm } from '@/components/scouting/scouting-form';
 import { ScoutingTeamList } from '@/components/scouting/scouting-team-list';
 
+interface TBAMatch {
+  key: string;
+  comp_level: string;
+  set_number: number;
+  match_number: number;
+  alliances: {
+    red: { team_keys: string[]; score: number };
+    blue: { team_keys: string[]; score: number };
+  };
+  time: number | null;
+  winning_alliance: string;
+}
+
 function ScoutingContent() {
   const { eventKey, year } = useEventSetup();
   const { activeTeam } = useAuth();
@@ -49,6 +62,10 @@ function ScoutingContent() {
     eventKey ? `event/${eventKey}/teams` : null,
   );
 
+  const { data: matches } = useApi<TBAMatch[]>(
+    eventKey ? `event/${eventKey}/matches` : null,
+  );
+
   const {
     canEdit,
     user,
@@ -58,6 +75,7 @@ function ScoutingContent() {
     scoutingStatus,
     updateNotes,
     updateField,
+    updatePerMatchValue,
     updateScoutingStatus,
     tags,
     allTags,
@@ -269,6 +287,9 @@ function ScoutingContent() {
                     disabled={!canEdit}
                     onNotesChange={updateNotes}
                     onFieldChange={updateField}
+                    onPerMatchChange={updatePerMatchValue}
+                    matches={matches ?? []}
+                    targetTeamNumber={selectedTeam}
                     tags={tags}
                     allTags={allTags}
                     onTagsChange={updateTags}

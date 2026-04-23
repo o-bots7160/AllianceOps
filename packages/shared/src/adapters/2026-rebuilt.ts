@@ -567,12 +567,23 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   // Auto
   {
     key: 'auto_fuel_observed',
-    label: 'Auton # Fuel',
+    label: 'Auton # Fuel (avg)',
     description:
-      'Count the number of fuel pieces scored during autonomous. Watch closely — auton is fast and easy to miss.',
+      'Average fuel pieces scored during autonomous. Automatically computed from the per-match entries below — not directly editable.',
     type: 'number',
     category: 'auto',
     epaKey: 'auto_fuel',
+    readOnly: true,
+    derivedFromKey: 'auto_fuel_matches',
+    aggregation: 'average',
+  },
+  {
+    key: 'auto_fuel_matches',
+    label: 'Auton Fuel (per match)',
+    description:
+      'Fuel scored during autonomous for each match. Enter counts per match; the average updates automatically.',
+    type: 'per-match-number',
+    category: 'auto',
   },
   {
     key: 'drives_neutral',
@@ -606,12 +617,23 @@ const scoutingFields: ScoutingFieldDefinition[] = [
   // Teleop
   {
     key: 'teleop_fuel_observed',
-    label: '# of Fuel During Teleop',
+    label: '# of Fuel During Teleop (avg)',
     description:
-      'Average number of fuel pieces scored during teleop. Try to count across multiple matches for a reliable estimate.',
+      'Average fuel pieces scored during teleop. Automatically computed from the per-match entries below — not directly editable.',
     type: 'number',
     category: 'teleop',
     epaKey: 'teleop_fuel',
+    readOnly: true,
+    derivedFromKey: 'teleop_fuel_matches',
+    aggregation: 'average',
+  },
+  {
+    key: 'teleop_fuel_matches',
+    label: 'Teleop Fuel (per match)',
+    description:
+      'Fuel scored during teleop for each match. Enter counts per match; the average updates automatically.',
+    type: 'per-match-number',
+    category: 'teleop',
   },
   {
     key: 'fuel_source',

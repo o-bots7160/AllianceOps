@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { ScoutingFieldDefinition } from '@allianceops/shared';
 import { ScoutingField } from './scouting-field';
+import { PerMatchTable } from './per-match-table';
 import { TagDropdown } from '../picklist/tag-filter-control';
 
 const CATEGORIES = ['general', 'auto', 'teleop', 'endgame'] as const;
@@ -14,6 +15,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   endgame: 'Endgame',
 };
 
+interface TBAMatchLike {
+  key: string;
+  comp_level: string;
+  set_number?: number;
+  match_number: number;
+  alliances: {
+    red: { team_keys: string[] };
+    blue: { team_keys: string[] };
+  };
+}
+
 export function ScoutingForm({
   fields,
   notes,
@@ -21,6 +33,9 @@ export function ScoutingForm({
   disabled,
   onNotesChange,
   onFieldChange,
+  onPerMatchChange,
+  matches,
+  targetTeamNumber,
   tags,
   allTags,
   onTagsChange,
@@ -31,6 +46,9 @@ export function ScoutingForm({
   disabled: boolean;
   onNotesChange: (notes: string) => void;
   onFieldChange: (key: string, value: unknown) => void;
+  onPerMatchChange: (fieldKey: string, matchKey: string, value: number | null) => void;
+  matches: TBAMatchLike[];
+  targetTeamNumber: number;
   tags: string[];
   allTags: string[];
   onTagsChange: (tags: string[]) => void;
@@ -41,10 +59,15 @@ export function ScoutingForm({
     setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }));
   };
 
+  // Per-match fields are rendered collectively in a dedicated table, not
+  // within their category sections.
+  const perMatchFields = fields.filter((f) => f.type === 'per-match-number');
+  const standardFields = fields.filter((f) => f.type !== 'per-match-number');
+
   const groupedFields = CATEGORIES.map((cat) => ({
     category: cat,
     label: CATEGORY_LABELS[cat],
-    fields: fields.filter((f) => f.category === cat),
+    fields: standardFields.filter((f) => f.category === cat),
   })).filter((g) => g.fields.length > 0);
 
   return (
@@ -140,6 +163,46 @@ export function ScoutingForm({
           )}
         </div>
       ))}
+
+      {/* Per-Match Observations */}
+      {perMatchFields.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => toggleSection('per-match')}
+            className="flex items-center gap-1.5 w-full text-left mb-2"
+          >
+            <svg
+              className={`h-3.5 w-3.5 text-gray-400 transition-transform shrink-0 ${collapsed['per-match'] ? '' : 'rotate-90'}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Per-Match Observations
+            </span>
+            <span className="text-xs text-gray-400">({perMatchFields.length})</span>
+          </button>
+          {!collapsed['per-match'] && (
+            <div className="pl-5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Enter values per match. Averages above update automatically.
+              </p>
+              <PerMatchTable
+                fields={perMatchFields}
+                matches={matches}
+                targetTeamNumber={targetTeamNumber}
+                data={data}
+                disabled={disabled}
+                onChange={onPerMatchChange}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
