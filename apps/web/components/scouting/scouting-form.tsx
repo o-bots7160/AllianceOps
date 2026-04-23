@@ -70,13 +70,36 @@ export function ScoutingForm({
     fields: standardFields.filter((f) => f.category === cat),
   })).filter((g) => g.fields.length > 0);
 
+  const allSectionKeys: string[] = [
+    'picklist',
+    ...groupedFields.map((g) => g.category),
+    ...(perMatchFields.length > 0 ? ['per-match'] : []),
+  ];
+  const allCollapsed = allSectionKeys.every((k) => collapsed[k]);
+  const toggleAll = () => {
+    if (allCollapsed) {
+      setCollapsed({});
+    } else {
+      setCollapsed(Object.fromEntries(allSectionKeys.map((k) => [k, true])));
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Notes
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Notes
+          </label>
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
+        </div>
         <textarea
           value={notes}
           disabled={disabled}
