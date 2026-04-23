@@ -107,6 +107,14 @@ export interface ScoutingFieldDefinition {
    * `'average'` when `derivedFromKey` is set. Blank entries are excluded.
    */
   aggregation?: 'average';
+  /**
+   * When true, surface this field in the quick-glance Scouting section of the
+   * team card. Intended for a small curated set of decision-driving fields;
+   * all fields remain available in the full scouting form regardless.
+   * `per-match-number` fields should generally keep this false and rely on
+   * their derived companion field for team-card display. Defaults to false.
+   */
+  showInTeamCard?: boolean;
 }
 
 /** Per-season game definition adapter */

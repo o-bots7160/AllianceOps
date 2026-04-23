@@ -498,6 +498,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
       'Other',
     ],
     category: 'general',
+    showInTeamCard: true,
   },
   {
     key: 'tuning_practices',
@@ -531,6 +532,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'multi-select',
     options: ['Neutral Zone', 'Own Alliance', 'Opposing Alliance', 'Defense Only', 'Last Resort'],
     category: 'general',
+    showInTeamCard: true,
   },
   {
     key: 'mechanical_issues',
@@ -539,6 +541,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
       'Describe any mechanical issues or breakdowns observed during the competition — jammed intakes, drivetrain failures, disconnects, broken mechanisms, etc. Note frequency and severity.',
     type: 'text',
     category: 'general',
+    showInTeamCard: true,
   },
   {
     key: 'practice_field_usage',
@@ -576,6 +579,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     readOnly: true,
     derivedFromKey: 'auto_fuel_matches',
     aggregation: 'average',
+    showInTeamCard: true,
   },
   {
     key: 'auto_fuel_matches',
@@ -593,6 +597,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'select',
     options: ['Yes', 'No'],
     category: 'auto',
+    showInTeamCard: true,
   },
   {
     key: 'preferred_auton_route',
@@ -626,6 +631,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     readOnly: true,
     derivedFromKey: 'teleop_fuel_matches',
     aggregation: 'average',
+    showInTeamCard: true,
   },
   {
     key: 'teleop_fuel_matches',
@@ -643,6 +649,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     type: 'multi-select',
     options: ['Neutral Zone', 'Alliance Zone'],
     category: 'teleop',
+    showInTeamCard: true,
   },
   {
     key: 'teleop_autonomous_actions',
@@ -671,6 +678,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     options: ['Yes', 'No', 'Maybe'],
     category: 'endgame',
     epaKey: 'total_tower',
+    showInTeamCard: true,
   },
   {
     key: 'climb_level',
@@ -681,6 +689,7 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     options: ['Level 1', 'Level 2', 'Level 3'],
     category: 'endgame',
     epaKey: 'total_tower',
+    showInTeamCard: true,
   },
   {
     key: 'endgame_strategy',
