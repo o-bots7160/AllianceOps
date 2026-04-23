@@ -62,7 +62,23 @@ export function trackAuthEvent(event: AuthEventType, properties?: Record<string,
 
 /** Track an exception with optional custom properties. */
 export function trackException(error: Error, properties?: Record<string, string>): void {
-  client?.trackException({ exception: error, properties });
+  // Surface Prisma error codes as telemetry properties so they show up in
+  // Application Insights alongside the operation context.
+  const errRecord = error as unknown as Record<string, unknown>;
+  const prismaCode = typeof errRecord.code === 'string' ? errRecord.code : undefined;
+  const enriched: Record<string, string> | undefined =
+    prismaCode !== undefined ? { ...(properties ?? {}), prismaCode } : properties;
+
+  client?.trackException({ exception: error, properties: enriched });
+
+  // In non-production environments, echo the error to stderr so developers
+  // running `pnpm dev` can diagnose failures without needing Application
+  // Insights. Production keeps quiet to avoid leaking internals to logs.
+  if (process.env.NODE_ENV !== 'production') {
+    const context = enriched ? ` ${JSON.stringify(enriched)}` : '';
+    // eslint-disable-next-line no-console
+    console.error(`[trackException]${context} ${error.stack ?? error.message}`);
+  }
 }
 
 /** Returns true if the Application Insights client is initialized. */

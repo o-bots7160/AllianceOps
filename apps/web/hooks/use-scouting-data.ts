@@ -6,7 +6,14 @@ import { useAuth } from '@/components/use-auth';
 import { useSignalR } from '@/hooks/use-signalr';
 import { useAutosave } from '@/hooks/use-autosave';
 import { getApiBase } from '@/lib/api-base';
-import type { ScoutingEntry, ScoutingSummary, ScoutingStatus } from '@allianceops/shared';
+import { applyPerMatchCellChange, computePerMatchAverage } from '@/lib/per-match-scouting';
+import { getAdapter } from '@allianceops/shared';
+import type {
+  ScoutingEntry,
+  ScoutingFieldDefinition,
+  ScoutingSummary,
+  ScoutingStatus,
+} from '@allianceops/shared';
 
 export interface PastScoutingNote {
   eventKey: string;
@@ -222,6 +229,40 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     setSaveStatus('dirty');
   }, []);
 
+  // --- Adapter scouting fields (for per-match aggregation lookup) ---
+  const scoutingFields = useMemo<ScoutingFieldDefinition[]>(() => {
+    try {
+      return getAdapter(year).scoutingFields ?? [];
+    } catch {
+      return [];
+    }
+  }, [year]);
+
+  const updatePerMatchValue = useCallback(
+    (fieldKey: string, matchKey: string, value: number | null) => {
+      setData((prev) => {
+        const nextMap = applyPerMatchCellChange(prev[fieldKey], matchKey, value);
+        const next: Record<string, unknown> = { ...prev, [fieldKey]: nextMap };
+
+        // Recompute the aggregate (if any) that derives from this field.
+        // When the per-match map is empty, the legacy aggregate value is
+        // preserved — see ADR 034.
+        const aggregateField = scoutingFields.find((f) => f.derivedFromKey === fieldKey);
+        if (aggregateField) {
+          const avg = computePerMatchAverage(nextMap);
+          if (avg !== null) {
+            next[aggregateField.key] = avg;
+          }
+        }
+
+        return next;
+      });
+      setDirty(true);
+      setSaveStatus('dirty');
+    },
+    [scoutingFields],
+  );
+
   const updateTags = useCallback((newTags: string[]) => {
     setTags(newTags);
     setTagsDirty(true);
@@ -401,6 +442,7 @@ export function useScoutingData(selectedTeamNumber: number | null) {
     scoutingStatus,
     updateNotes,
     updateField,
+    updatePerMatchValue,
     updateScoutingStatus,
     noteLoading,
     noteUpdatedAt,
