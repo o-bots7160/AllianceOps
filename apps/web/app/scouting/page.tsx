@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, Suspense } from 'react';
+import { useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { InfoBox } from '@/components/info-box';
@@ -18,11 +18,13 @@ import type {
   ScoutingFieldDefinition,
   GameMetricDefinition,
   ScoutingStatus,
+  TeamRankAnalysis,
 } from '@allianceops/shared';
 import type { EnrichedTeam } from '@/lib/types';
-import { TeamCard } from '@/components/team-card';
+import type { EnrichedTeam as PicklistEnrichedTeam } from '@/components/picklist/types';
 import { ScoutingForm } from '@/components/scouting/scouting-form';
 import { ScoutingTeamList } from '@/components/scouting/scouting-team-list';
+import { TeamDetailModal } from '@/components/picklist/team-detail-modal';
 
 interface TBAMatch {
   key: string;
@@ -132,6 +134,30 @@ function ScoutingContent() {
 
   const selectedTeamData = selectedTeam ? epaMap.get(selectedTeam) : null;
 
+  // Team records (wins/losses/ties) computed from qual matches — used for the team detail modal.
+  const teamRecords = useMemo(() => {
+    const records = new Map<number, { wins: number; losses: number; ties: number }>();
+    if (!matches) return records;
+    const qualMatches = matches.filter((m) => m.comp_level === 'qm');
+    for (const m of qualMatches) {
+      for (const teamKey of [...m.alliances.red.team_keys, ...m.alliances.blue.team_keys]) {
+        const num = parseInt(teamKey.replace('frc', ''), 10);
+        if (!records.has(num)) records.set(num, { wins: 0, losses: 0, ties: 0 });
+        const rec = records.get(num)!;
+        const isRed = m.alliances.red.team_keys.includes(teamKey);
+        if (m.winning_alliance === 'red' && isRed) rec.wins++;
+        else if (m.winning_alliance === 'blue' && !isRed) rec.wins++;
+        else if (m.winning_alliance === '') rec.ties++;
+        else if (m.alliances.red.score >= 0) rec.losses++;
+      }
+    }
+    return records;
+  }, [matches]);
+
+  const emptyRankAnalysisMap = useMemo(() => new Map<string, TeamRankAnalysis>(), []);
+
+  const [modalTeam, setModalTeam] = useState<number | null>(null);
+
   return (
     <PageGuard
       condition={eventKey}
@@ -166,7 +192,7 @@ function ScoutingContent() {
         ) : (
           /* Individual team scouting view */
           <div className="space-y-4">
-            {/* Back button + save */}
+            {/* Back button + clickable team header + save */}
             <div className="flex items-center gap-4">
               <Link
                 href="/scouting/"
@@ -183,14 +209,35 @@ function ScoutingContent() {
                 </svg>
                 All Teams
               </Link>
-              <span className="text-lg font-bold">
-                {selectedTeam}
-                {selectedTeamData?.nickname && (
-                  <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                    {selectedTeamData.nickname}
-                  </span>
-                )}
-              </span>
+              <button
+                type="button"
+                onClick={() => setModalTeam(selectedTeam)}
+                aria-label={`View team ${selectedTeam} details`}
+                className="group inline-flex items-center gap-2 text-left rounded-md px-1 -mx-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <span className="text-lg font-bold">
+                  {selectedTeam}
+                  {selectedTeamData?.nickname && (
+                    <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                      {selectedTeamData.nickname}
+                    </span>
+                  )}
+                </span>
+                <svg
+                  className="h-4 w-4 text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 7h6m0 0v6m0-6L10 16M7 7H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2"
+                  />
+                </svg>
+              </button>
               <div className="ml-auto">
                 <SaveComboButton
                   canEdit={canEdit}
@@ -205,99 +252,90 @@ function ScoutingContent() {
               </div>
             </div>
 
-            {/* Status + last updated row */}
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="scouting-status"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Status
-                </label>
-                <select
-                  id="scouting-status"
-                  value={scoutingStatus}
-                  disabled={!canEdit}
-                  onChange={(e) =>
-                    updateScoutingStatus(e.target.value as ScoutingStatus)
-                  }
-                  className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50"
-                >
-                  {SCOUTING_STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {noteUpdatedAt && (
-                <div className="ml-auto text-xs text-gray-500 dark:text-gray-400">
-                  Last updated{' '}
-                  {new Date(noteUpdatedAt).toLocaleString()}
-                  {noteUpdatedByName && (
-                    <span> by {noteUpdatedByName}</span>
-                  )}
-                </div>
-              )}
-            </div>
-
             {noteLoading ? (
               <LoadingSpinner />
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Team Card */}
-                <div>
-                  <TeamCard
-                    teamKey={`frc${selectedTeam}`}
-                    epaMap={epaMap}
-                    epaRank={epaRankMap.get(selectedTeam)}
-                    metrics={cardMetrics}
-                    defaultExpanded
-                  />
-                </div>
+              <div className="space-y-5">
+                {/* Import from past event prompt */}
+                {pastNoteChecked && pastNote && !dirty && !notes && (
+                  <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-3 py-2.5 flex items-center justify-between gap-3">
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <span className="font-medium">Notes from {pastNote.eventKey}</span>
+                      {' — '}
+                      import as a starting baseline?
+                    </div>
+                    <button
+                      type="button"
+                      onClick={importPastNote}
+                      className="shrink-0 rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
+                    >
+                      Import
+                    </button>
+                  </div>
+                )}
 
-                {/* Right: Scouting Form */}
-                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Scouting Analysis
-                  </h3>
-
-                  {/* Import from past event prompt */}
-                  {pastNoteChecked && pastNote && !dirty && !notes && (
-                    <div className="mb-4 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-3 py-2.5 flex items-center justify-between gap-3">
-                      <div className="text-sm text-blue-800 dark:text-blue-200">
-                        <span className="font-medium">Notes from {pastNote.eventKey}</span>
-                        {' — '}
-                        import as a starting baseline?
-                      </div>
-                      <button
-                        type="button"
-                        onClick={importPastNote}
-                        className="shrink-0 rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
-                      >
-                        Import
-                      </button>
+                {/* Status + last-updated row (above Notes) */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="scouting-status"
+                      className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Status
+                    </label>
+                    <select
+                      id="scouting-status"
+                      value={scoutingStatus}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        updateScoutingStatus(e.target.value as ScoutingStatus)
+                      }
+                      className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm disabled:opacity-50"
+                    >
+                      {SCOUTING_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {noteUpdatedAt && (
+                    <div className="sm:ml-auto text-xs text-gray-500 dark:text-gray-400">
+                      Last updated {new Date(noteUpdatedAt).toLocaleString()}
+                      {noteUpdatedByName && <span> by {noteUpdatedByName}</span>}
                     </div>
                   )}
-
-                  <ScoutingForm
-                    fields={scoutingFields}
-                    notes={notes}
-                    data={data}
-                    disabled={!canEdit}
-                    onNotesChange={updateNotes}
-                    onFieldChange={updateField}
-                    onPerMatchChange={updatePerMatchValue}
-                    matches={matches ?? []}
-                    targetTeamNumber={selectedTeam}
-                    tags={tags}
-                    allTags={allTags}
-                    onTagsChange={updateTags}
-                  />
                 </div>
+
+                <ScoutingForm
+                  fields={scoutingFields}
+                  notes={notes}
+                  data={data}
+                  disabled={!canEdit}
+                  onNotesChange={updateNotes}
+                  onFieldChange={updateField}
+                  onPerMatchChange={updatePerMatchValue}
+                  matches={matches ?? []}
+                  targetTeamNumber={selectedTeam}
+                  tags={tags}
+                  allTags={allTags}
+                  onTagsChange={updateTags}
+                />
               </div>
             )}
           </div>
+        )}
+
+        {modalTeam !== null && (
+          <TeamDetailModal
+            teamNumber={modalTeam}
+            epaMap={epaMap as Map<number, PicklistEnrichedTeam>}
+            epaRankMap={epaRankMap}
+            rankAnalysisMap={emptyRankAnalysisMap}
+            teamRecords={teamRecords}
+            cardMetrics={cardMetrics}
+            onClose={() => setModalTeam(null)}
+          />
         )}
 
         <SaveStatusBar status={saveStatus} lastSavedAt={lastSavedAt} />
