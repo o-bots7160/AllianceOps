@@ -532,6 +532,38 @@ const scoutingFields: ScoutingFieldDefinition[] = [
     options: ['Neutral Zone', 'Own Alliance', 'Opposing Alliance', 'Defense Only', 'Last Resort'],
     category: 'general',
   },
+  {
+    key: 'mechanical_issues',
+    label: 'Mechanical Issues / Breakdowns',
+    description:
+      'Describe any mechanical issues or breakdowns observed during the competition — jammed intakes, drivetrain failures, disconnects, broken mechanisms, etc. Note frequency and severity.',
+    type: 'text',
+    category: 'general',
+  },
+  {
+    key: 'practice_field_usage',
+    label: 'Practice Field Usage',
+    description:
+      "Ask the team whether they've used the practice field. If so, note how often they've been there and what they were testing or tuning. Capture specifics.",
+    type: 'text',
+    category: 'general',
+  },
+  {
+    key: 'practice_match_performance',
+    label: 'Practice Match Performance',
+    description:
+      'Note whether the team competed in any practice matches and, if so, how they performed — scoring, reliability, and any issues observed.',
+    type: 'text',
+    category: 'general',
+  },
+  {
+    key: 'social_media_presence',
+    label: 'Social Media Presence',
+    description:
+      'Record any social media presence (Chief Delphi, Instagram, X, YouTube, etc.) and anything noteworthy related to their performance or reputation.',
+    type: 'text',
+    category: 'general',
+  },
   // Auto
   {
     key: 'auto_fuel_observed',
